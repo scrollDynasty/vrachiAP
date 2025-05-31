@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import ConsultationChat from '../components/ConsultationChat';
 import api from '../api';
 import useAuthStore from '../stores/authStore';
+import ReviewForm from '../components/ReviewForm';
 
 // Страница консультации
 function ConsultationPage() {
@@ -20,6 +21,7 @@ function ConsultationPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [doctorName, setDoctorName] = useState('Врач');
   const [patientName, setPatientName] = useState('Пациент');
+  const [doctorAvatar, setDoctorAvatar] = useState(null);
 
   const { user } = useAuthStore();
 
@@ -43,6 +45,11 @@ function ConsultationPage() {
         const doctorResponse = await api.get(`/doctors/${response.data.doctor_id}/profile`);
         if (doctorResponse.data && doctorResponse.data.full_name) {
           setDoctorName(doctorResponse.data.full_name);
+          
+          // Если есть аватар доктора, сохраняем его
+          if (doctorResponse.data.avatar_url) {
+            setDoctorAvatar(doctorResponse.data.avatar_url);
+          }
         }
         
         // Загружаем профиль пациента
@@ -307,10 +314,10 @@ function ConsultationPage() {
     });
     
     if (
-      consultation &&
-      consultation.status === 'completed' &&
-      isPatient &&
-      !hasReview &&
+      consultation && 
+      consultation.status === 'completed' && 
+      isPatient && 
+      !hasReview && 
       !hasReviewInLocalStorage &&
       !reviewShownRecently &&
       !isReviewModalOpen
@@ -362,135 +369,137 @@ function ConsultationPage() {
     (isDoctor || consultation.message_count < consultation.message_limit);
 
   return (
-    <div className="container mx-auto px-4">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Консультация
-          </h1>
-          <div className="flex gap-2 mt-1">
-            <Chip 
-              size="sm" 
-              color={
-                consultation.status === 'active' ? 'success' : 
-                consultation.status === 'completed' ? 'secondary' : 
-                'primary'
-              }
-            >
-              {consultation.status === 'active' ? 'Активна' : 
-               consultation.status === 'completed' ? 'Завершена' : 
-               'Ожидает начала'}
-            </Chip>
-            {isPatient && (
-              <Chip size="sm" color="primary">
-                Сообщений: {consultation.message_count}/{consultation.message_limit}
-              </Chip>
-            )}
-          </div>
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+      {loading ? (
+        <div className="flex justify-center items-center py-16">
+          <Spinner size="lg" color="primary" />
         </div>
-        
-        <div className="flex gap-2">
-          {/* Кнопка для начала консультации (только для врача) */}
-          {isDoctor && consultation.status === 'pending' && (
-            <Button 
-              color="success" 
-              onPress={startConsultation}
+      ) : error ? (
+        <Card>
+          <CardBody className="text-center text-danger py-8">
+            <p className="text-xl mb-4">😢 Произошла ошибка</p>
+            <p>{error}</p>
+            <Button
+              color="primary"
+              variant="light"
+              className="mt-4"
+              onPress={() => navigate('/history')}
             >
-              Начать консультацию
+              Вернуться к истории
             </Button>
-          )}
-          
-          <Button 
-            color="default" 
-            variant="light"
-            onPress={() => navigate('/history')}
-          >
-            К списку консультаций
-          </Button>
-        </div>
-      </div>
-      
-      {consultation.patient_note && isDoctor && (
-        <Card className="mb-6 shadow-sm">
-          <CardBody className="p-4">
-            <h3 className="text-md font-semibold mb-2">Сопроводительное письмо пациента:</h3>
-            <p className="text-gray-700">{consultation.patient_note}</p>
           </CardBody>
         </Card>
-      )}
-      
-      {/* Компонент чата */}
-      <ConsultationChat 
-        consultationId={consultationId} 
-        consultation={consultation}
-        onConsultationUpdated={handleConsultationUpdated}
-        canSendMessages={canSendMessages}
-        isDoctor={isDoctor}
-        isPatient={isPatient}
-        patientName={patientName}
-        doctorName={doctorName}
-      />
-      
-      {/* Модальное окно для отправки отзыва */}
-      <Modal 
-        isOpen={isReviewModalOpen && 
-               localStorage.getItem(`review_added_${consultationId}`) !== 'true'} 
-        onClose={() => setIsReviewModalOpen(false)}
-        closeButton={consultation?.status === 'completed' && !hasReview ? false : true}
-        isDismissable={consultation?.status === 'completed' && !hasReview ? false : true}
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">Оставить отзыв о консультации</ModalHeader>
-          <ModalBody>
-            <div className="mb-4">
-              <label className="block mb-2">
-                Оценка: <span className="text-red-500">*</span>
-              </label>
-              <div className="flex space-x-2 text-2xl">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span
-                    key={star}
-                    className={`cursor-pointer ${star <= reviewRating ? "text-yellow-500" : "text-gray-300"}`}
-                    onClick={() => setReviewRating(star)}
-                  >
-                    ★
-                  </span>
-                ))}
-              </div>
+      ) : consultation ? (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-semibold mb-2">
+                Консультация #{consultation.id}
+              </h1>
+              <p className="text-gray-600">
+                {new Date(consultation.created_at).toLocaleString()}
+              </p>
             </div>
-            
-            <div className="mb-4">
-              <label className="block mb-2">
-                Комментарий: <span className="text-red-500">*</span>
-              </label>
-              <Textarea
-                placeholder="Расскажите о вашем опыте консультации..."
-                value={reviewComment}
-                onChange={(e) => setReviewComment(e.target.value)}
-                isRequired
-              />
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            {!(consultation?.status === 'completed' && !hasReview) && (
-              <Button 
-                color="danger" 
-                variant="light" 
-                onPress={() => setIsReviewModalOpen(false)}
-              >
-                Отмена
-              </Button>
-            )}
             <Button 
               color="primary" 
-              onPress={submitReview}
-              isLoading={submittingReview}
+              variant="light"
+              className="hover:bg-primary-100 transition-all duration-300"
+              onPress={() => navigate('/history')}
+              startContent={<i className="fas fa-arrow-left"></i>}
             >
-              Отправить отзыв
+              К истории
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </div>
+          
+          {/* Кнопка начала консультации для врача */}
+          {isDoctor && consultation.status === 'pending' && (
+            <Card className="bg-gradient-to-r from-primary-50 to-blue-50 border-none shadow-sm">
+              <CardBody className="flex flex-row justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium mb-1">Консультация ожидает начала</h3>
+                  <p className="text-sm text-gray-600">
+                    Нажмите кнопку, чтобы начать консультацию с пациентом
+                  </p>
+                </div>
+                <Button 
+                  color="primary"
+                  onPress={startConsultation}
+                  className="shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+                  startContent={<i className="fas fa-play-circle"></i>}
+                >
+                  Начать консультацию
+                </Button>
+              </CardBody>
+            </Card>
+          )}
+          
+          {/* Чат консультации */}
+          <div className="h-[70vh]">
+            <ConsultationChat 
+              consultationId={consultationId}
+              consultation={consultation}
+              onConsultationUpdated={handleConsultationUpdated}
+              canSendMessages={consultation.status === 'active'}
+              isDoctor={isDoctor}
+              isPatient={isPatient}
+              patientName={patientName}
+              doctorName={doctorName}
+            />
+          </div>
+          
+          {/* Информация о лимитах сообщений */}
+          {isPatient && consultation.status !== 'completed' && (
+            <Card className="bg-gray-50 shadow-sm border-none">
+              <CardBody>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <i className="fas fa-info-circle text-primary-500"></i>
+                  <p>
+                    У вас есть лимит в {consultation.message_limit} сообщений для этой консультации.
+                    Используйте их разумно, чтобы получить максимальную пользу от консультации.
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+          
+          {/* Форма отзыва */}
+          {isPatient && consultation.status === 'completed' && !hasReview && (
+            <Card className="bg-gradient-to-r from-warning-50 to-warning-100 border-none shadow-sm animate-pulse">
+              <CardBody className="flex flex-row justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium mb-1">Оставьте отзыв о консультации</h3>
+                  <p className="text-sm text-gray-600">
+                    Ваш отзыв поможет улучшить качество консультаций и поможет другим пациентам
+                  </p>
+                </div>
+                <Button 
+                  color="warning"
+                  onPress={() => setIsReviewModalOpen(true)}
+                  className="shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+                  startContent={<i className="fas fa-star"></i>}
+                >
+                  Оставить отзыв
+                </Button>
+              </CardBody>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <p className="text-center">Консультация не найдена</p>
+      )}
+      
+      {/* Модальное окно для отзыва */}
+      <ReviewForm 
+        isOpen={isReviewModalOpen} 
+        onClose={() => setIsReviewModalOpen(false)} 
+        consultationId={consultationId}
+        onReviewSubmitted={() => {
+          setHasReview(true);
+          localStorage.setItem(`review_added_${consultationId}`, 'true');
+        }}
+        doctorName={doctorName}
+        doctorAvatar={doctorAvatar}
+      />
     </div>
   );
 }

@@ -145,16 +145,16 @@ function RegisterForm({ onSubmit, isLoading, error }) {
     const userData = {
       email: email.trim(),
       password,
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      district,
-      address: address.trim(),
-      medicalInfo: medicalInfo.trim(),
-      userType
+      role: userType,
+      full_name: fullName.trim(),
+      contact_phone: phone.trim(),
+      district: district,  // district уже является ID (числовым значением)
+      contact_address: address.trim(),
+      medical_info: medicalInfo.trim()
     };
     
     try {
-      console.log("RegisterForm: Submitting registration form");
+      console.log("RegisterForm: Submitting registration form with data:", userData);
       
       // Вызов функции регистрации из родительского компонента (обычно AuthPage.handleRegister)
       const result = await onSubmit(userData);
@@ -170,10 +170,35 @@ function RegisterForm({ onSubmit, isLoading, error }) {
       if (result && result.success === true && result.requiresEmailVerification) {
         // Сохраняем данные в локальное хранилище для возможного повторного использования
         try {
-          localStorage.setItem('vrach_registration_profile', JSON.stringify({
+          // Создаем объект с данными профиля
+          const profileData = {
             email: email.trim(),
+            fullName: fullName.trim(),
+            phone: phone.trim(),
+            district: district,  // сохраняем district как ID
+            address: address.trim(),
+            medicalInfo: medicalInfo.trim(),
             timestamp: new Date().toISOString()
-          }));
+          };
+          
+          // Логируем данные, которые сохраняем
+          console.log('Сохраняем данные профиля в localStorage:', profileData);
+          
+          // Сохраняем в localStorage
+          localStorage.setItem('vrach_registration_profile', JSON.stringify(profileData));
+          
+          // Проверяем, что данные сохранились корректно
+          const savedData = localStorage.getItem('vrach_registration_profile');
+          if (savedData) {
+            try {
+              const parsedData = JSON.parse(savedData);
+              console.log('Данные профиля успешно сохранены в localStorage:', parsedData);
+            } catch (parseError) {
+              console.error('Ошибка при парсинге сохраненных данных:', parseError);
+            }
+          } else {
+            console.error('Данные не были сохранены в localStorage');
+          }
         } catch (e) {
           console.error('Error saving registration data to localStorage:', e);
         }

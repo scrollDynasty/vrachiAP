@@ -591,6 +591,38 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
       }
    };
 
+   // Функция для преобразования ID района в его название
+   const getDistrictName = (districtId) => {
+      if (!districtId) return 'Не указано';
+      
+      // Статический список районов
+      const districtsList = [
+         "Алмазарский район",
+         "Бектемирский район",
+         "Мирабадский район",
+         "Мирзо-Улугбекский район",
+         "Сергелийский район",
+         "Учтепинский район",
+         "Чиланзарский район",
+         "Шайхантаурский район",
+         "Юнусабадский район",
+         "Яккасарайский район",
+         "Яшнабадский район"
+      ];
+      
+      // Если districtId - число и находится в пределах массива
+      if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
+         return districtsList[parseInt(districtId) - 1];
+      }
+      
+      // Если districtId совпадает с названием района, возвращаем его как есть
+      if (districtsList.includes(districtId)) {
+         return districtId;
+      }
+      
+      return districtId; // Если не удалось распознать, возвращаем как есть
+   };
+
    return (
       <motion.div 
          initial="hidden"
@@ -884,7 +916,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                        </div>
                                        <h4 className="text-sm font-semibold text-blue-600">Район</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{district || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{getDistrictName(district) || 'Не указано'}</p>
                                  </div>
                               </motion.div>
                            </div>
@@ -1044,7 +1076,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   <Select
                      label="Район"
                      placeholder="Выберите район"
-                     selectedKeys={district ? [district] : []}
+                     selectedKeys={district ? [district.toString()] : []}
                      onChange={(e) => setDistrict(e.target.value)}
                      variant="bordered"
                      radius="sm"
@@ -1059,17 +1091,17 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         </svg>
                      }
                   >
-                     <SelectItem key="Алмазарский район" textValue="Алмазарский район">Алмазарский район</SelectItem>
-                     <SelectItem key="Бектемирский район" textValue="Бектемирский район">Бектемирский район</SelectItem>
-                     <SelectItem key="Мирабадский район" textValue="Мирабадский район">Мирабадский район</SelectItem>
-                     <SelectItem key="Мирзо-Улугбекский район" textValue="Мирзо-Улугбекский район">Мирзо-Улугбекский район</SelectItem>
-                     <SelectItem key="Сергелийский район" textValue="Сергелийский район">Сергелийский район</SelectItem>
-                     <SelectItem key="Учтепинский район" textValue="Учтепинский район">Учтепинский район</SelectItem>
-                     <SelectItem key="Чиланзарский район" textValue="Чиланзарский район">Чиланзарский район</SelectItem>
-                     <SelectItem key="Шайхантаурский район" textValue="Шайхантаурский район">Шайхантаурский район</SelectItem>
-                     <SelectItem key="Юнусабадский район" textValue="Юнусабадский район">Юнусабадский район</SelectItem>
-                     <SelectItem key="Яккасарайский район" textValue="Яккасарайский район">Яккасарайский район</SelectItem>
-                     <SelectItem key="Яшнабадский район" textValue="Яшнабадский район">Яшнабадский район</SelectItem>
+                     <SelectItem key="1" value="1" textValue="Алмазарский район">Алмазарский район</SelectItem>
+                     <SelectItem key="2" value="2" textValue="Бектемирский район">Бектемирский район</SelectItem>
+                     <SelectItem key="3" value="3" textValue="Мирабадский район">Мирабадский район</SelectItem>
+                     <SelectItem key="4" value="4" textValue="Мирзо-Улугбекский район">Мирзо-Улугбекский район</SelectItem>
+                     <SelectItem key="5" value="5" textValue="Сергелийский район">Сергелийский район</SelectItem>
+                     <SelectItem key="6" value="6" textValue="Учтепинский район">Учтепинский район</SelectItem>
+                     <SelectItem key="7" value="7" textValue="Чиланзарский район">Чиланзарский район</SelectItem>
+                     <SelectItem key="8" value="8" textValue="Шайхантаурский район">Шайхантаурский район</SelectItem>
+                     <SelectItem key="9" value="9" textValue="Юнусабадский район">Юнусабадский район</SelectItem>
+                     <SelectItem key="10" value="10" textValue="Яккасарайский район">Яккасарайский район</SelectItem>
+                     <SelectItem key="11" value="11" textValue="Яшнабадский район">Яшнабадский район</SelectItem>
                   </Select>
                   <motion.div
                      className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded opacity-0 group-hover:opacity-100"

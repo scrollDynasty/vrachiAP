@@ -596,7 +596,9 @@ export const uploadAvatar = async (file) => {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    // Отправляем запрос с формой, указывая правильные заголовки для multipart/form-data
+    console.log('Загрузка аватара на эндпоинт: /users/me/avatar');
+    
+    // Отправляем запрос на единственный правильный эндпоинт
     const response = await api.post('/users/me/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

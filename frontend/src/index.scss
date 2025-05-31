@@ -1105,3 +1105,151 @@ button, .button, .nextui-button {
   scrollbar-width: thin;
   scrollbar-color: rgba(99, 102, 241, 0.5) rgba(247, 250, 252, 0.5);
 }
+
+/* Стили для чатов и отзывов */
+/* ----------------------------- */
+
+// Анимации для чатов
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes subtlePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes messageSentAnimation {
+  0% { background-color: rgba(59, 130, 246, 0.05); }
+  50% { background-color: rgba(59, 130, 246, 0.1); }
+  100% { background-color: rgba(59, 130, 246, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+// Применение анимаций
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-subtle-pulse {
+  animation: subtlePulse 2s infinite;
+}
+
+.message-sent-animation {
+  animation: messageSentAnimation 0.5s ease-out;
+}
+
+// Стили для чата
+.chat-messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    border: transparent;
+  }
+}
+
+// Эффекты наведения для сообщений чата
+.chat-message {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  &.is-my-message {
+    &:hover {
+      background: linear-gradient(to right, var(--primary-600), var(--primary-700));
+    }
+  }
+  
+  &.is-other-message {
+    &:hover {
+      background: linear-gradient(to right, #f9fafb, #f3f4f6);
+    }
+  }
+}
+
+// Стили для аватаров в чате
+.chat-avatar {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+// Стили для формы отзывов
+.review-form {
+  .rating-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    
+    &:hover {
+      transform: scale(1.2);
+    }
+    
+    &.active {
+      transform: scale(1.1);
+    }
+  }
+  
+  .emoji-rating {
+    font-size: 2rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.2) rotate(10deg);
+    }
+  }
+}
+
+// Градиенты для компонентов
+.gradient-primary-light {
+  background: linear-gradient(135deg, var(--primary-50), var(--blue-50));
+}
+
+.gradient-white {
+  background: linear-gradient(to bottom, #fff, #f9fafb);
+}
+
+.gradient-success-light {
+  background: linear-gradient(135deg, var(--success-50), var(--green-50));
+}
+
+.gradient-warning-light {
+  background: linear-gradient(135deg, var(--warning-50), var(--yellow-50));
+}
+
+// Эффект загрузки для контента
+.loading-shimmer {
+  background: linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0.05) 40%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}

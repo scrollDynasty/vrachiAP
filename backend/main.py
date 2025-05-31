@@ -43,6 +43,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from urllib.parse import urlencode
 import urllib.parse
+from sqlalchemy.exc import IntegrityError
 
 # Импортируем наши модели и функцию для получения сессии БД
 from models import (
@@ -701,19 +702,44 @@ def verify_email(
         )
 
     # Создаем нового пользователя на основе данных из pending_user
-    new_user = User(
-        email=pending_user.email,
-        hashed_password=pending_user.hashed_password,
-        is_active=True,  # Пользователь сразу активный, т.к. email подтвержден
-        role=pending_user.role,
-        auth_provider="email"
-    )
+    try:
+        # Для безопасности повторно проверяем, не появился ли пользователь с таким email
+        # пока мы обрабатывали запрос (конкурентный запрос)
+        existing_user = db.query(User).filter(User.email == pending_user.email).first()
+        if existing_user:
+            # Если пользователь уже существует, используем его
+            print(f"User {pending_user.email} already exists with ID: {existing_user.id}")
+            new_user = existing_user
+            # Пропускаем создание нового пользователя и идем дальше
+        else:
+            # Создаем нового пользователя
+            new_user = User(
+                email=pending_user.email,
+                hashed_password=pending_user.hashed_password,
+                is_active=True,  # Пользователь сразу активный, т.к. email подтвержден
+                role=pending_user.role,
+                auth_provider="email"
+            )
 
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    print(f"User {new_user.email} created with ID: {new_user.id} and role: {new_user.role}")
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            
+            print(f"User {new_user.email} created with ID: {new_user.id} and role: {new_user.role}")
+    except IntegrityError as e:
+        # Если произошла ошибка дублирования email
+        db.rollback()
+        print(f"IntegrityError creating user: {str(e)}")
+        # Находим существующего пользователя
+        existing_user = db.query(User).filter(User.email == pending_user.email).first()
+        if existing_user:
+            print(f"Found existing user with ID: {existing_user.id}")
+            new_user = existing_user
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Ошибка при создании пользователя: email уже существует, но пользователь не найден."
+            )
 
     # Если это пациент, создаем профиль пациента
     if pending_user.role == "patient":
@@ -727,18 +753,35 @@ def verify_email(
         ])
         
         if has_profile_data:
-            print(f"Creating patient profile for user {new_user.id}")
-            patient_profile = PatientProfile(
-                user_id=new_user.id,
-                full_name=pending_user.full_name,
-                contact_phone=pending_user.contact_phone,
-                district=pending_user.district,
-                contact_address=pending_user.contact_address,
-                medical_info=pending_user.medical_info
-            )
-            db.add(patient_profile)
-            db.commit()
-            print(f"Patient profile created for user {new_user.id}")
+            # Обработка создания профиля в отдельной транзакции
+            try:
+                with db.begin_nested():  # Создаем savepoint для возможного отката
+                    # Проверяем, существует ли уже профиль для этого пользователя
+                    existing_profile = db.query(PatientProfile).filter(PatientProfile.user_id == new_user.id).with_for_update().first()
+                    
+                    if existing_profile:
+                        print(f"Patient profile already exists for user {new_user.id}, skipping creation")
+                    else:
+                        print(f"Creating patient profile for user {new_user.id}")
+                        patient_profile = PatientProfile(
+                            user_id=new_user.id,
+                            full_name=pending_user.full_name,
+                            contact_phone=pending_user.contact_phone,
+                            district=pending_user.district,
+                            contact_address=pending_user.contact_address,
+                            medical_info=pending_user.medical_info
+                        )
+                        db.add(patient_profile)
+                        print(f"Patient profile created for user {new_user.id}")
+            except Exception as e:
+                # Если возникла ошибка, логируем её но продолжаем работу
+                print(f"Error creating patient profile: {str(e)}")
+                # Проверяем, был ли всё-таки создан профиль другим потоком
+                existing_profile = db.query(PatientProfile).filter(PatientProfile.user_id == new_user.id).first()
+                if existing_profile:
+                    print(f"Patient profile already exists or was created by another request for user {new_user.id}")
+                else:
+                    print(f"WARNING: Failed to create patient profile for user {new_user.id}")
 
     # Удаляем запись из таблицы pending_users
     db.delete(pending_user)
@@ -2604,10 +2647,12 @@ async def start_consultation(
             for connection in consultation_websocket_connections[consultation_id]:
                 try:
                     await connection.send_json({
-                        "type": "status_changed",
-                        "consultation_id": consultation_id,
-                        "status": "active",
-                        "updated_at": consultation.started_at.isoformat()
+                        "type": "status_update",  # Изменено с "status_changed" на "status_update"
+                        "consultation": {         # Изменена структура данных для соответствия клиентскому коду
+                            "id": consultation_id,
+                            "status": "active",
+                            "started_at": consultation.started_at.isoformat()
+                        }
                     })
                 except:
                     # Если возникла ошибка при отправке, пропускаем
@@ -2713,10 +2758,12 @@ async def complete_consultation(
     # Отправляем WebSocket уведомление
     try:
         await broadcast_consultation_update(consultation_id, {
-            "type": "status_changed",
-            "consultation_id": consultation_id,
-            "status": "completed",
-            "updated_at": consultation.completed_at.isoformat(),
+            "type": "status_update",  # Изменено с "status_changed" на "status_update"
+            "consultation": {         # Изменена структура данных для соответствия клиентскому коду
+                "id": consultation_id,
+                "status": "completed",
+                "completed_at": consultation.completed_at.isoformat()
+            },
             "initiator_id": current_user.id
         })
     except Exception as e:
@@ -5028,7 +5075,7 @@ async def websocket_notifications_endpoint(
             # Обязательно закрываем сессию БД
             db.close()
 
-if "AVATAR_DIR" in os.environ:
+# Эндпоинт для загрузки аватара пользователя
     # Эндпоинт для загрузки аватара пользователя
     @app.post("/users/me/avatar", status_code=status.HTTP_200_OK)
     async def upload_avatar(

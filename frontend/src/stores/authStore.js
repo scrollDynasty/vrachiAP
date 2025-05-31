@@ -599,6 +599,25 @@ const useAuthStore = create(
               // Очищаем все закешированные данные профиля из регистрации
               localStorage.removeItem('vrach_registration_profile');
               console.log('processGoogleAuth: Очищены кэшированные данные профиля');
+              
+              // Попробуем извлечь роль пользователя из токена
+              try {
+                // Простой парсинг JWT токена для получения полезной нагрузки
+                const tokenParts = token.split('.');
+                if (tokenParts.length === 3) {
+                  const payload = JSON.parse(atob(tokenParts[1]));
+                  console.log('processGoogleAuth: JWT payload:', payload);
+                  
+                  // Проверяем наличие роли в токене
+                  if (payload.role) {
+                    // Сохраняем роль пользователя в localStorage
+                    localStorage.setItem('user_role', payload.role);
+                    console.log(`processGoogleAuth: Роль пользователя (${payload.role}) сохранена в localStorage из токена`);
+                  }
+                }
+              } catch (tokenParseError) {
+                console.error('processGoogleAuth: Ошибка при разборе токена:', tokenParseError);
+              }
             } catch (tokenError) {
               console.error('processGoogleAuth: Error setting token:', tokenError);
             }
@@ -667,6 +686,13 @@ const useAuthStore = create(
               
               if (userResponse.status === 200 && userResponse.data) {
                 console.log('processGoogleAuth: User data received successfully');
+                
+                // Если в данных пользователя есть поле роли, сохраняем его в localStorage
+                if (userResponse.data.role) {
+                  localStorage.setItem('user_role', userResponse.data.role);
+                  console.log(`processGoogleAuth: Роль пользователя (${userResponse.data.role}) сохранена в localStorage из API`);
+                }
+                
                 // Обновляем состояние со всеми данными пользователя
                 set({ 
                   user: userResponse.data,
@@ -727,11 +753,42 @@ const useAuthStore = create(
 
           // Записываем токен в localStorage
           localStorage.setItem('auth_token', verificationData.access_token);
+          
+          // Проверяем токен, чтобы определить роль пользователя
+          try {
+            // Простой парсинг JWT токена для получения полезной нагрузки
+            const tokenParts = verificationData.access_token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              console.log('JWT payload:', payload);
+              
+              // Проверяем наличие роли в токене
+              if (payload.role) {
+                // Сохраняем роль пользователя в localStorage
+                localStorage.setItem('user_role', payload.role);
+                console.log(`Роль пользователя (${payload.role}) сохранена в localStorage`);
+              }
+            }
+          } catch (tokenError) {
+            console.error('Ошибка при разборе токена:', tokenError);
+          }
 
+          // Устанавливаем токен в заголовки API
+          setAuthToken(verificationData.access_token);
+            
+          // Небольшая задержка для применения токена
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           // Получаем данные пользователя с сервера
           try {
             const response = await api.get('/users/me');
             const userData = response.data;
+            
+            // Если роль пользователя есть в ответе сервера, сохраняем её
+            if (userData && userData.role) {
+              localStorage.setItem('user_role', userData.role);
+              console.log(`Роль пользователя из API (${userData.role}) сохранена в localStorage`);
+            }
 
             // Сохраняем данные пользователя
             set({
@@ -740,7 +797,7 @@ const useAuthStore = create(
               token: verificationData.access_token,
               pendingVerificationEmail: null
             });
-
+            
             // Показываем успешное уведомление
             if (alreadyVerified) {
               toast.success(`Email ${userEmail} уже подтвержден. Добро пожаловать!`, {
@@ -753,6 +810,57 @@ const useAuthStore = create(
                 autoClose: 3000
               });
             }
+            
+            // Задержка перед созданием профиля, чтобы убедиться, что все данные обновлены
+            setTimeout(async () => {
+              try {
+                // Проверяем, есть ли сохраненные данные профиля в localStorage
+                const registrationDataJson = localStorage.getItem('vrach_registration_profile');
+                if (registrationDataJson) {
+                  try {
+                    console.log('Найдены сохраненные данные профиля из регистрации, пробуем создать профиль');
+                    const registrationData = JSON.parse(registrationDataJson);
+                    
+                    if (registrationData && registrationData.email) {
+                      // Формируем данные профиля
+                      const profileData = {
+                        full_name: registrationData.fullName || '',
+                        contact_phone: registrationData.phone || '',
+                        contact_address: registrationData.address || '',
+                        district: registrationData.district || '1',
+                        medical_info: registrationData.medicalInfo || ''
+                      };
+                      
+                      // Делаем попытку создать профиль
+                      try {
+                        console.log('Отправка запроса на создание профиля:', profileData);
+                        const profileResponse = await api.post('/patients/profiles', profileData);
+                        
+                        if (profileResponse.status === 201 || profileResponse.status === 200) {
+                          console.log('Профиль успешно создан из данных регистрации:', profileResponse.data);
+                          
+                          // Обновляем флаг необходимости обновления профиля
+                          set({ needsProfileUpdate: false });
+                          
+                          // Показываем уведомление
+                          toast.success('Профиль успешно создан с данными из регистрации!', {
+                            position: "top-right",
+                            autoClose: 3000
+                          });
+                        }
+                      } catch (profileError) {
+                        console.error('Ошибка при создании профиля:', profileError);
+                        // Не удаляем данные регистрации в случае ошибки
+                      }
+                    }
+                  } catch (parseError) {
+                    console.error('Ошибка при парсинге данных регистрации:', parseError);
+                  }
+                }
+              } catch (profileError) {
+                console.error('Ошибка при работе с профилем:', profileError);
+              }
+            }, 1000);
 
             return { success: true };
           } catch (error) {
@@ -780,6 +888,101 @@ const useAuthStore = create(
             success: false, 
             error: error.message || 'Произошла ошибка при подтверждении email' 
           };
+        }
+      },
+      
+      // Функция для парсинга профиля из регистрационных данных
+      parseProfileFromRegistration: () => {
+        try {
+          // Пытаемся получить сохраненные данные профиля из localStorage
+          const registrationDataJson = localStorage.getItem('vrach_registration_profile');
+          if (!registrationDataJson) {
+            console.log('Нет сохраненных данных регистрации');
+            return null;
+          }
+          
+          // Парсим JSON
+          const registrationData = JSON.parse(registrationDataJson);
+          console.log('Прочитаны данные регистрации:', registrationData);
+          
+          // Проверяем валидность данных
+          if (!registrationData || !registrationData.email) {
+            console.warn('Некорректные данные регистрации:', registrationData);
+            return null;
+          }
+          
+          // Проверяем, не устарели ли данные (24 часа)
+          if (registrationData.timestamp) {
+            const timestamp = new Date(registrationData.timestamp);
+            const now = new Date();
+            const diff = now - timestamp;
+            const hours = diff / (1000 * 60 * 60);
+            
+            if (hours > 24) {
+              console.warn('Данные регистрации устарели:', hours.toFixed(2), 'часов');
+              // Не удаляем данные, просто возвращаем null
+              return null;
+            }
+          } else {
+            // Если нет метки времени, добавляем ее для будущих проверок
+            registrationData.timestamp = new Date().toISOString();
+            localStorage.setItem('vrach_registration_profile', JSON.stringify(registrationData));
+          }
+          
+          // Формируем данные профиля
+          const profileData = {
+            full_name: registrationData.fullName || '',
+            contact_phone: registrationData.phone || '',
+            contact_address: registrationData.address || '',
+            district: registrationData.district || '1', // Если район не указан, используем 1 по умолчанию
+            medical_info: registrationData.medicalInfo || ''
+          };
+          
+          // Логируем извлеченные данные
+          console.log('Извлечены данные профиля из регистрации:', profileData);
+          
+          return profileData;
+        } catch (error) {
+          console.error('Ошибка при парсинге данных регистрации:', error);
+          return null;
+        }
+      },
+      
+      // Функция для создания или обновления профиля пациента
+      createOrUpdatePatientProfile: async (profileData) => {
+        try {
+          console.log('Создание/обновление профиля пациента:', profileData);
+          
+          // Проверяем авторизацию
+          if (!get().isAuthenticated || !get().token) {
+            console.error('Нельзя создать профиль: пользователь не авторизован');
+            throw new Error('Вы не авторизованы');
+          }
+          
+          // Отправляем запрос на создание/обновление профиля
+          const response = await api.post('/patients/profiles', profileData);
+          
+          if (response.status === 201 || response.status === 200) {
+            console.log('Профиль успешно создан/обновлен:', response.data);
+            
+            // Обновляем данные пользователя, если нужно
+            if (response.data && response.data.avatar_path) {
+              const user = get().user;
+              if (user && user.avatar_path !== response.data.avatar_path) {
+                const updatedUser = { ...user, avatar_path: response.data.avatar_path };
+                set({ user: updatedUser });
+              }
+            }
+            
+            // Возвращаем данные профиля
+            return response.data;
+          } else {
+            console.warn('Неожиданный ответ при создании профиля:', response);
+            throw new Error('Неожиданный ответ сервера');
+          }
+        } catch (error) {
+          console.error('Ошибка при создании/обновлении профиля:', error);
+          throw error;
         }
       }
     }),

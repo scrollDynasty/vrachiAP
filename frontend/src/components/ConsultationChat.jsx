@@ -97,32 +97,119 @@ const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) =>
   
   // CSS классы для сообщения в зависимости от статуса
   const messageClasses = `
-    px-4 py-2 rounded-lg max-w-[70%] 
+    px-4 py-3 rounded-2xl shadow-sm max-w-[70%] 
     ${isMyMessage ? 
-      (message.temporary ? 'bg-blue-300' : 'bg-primary') : 
-      'bg-gray-100'
+      (message.temporary ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-primary-500 to-primary-600') : 
+      'bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200'
     } 
-    ${isMyMessage ? 'text-white' : ''}
+    ${isMyMessage ? 'text-white' : 'text-gray-800'}
     transition-all duration-300 ease-in-out
+    hover:shadow-md
     ${!message.temporary && 'animate-fade-in'}
+    ${message.temporary ? 'opacity-80' : 'opacity-100'}
   `;
   
   return (
-    <div className={`flex mb-4 ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex mb-4 ${isMyMessage ? 'justify-end' : 'justify-start'} animate-slide-in`}>
       {!isMyMessage && (
-        <Avatar src={avatarUrl} className="mr-2" size="sm" />
+        <Avatar 
+          src={avatarUrl} 
+          className="mr-2 ring-2 ring-gray-200 ring-offset-2 shadow-sm transition-all duration-300" 
+          size="sm" 
+        />
       )}
       <div className={messageClasses.trim()}>
-        <div className="text-sm">{message.content}</div>
+        <div className="text-sm font-medium">{message.content}</div>
         <div className={`text-xs mt-1 flex items-center ${isMyMessage ? 'text-blue-100' : 'text-gray-500'}`}>
           {formatTime(message.sent_at)}
           {renderMessageStatus()}
         </div>
       </div>
       {isMyMessage && (
-        <Avatar src={avatarUrl} className="ml-2" size="sm" />
+        <Avatar 
+          src={avatarUrl} 
+          className="ml-2 ring-2 ring-primary-200 ring-offset-2 shadow-sm transition-all duration-300" 
+          size="sm" 
+        />
       )}
     </div>
+  );
+};
+
+// Добавляю компонент с защитным рендерингом для обработки ошибок
+const SafeRender = ({ children, fallback }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const errorHandler = (error) => {
+      console.error('[SafeRender] Поймана ошибка:', error);
+      setHasError(true);
+      return true;
+    };
+
+    // Регистрируем глобальный обработчик ошибок
+    window.addEventListener('error', errorHandler);
+    
+    return () => {
+      window.removeEventListener('error', errorHandler);
+    };
+  }, []);
+
+  if (hasError) {
+    return fallback || (
+      <div className="p-4 bg-danger-50 rounded-lg">
+        <p className="text-danger-700">Произошла ошибка при отображении. Попробуйте перезагрузить страницу.</p>
+      </div>
+    );
+  }
+
+  return children;
+};
+
+// Функция для безопасного рендеринга анимаций
+const SafeStyles = () => {
+  return (
+    <style>
+      {`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slide-in {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes subtle-pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes message-sent-animation {
+          0% { background-color: rgba(59, 130, 246, 0.05); }
+          50% { background-color: rgba(59, 130, 246, 0.1); }
+          100% { background-color: rgba(59, 130, 246, 0); }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+        
+        .animate-subtle-pulse {
+          animation: subtle-pulse 2s infinite;
+        }
+        
+        .message-sent-animation {
+          animation: message-sent-animation 0.5s ease-out;
+        }
+      `}
+    </style>
   );
 };
 
@@ -213,7 +300,130 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     }
   };
 
-  // Эффект для инициализации чата
+  // Удаляю функцию sendMessageViaREST и упрощаю sendMessage, оставляя только WebSocket
+  const sendMessage = async (content) => {
+    if (!content.trim() || !consultationId) return;
+    
+    // Создаем временное сообщение для мгновенного отображения
+    const tempId = `temp-${Date.now()}`;
+    const temporaryMessage = {
+      id: tempId,
+      content: content.trim(),
+      sender_id: user?.id,
+      consultation_id: Number(consultationId),
+      sent_at: new Date().toISOString(),
+      is_read: false,
+      temporary: true
+    };
+    
+    // Добавляем временное сообщение в список мгновенно
+    setMessages(prevMessages => [...prevMessages, temporaryMessage]);
+    
+    // Прокручиваем к новому сообщению сразу
+    scrollToBottom();
+    
+    try {
+      // Получаем WebSocket соединение
+      const wsConnection = await webSocketService.getConsultationConnection(
+        consultationId,
+        handleWebSocketMessage,
+        updateConnectionStatus
+      );
+      
+      if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        // Отправляем сообщение через WebSocket
+        wsConnection.send(JSON.stringify({
+          type: 'message',
+          content: content.trim(),
+          temp_id: tempId
+        }));
+        
+        console.log(`[WebSocket] Сообщение отправлено: ${content.trim()}`);
+      } else {
+        console.error('[WebSocket] Соединение не установлено');
+        toast.error('Соединение с сервером потеряно. Попробуйте позже.');
+        
+        // Удаляем временное сообщение
+        setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
+      }
+    } catch (error) {
+      console.error('[Chat] Ошибка при отправке сообщения:', error);
+      toast.error('Не удалось отправить сообщение. Попробуйте еще раз.');
+      
+      // Удаляем временное сообщение
+      setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
+    }
+    
+    // Очищаем поле ввода
+    setNewMessage('');
+  };
+
+  // Инициализация чата - оставляем только WebSocket логику
+  const initializeChat = async () => {
+    try {
+      setLoading(true);
+      
+      // Пробуем загрузить историю сообщений через REST API сразу
+      try {
+        console.log(`[Chat] Загрузка истории сообщений через REST API для консультации ${consultationId}`);
+        const messagesResponse = await api.get(`/api/consultations/${consultationId}/messages`);
+        
+        if (messagesResponse.data && Array.isArray(messagesResponse.data)) {
+          console.log(`[Chat] Получено ${messagesResponse.data.length} сообщений через REST API`);
+          
+          // Сортируем сообщения по времени
+          const sortedMessages = messagesResponse.data.sort((a, b) => {
+            return new Date(a.sent_at) - new Date(b.sent_at);
+          });
+          
+          setMessages(sortedMessages);
+          
+          // Обновляем время последней синхронизации
+          setLastSyncTime(new Date());
+          
+          // Прокручиваем к последнему сообщению после небольшой задержки
+          setTimeout(scrollToBottom, 100);
+        } else {
+          console.log(`[Chat] Не удалось получить сообщения через REST API или список пуст`);
+        }
+      } catch (restError) {
+        console.error(`[Chat] Ошибка при загрузке сообщений через REST API:`, restError);
+      }
+      
+      // Инициализируем WebSocket соединение
+      if (!wsInitializedRef.current) {
+        console.log(`[Chat] Создание нового WebSocket соединения для консультации ${consultationId}`);
+        
+        // Запрашиваем токен для WebSocket и создаем соединение
+        const wsConnection = await webSocketService.getConsultationConnection(
+          consultationId,
+          handleWebSocketMessage,
+          updateConnectionStatus
+        );
+        
+        if (wsConnection) {
+          console.log('[Chat] WebSocket соединение успешно установлено');
+          wsInitializedRef.current = true;
+        } else {
+          console.warn('[WebSocket] Не удалось установить WebSocket соединение');
+          toast.error('Не удалось установить соединение с сервером.', {
+            id: 'ws-connection-error',
+            duration: 4000
+          });
+          updateConnectionStatus('error', 'Не удалось установить соединение с сервером');
+        }
+      } else {
+        console.log(`[Chat] WebSocket соединение для консультации ${consultationId} уже инициализировано`);
+      }
+    } catch (error) {
+      console.error('[Chat] Ошибка при инициализации чата:', error);
+      toast.error('Ошибка при загрузке чата. Попробуйте обновить страницу.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Эффект для инициализации чата при монтировании
   useEffect(() => {
     // Если нет ID консультации или данных консультации, не делаем ничего
     if (!consultationId || !consultation) {
@@ -226,40 +436,8 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     isUnmounting.current = false;
     disableReconnect.current = false;
     
-    // Инициализируем только WebSocket, без загрузки истории через REST API
-    const initializeChat = async () => {
-      try {
-        setLoading(true);
-        
-        // Проверяем, инициализировано ли соединение уже
-        if (!wsInitializedRef.current) {
-          console.log(`[Chat] Создание нового WebSocket соединения для консультации ${consultationId}`);
-          
-          // Запрашиваем только токен для WebSocket без загрузки истории через REST API
-          const wsConnection = await webSocketService.getConsultationConnection(
-            consultationId,
-            handleWebSocketMessage,
-            updateConnectionStatus
-          );
-          
-          if (wsConnection) {
-            console.log('[Chat] WebSocket соединение успешно установлено');
-            wsInitializedRef.current = true;
-            // История будет загружена через WebSocket
-          } else {
-            console.warn('[WebSocket] Не удалось установить WebSocket соединение');
-            toast.error('Ошибка соединения с сервером. Попробуйте обновить страницу.');
-          }
-        } else {
-          console.log(`[Chat] WebSocket соединение для консультации ${consultationId} уже инициализировано`);
-        }
-      } catch (error) {
-        console.error('[Chat] Ошибка при инициализации чата:', error);
-        toast.error('Ошибка при загрузке чата. Попробуйте обновить страницу.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Сбрасываем статусное сообщение перед инициализацией
+    setStatusMessage(null);
     
     // Запускаем инициализацию
     initializeChat();
@@ -378,15 +556,26 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     
     if (status === 'disconnected' || status === 'error') {
       if (message) {
-        toast.error(message, { id: 'connection-error', duration: 3000 });
+        // Показываем toast только при первоначальной ошибке подключения и только один раз
+        const toastId = 'connection-error';
+        if (!toast.isActive(toastId) && messages.length === 0) {
+          toast.error(message, { id: toastId, duration: 3000 });
+        }
       }
-      // Если есть сохраненные сообщения, показываем уведомление о режиме offline
+      
+      // Если есть сообщения, показываем уведомление о кеше, но не об ошибке соединения
       if (messages.length > 0) {
-        setStatusMessage(`Нет соединения с сервером (Последняя синхронизация: ${new Date().toLocaleTimeString()})`);
+        setStatusMessage(`Сообщения загружены из кэша`);
+      } else {
+        // Устанавливаем статусное сообщение только если оно еще не установлено,
+        // чтобы избежать дублирования
+        if (!statusMessage) {
+          setStatusMessage('Не удалось подключиться к серверу');
+        }
       }
     } else if (status === 'connected') {
       setStatusMessage(null);
-    } else {
+    } else if (status === 'connecting' && !statusMessage) {
       setStatusMessage('Подключение к серверу...');
     }
   };
@@ -873,64 +1062,6 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     });
   };
 
-  // Отправка сообщения через WebSocket
-  const sendMessage = async (content) => {
-    if (!content.trim() || !consultationId) return;
-    
-    // Создаем временное сообщение для мгновенного отображения
-    const tempId = `temp-${Date.now()}`;
-    const temporaryMessage = {
-      id: tempId,
-      content: content.trim(),
-      sender_id: user?.id,
-      consultation_id: Number(consultationId),
-      sent_at: new Date().toISOString(),
-      is_read: false,
-      temporary: true
-    };
-    
-    // Добавляем временное сообщение в список мгновенно
-    setMessages(prevMessages => [...prevMessages, temporaryMessage]);
-    
-    // Прокручиваем к новому сообщению сразу
-    scrollToBottom();
-    
-    // Получаем WebSocket соединение из сервиса
-    const wsConnection = await webSocketService.getConsultationConnection(
-      consultationId,
-      handleWebSocketMessage,
-      updateConnectionStatus
-    );
-    
-    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-      try {
-        // Отправляем сообщение через WebSocket
-        wsConnection.send(JSON.stringify({
-          type: 'message',
-          content: content.trim(),
-          temp_id: tempId
-        }));
-        
-        console.log(`[WebSocket] Сообщение отправлено: ${content.trim()}`);
-      } catch (error) {
-        console.error('[WebSocket] Ошибка при отправке сообщения:', error);
-        toast.error('Не удалось отправить сообщение. Попробуйте еще раз.');
-        
-        // Удаляем временное сообщение
-        setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
-      }
-    } else {
-      console.error('[WebSocket] Соединение не установлено');
-      toast.error('Соединение с сервером потеряно. Переподключение...');
-      
-      // Удаляем временное сообщение
-      setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
-    }
-    
-    // Очищаем поле ввода
-    setNewMessage('');
-  };
-  
   // Отметка всех сообщений в консультации как прочитанных
   const markAllMessages = async () => {
     if (!consultationId || !user?.id) return;
@@ -952,7 +1083,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       }
     }
   };
-  
+
   // Отметка сообщения как прочитанного через WebSocket
   const markMessageReadViaREST = async (messageId) => {
     const wsConnection = await webSocketService.getConsultationConnection(
@@ -979,7 +1110,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       }
     }
   };
-  
+
   // Обработчик клавиш в поле ввода (отправка по Enter)
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -990,202 +1121,336 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
 
   // Обработка отправки сообщения
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !canSendMessages) return;
+    if (!newMessage.trim()) return;
     
+    // Очищаем поле ввода
+    const messageText = newMessage;
+    setNewMessage('');
+    
+    // Фокусируемся на текстовом поле для продолжения ввода
+    textareaRef.current?.focus();
+    
+    // Анимация отправки
     try {
-      // Отправляем сообщение и получаем результат
-      await sendMessage(newMessage);
+      await sendMessage(messageText);
       
-      // Устанавливаем фокус обратно на поле ввода
-      if (textareaRef.current) {
-        textareaRef.current.focus();
+      // Добавляем анимацию при успешной отправке
+      const chatContainer = document.querySelector('.chat-messages-container');
+      if (chatContainer) {
+        chatContainer.classList.add('message-sent-animation');
+        setTimeout(() => {
+          chatContainer.classList.remove('message-sent-animation');
+        }, 500);
       }
     } catch (error) {
       console.error('Ошибка при отправке сообщения:', error);
-      // Ошибка уже будет показана в sendMessage
+      toast.error('Не удалось отправить сообщение');
+      
+      // Возвращаем текст в поле ввода при ошибке
+      setNewMessage(messageText);
     }
   };
 
-  if (loading || !consultation) {
+  // Обработка ошибок рендеринга
+  const [renderError, setRenderError] = useState(null);
+  
+  // Проверяем наличие отзыва в localStorage при монтировании компонента
+  useEffect(() => {
+    const checkReviewInStorage = () => {
+      try {
+        // Проверяем общий список отзывов
+        const reviewsFromStorage = localStorage.getItem('consultation_reviews');
+        if (reviewsFromStorage) {
+          const reviews = JSON.parse(reviewsFromStorage);
+          // Если есть отзыв для текущей консультации
+          if (reviews && reviews[consultationId]) {
+            console.log('[Chat] Найден отзыв в localStorage для консультации', consultationId);
+            setHasReview(true);
+            return;
+          }
+        }
+        
+        // Проверяем также отдельный ключ для текущей консультации (для обратной совместимости)
+        const reviewKey = `consultation_${consultationId}_review`;
+        const reviewData = localStorage.getItem(reviewKey);
+        if (reviewData) {
+          console.log('[Chat] Найден отзыв в localStorage (старый формат) для консультации', consultationId);
+          setHasReview(true);
+        }
+      } catch (e) {
+        console.error('[Chat] Ошибка при проверке наличия отзыва:', e);
+      }
+    };
+    
+    // Проверяем наличие отзыва при монтировании
+    checkReviewInStorage();
+  }, [consultationId]);
+  
+  try {
+    if (renderError) {
+      return (
+        <div className="flex flex-col justify-center items-center h-full p-5 bg-danger-50 rounded-lg">
+          <div className="mb-3 text-danger">
+            <i className="fas fa-exclamation-triangle text-3xl"></i>
+          </div>
+          <h3 className="text-xl font-medium mb-2">Ошибка отображения чата</h3>
+          <p className="text-gray-600 text-center mb-4">{renderError.message || 'Произошла неизвестная ошибка'}</p>
+          <Button 
+            color="primary" 
+            onClick={() => window.location.reload()}
+          >
+            Перезагрузить страницу
+          </Button>
+        </div>
+      );
+    }
+    
+    if (loading || !consultation) {
+      return (
+        <div className="h-full flex flex-col justify-center items-center bg-white rounded-lg p-6">
+          <Spinner size="lg" color="primary" />
+          <p className="mt-4 text-gray-600">Загрузка чата...</p>
+          <p className="text-xs text-gray-400 mt-2">Если загрузка занимает слишком много времени, попробуйте обновить страницу</p>
+        </div>
+      );
+    }
+    
     return (
-      <div className="flex justify-center items-center h-64">
-        <Spinner size="lg" color="primary" />
+      <SafeRender
+        fallback={
+          <Card className="h-full flex flex-col">
+            <CardHeader className="border-b">
+              <div className="flex justify-between items-center w-full">
+                <h3 className="text-lg">Чат консультации</h3>
+                <Button 
+                  color="primary" 
+                  size="sm" 
+                  onPress={() => window.location.reload()}
+                >
+                  Перезагрузить
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody className="flex-grow flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-danger mb-3">
+                  <i className="fas fa-exclamation-triangle text-3xl"></i>
+                </div>
+                <h3 className="text-xl mb-2">Ошибка отображения чата</h3>
+                <p className="text-gray-600 mb-4">Произошла неожиданная ошибка при загрузке чата</p>
+              </div>
+            </CardBody>
+          </Card>
+        }
+      >
+        <Card className="h-full flex flex-col bg-gradient-to-b from-gray-50 to-white shadow-lg border-none overflow-hidden">
+          <CardHeader className="px-4 py-3 flex justify-between items-center bg-gradient-to-r from-primary-50 to-blue-50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-primary-100 p-2 mr-3">
+                {isDoctor ? (
+                  <i className="fas fa-user-md text-primary-500"></i>
+                ) : (
+                  <i className="fas fa-stethoscope text-primary-500"></i>
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-medium">
+                  {isDoctor ? patientName : doctorName}
+                </h3>
+                <div className="flex items-center">
+                  <Badge 
+                    color={consultation?.status === 'active' ? 'success' : 
+                          consultation?.status === 'completed' ? 'default' : 'warning'} 
+                    variant="flat"
+                    className="mr-2"
+                  >
+                    {consultation?.status === 'active' ? 'Активна' : 
+                      consultation?.status === 'completed' ? 'Завершена' : 'Ожидание'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            
+            {/* Индикатор статуса соединения */}
+            {statusMessage && connectionStatus !== 'connected' && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-sm animate-fade-in">
+                <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <span className="text-gray-600">{statusMessage}</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
+              {/* Кнопка отзыва - показываем только если консультация завершена, пользователь - пациент и отзыв еще НЕ оставлен */}
+              {isPatient && consultation?.status === 'completed' && !hasReview && (
+                <Button 
+                  size="sm" 
+                  color="warning" 
+                  variant="flat"
+                  className="animate-pulse hover:animate-none transition-all duration-300"
+                  onPress={() => setIsCompleteModalOpen(true)}
+                >
+                  Оставить отзыв
+                </Button>
+              )}
+              
+              {isDoctor && consultation?.status === 'active' && (
+                <Button 
+                  size="sm" 
+                  color="danger" 
+                  variant="light"
+                  className="hover:bg-danger-100 transition-all duration-300"
+                  onPress={() => setIsCompleteModalOpen(true)}
+                >
+                  Завершить
+                </Button>
+              )}
+              
+              <Button 
+                size="sm" 
+                color="primary" 
+                variant="light"
+                isIconOnly
+                aria-label="Обновить чат"
+                onPress={initializeChat}
+                className="rounded-full"
+              >
+                <i className="fas fa-sync-alt"></i>
+              </Button>
+            </div>
+          </CardHeader>
+          
+          <CardBody className="p-0 flex-grow flex flex-col overflow-hidden">
+            {isPatient && consultation?.message_limit > 0 && (
+              <div className="px-4 py-2 bg-default-50 border-b border-default-100">
+                <div className="flex justify-between items-center text-xs text-default-600 mb-1">
+                  <span>Лимит сообщений: {patientMessageCount} из {consultation.message_limit}</span>
+                  <span>{messageCountProgress}%</span>
+                </div>
+                <div className="w-full bg-default-200 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                      messageCountProgress > 80 ? 'bg-danger-500' : 
+                      messageCountProgress > 60 ? 'bg-warning-500' : 'bg-success-500'
+                    }`}
+                    style={{ width: `${messageCountProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+            
+            {loading ? (
+              <div className="flex-grow flex items-center justify-center p-4">
+                <Spinner label="Загрузка сообщений..." color="primary" labelColor="primary" />
+              </div>
+            ) : (
+              <>
+                <div className="flex-grow overflow-y-auto p-4 chat-messages-container bg-gray-50 bg-opacity-50">
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 p-6">
+                      <div className="w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-gray-100">
+                        <i className="fas fa-comments text-2xl text-gray-400"></i>
+                      </div>
+                      <p className="text-lg mb-2">Нет сообщений</p>
+                      <p className="text-sm">
+                        {canSendMessages ? 
+                          'Начните диалог, отправив первое сообщение' : 
+                          'Дождитесь начала консультации'}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {messages.map((message, index) => (
+                        <ChatMessage
+                          key={message.id || `temp-${index}`}
+                          message={message}
+                          currentUserId={user?.id}
+                          patientAvatar={patientAvatar}
+                          doctorAvatar={doctorAvatar}
+                        />
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+                
+                <div className="p-4 border-t border-gray-100 bg-white relative">
+                  {statusMessage && connectionStatus !== 'connected' && (
+                    <div className="absolute -top-8 left-0 right-0 mx-auto w-max px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs animate-fade-in shadow-sm">
+                      {statusMessage}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-end gap-2">
+                    <Textarea
+                      ref={textareaRef}
+                      fullWidth
+                      placeholder={
+                        !canSendMessages ? "Отправка сообщений недоступна" :
+                        isMessageLimitReached ? "Достигнут лимит сообщений" :
+                        "Введите сообщение..."
+                      }
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      disabled={!canSendMessages || isMessageLimitReached}
+                      minRows={1}
+                      maxRows={4}
+                      className={`transition-all duration-300 ${!canSendMessages ? 'opacity-50' : 'hover:border-primary-300 focus:border-primary-500'}`}
+                    />
+                    <Button
+                      color="primary"
+                      isIconOnly
+                      size="lg"
+                      className={`min-w-12 h-12 shadow-md hover:shadow-lg transition-all duration-300 ${
+                        !canSendMessages || !newMessage.trim() ? 'opacity-50' : 'animate-subtle-pulse'
+                      }`}
+                      onPress={handleSendMessage}
+                      disabled={!canSendMessages || !newMessage.trim() || isMessageLimitReached}
+                    >
+                      <i className="fas fa-paper-plane"></i>
+                    </Button>
+                  </div>
+                  
+                  {isMessageLimitReached && (
+                    <div className="mt-2 text-center text-xs text-danger-500 animate-pulse">
+                      <i className="fas fa-exclamation-circle mr-1"></i>
+                      Вы достигли лимита сообщений для этой консультации
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </CardBody>
+          
+          <SafeStyles />
+        </Card>
+      </SafeRender>
+    );
+  } catch (error) {
+    console.error('[Chat] Ошибка при рендеринге компонента:', error);
+    // Сохраняем ошибку в состоянии для следующего рендера
+    setRenderError(error);
+    
+    // Отображаем минимальную заглушку в случае ошибки
+    return (
+      <div className="flex justify-center items-center h-64 bg-danger-50 rounded-lg">
+        <div className="text-center p-5">
+          <div className="mb-3 text-danger">
+            <i className="fas fa-exclamation-triangle text-3xl"></i>
+          </div>
+          <p className="text-gray-700">Ошибка отображения чата</p>
+          <Button 
+            color="primary" 
+            size="sm"
+            className="mt-3"
+            onClick={() => window.location.reload()}
+          >
+            Перезагрузить
+          </Button>
+        </div>
       </div>
     );
   }
-
-  return (
-    <div className="relative flex flex-col h-[70vh] max-h-[700px] w-full bg-white rounded-xl shadow-md mb-6 border border-gray-200">
-      <div className="chat-header flex justify-between items-center p-3 bg-blue-50 rounded-t-lg">
-        <div className="flex items-center">
-          <span className="text-md font-semibold">
-            {isDoctor ? `Пациент: ${patientName || 'Неизвестный пациент'}` : `Врач: ${doctorName || 'Неизвестный врач'}`}
-          </span>
-          <Badge
-            color={connectionStatus === 'connected' ? 'success' : connectionStatus === 'connecting' ? 'warning' : 'danger'}
-            content={connectionStatus === 'connected' ? 'Онлайн' : connectionStatus === 'connecting' ? 'Подключение...' : 'Оффлайн'}
-            placement="bottom-right"
-            className="ml-2"
-          />
-        </div>
-        
-        {/* Счетчик сообщений для пациента */}
-        {isPatient && consultation && (
-          <div className={`flex items-center text-sm font-medium ${isMessageLimitReached ? 'bg-red-100 px-2 py-1 rounded animate-pulse' : ''}`}>
-            <div className="mr-2">
-              Сообщений: <span className={isMessageLimitReached ? 'text-red-600 font-bold' : patientMessageCount > consultation.message_limit * 0.8 ? 'text-orange-500 font-semibold' : ''}>
-                {patientMessageCount}/{consultation.message_limit}
-              </span>
-            </div>
-            <div className="w-24 h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${
-                  isMessageLimitReached ? 'bg-red-600' : 
-                  messageCountProgress > 90 ? 'bg-red-500' : 
-                  messageCountProgress > 75 ? 'bg-orange-500' : 
-                  messageCountProgress > 50 ? 'bg-yellow-500' : 
-                  'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(messageCountProgress, 100)}%` }}
-              ></div>
-            </div>
-            
-            {/* Предупреждение о достижении лимита */}
-            {isMessageLimitReached && (
-              <div className="ml-2 text-xs text-red-600 font-bold animate-pulse">
-                Лимит достигнут!
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="flex items-center">
-          <Chip
-            color={consultation.status === 'active' ? 'success' : consultation.status === 'pending' ? 'warning' : 'default'}
-            variant="flat"
-            size="sm"
-          >
-            {consultation.status === 'active' ? 'Активна' : 
-             consultation.status === 'pending' ? 'Ожидает' : 
-             consultation.status === 'completed' ? 'Завершена' : 'Неизвестно'}
-          </Chip>
-          
-          {isDoctor && consultation.status === 'active' && (
-            <Button
-              color="danger"
-              variant="light"
-              size="sm"
-              className="ml-2"
-              onClick={() => setIsCompleteModalOpen(true)}
-            >
-              Завершить
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      {/* Статус соединения */}
-      {statusMessage && (
-        <div className="p-2 bg-yellow-50 border-b border-yellow-100 text-center text-sm">
-          <div className="flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span className="text-yellow-800">{statusMessage}</span>
-          </div>
-        </div>
-      )}
-      
-      <div className="flex-1 overflow-y-auto p-4 bg-white" style={{ minHeight: 0 }}>
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Spinner size="lg" color="primary" />
-          </div>
-        ) : messages.length === 0 ? (
-          <p className="text-center text-gray-500 py-4">
-            {consultation.status === 'pending' || consultation.status === 'waiting' 
-              ? (isPatient ? 'Ожидается начало консультации врачом' : 'Нажмите "Начать консультацию" для запуска чата')
-              : 'Нет сообщений. Начните диалог!'}
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <ChatMessage 
-                key={message.id}
-                message={message}
-                currentUserId={user?.id}
-                patientAvatar={patientAvatar}
-                doctorAvatar={doctorAvatar}
-              />
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-      <div className="p-4 border-t bg-gray-50 rounded-b-xl sticky bottom-0 z-10">
-        {connectionStatus !== 'connected' && (
-          <div className={`text-xs mb-2 text-center ${connectionStatus === 'connecting' ? 'text-blue-500' : 'text-red-500'}`}>
-            {connectionStatus === 'connecting' 
-              ? 'Соединение с сервером...' 
-              : 'Нет соединения с сервером'}
-            {lastSyncTime && (
-              <span className="ml-1">
-                (Последняя синхронизация: {new Date(lastSyncTime).toLocaleTimeString()})
-              </span>
-            )}
-          </div>
-        )}
-        
-        {canSendMessages ? (
-          <div className="flex w-full gap-2">
-            <Input
-              fullWidth
-              placeholder="Введите сообщение..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={consultation.status === 'completed'}
-              ref={textareaRef}
-            />
-            <Button 
-              color="primary"
-              onPress={handleSendMessage}
-              disabled={consultation.status === 'completed' || !newMessage.trim()}
-            >
-              Отправить
-            </Button>
-          </div>
-        ) : (
-          <p className="text-center w-full text-gray-500">
-            {consultation.status === 'completed' 
-              ? 'Консультация завершена'
-              : isPatient && (consultation.status === 'pending' || consultation.status === 'waiting')
-                ? 'Ожидается начало консультации врачом'
-                : isPatient && consultation.message_count >= consultation.message_limit
-                  ? 'Достигнут лимит сообщений'
-                  : 'Отправка сообщений недоступна'}
-          </p>
-        )}
-      </div>
-      {/* Модальное окно для подтверждения завершения консультации */}
-      <Modal isOpen={isCompleteModalOpen} onClose={() => setIsCompleteModalOpen(false)}>
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">Завершение консультации</ModalHeader>
-          <ModalBody>
-            <p>Вы уверены, что хотите завершить эту консультацию? После завершения дальнейшее общение будет недоступно.</p>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setIsCompleteModalOpen(false)}>
-              Отмена
-            </Button>
-            <Button color="danger" onPress={completeConsultation}>
-              Завершить
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </div>
-  );
 }
 
 export default ConsultationChat; 

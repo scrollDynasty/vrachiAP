@@ -6,6 +6,7 @@ import useAuthStore from '../stores/authStore';
 import GoogleProfileForm from '../components/GoogleProfileForm';
 import { ApplicationStatusTracker } from '../components/Notification';
 import { motion, AnimatePresence } from 'framer-motion';
+import AvatarWithFallback from '../components/AvatarWithFallback';
 
 function HomePage() {
   const user = useAuthStore(state => state.user);
@@ -418,10 +419,31 @@ function HomePage() {
                 
                 console.log('HomePage: Final avatar URL:', avatarUrl);
                 
+                // Получаем имя для инициалов из всех возможных источников
+                let userName = '';
+                if (user?.full_name) {
+                  userName = user.full_name;
+                } else if (user?.firstName && user?.lastName) {
+                  userName = `${user.firstName} ${user.lastName}`;
+                } else if (user?.name) {
+                  userName = user.name;
+                } else if (user?.profile?.full_name) {
+                  userName = user.profile.full_name;
+                } else if (user?.profile?.firstName && user?.profile?.lastName) {
+                  userName = `${user.profile.firstName} ${user.profile.lastName}`;
+                } else if (user?.email) {
+                  // Если нет имени, используем email (первую часть до @)
+                  userName = user.email.split('@')[0];
+                }
+                
                 return (
-                  <Avatar 
-                    src={avatarUrl || "https://i.pravatar.cc/150?img=3"} // Используем запасное изображение, если аватарка не найдена
+                  <AvatarWithFallback 
+                    src={avatarUrl} // Только аватар пользователя, без fallback на стандартную фотографию
+                    name={userName} // Используем имя для отображения инициалов
+                    size="xl" // Увеличенный размер
+                    color="primary" // Используем основной цвет для фона инициалов
                     className="w-24 h-24 shadow-xl border-4 border-white"
+                    isBordered={true} // Добавляем рамку
                   />
                 );
               })()}

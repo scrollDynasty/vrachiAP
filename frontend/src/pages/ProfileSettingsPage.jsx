@@ -101,8 +101,15 @@ function ProfileSettingsPage() {
                 setIsCreatingFromRegistration(true);
                 console.log('Найдены данные регистрации, автоматически создаем профиль', registrationData);
                 
-                createOrUpdatePatientProfile(registrationData)
-                  .then(response => {
+                // Делаем три попытки создания профиля с небольшими интервалами
+                let attempt = 0;
+                const maxAttempts = 3;
+                const attemptCreateProfile = async () => {
+                  try {
+                    attempt++;
+                    console.log(`Попытка создания профиля ${attempt}/${maxAttempts}`);
+                    
+                    const response = await createOrUpdatePatientProfile(registrationData);
                     if (response) {
                       console.log('Профиль успешно создан из данных регистрации:', response);
                       setProfileData(response);
@@ -114,14 +121,25 @@ function ProfileSettingsPage() {
                       
                       // Скрываем сообщение об успехе через 3 секунды
                       setTimeout(() => setSaveSuccess(false), 3000);
+                      
+                      // Принудительно обновляем страницу для загрузки нового профиля
+                      setTimeout(() => window.location.reload(), 3500);
                     }
-                  })
-                  .catch(error => {
-                    console.error('Ошибка при создании профиля из данных регистрации:', error);
-                  })
-                  .finally(() => {
-                    setIsCreatingFromRegistration(false);
-                  });
+                  } catch (error) {
+                    console.error(`Ошибка при создании профиля (попытка ${attempt}):`, error);
+                    if (attempt < maxAttempts) {
+                      // Делаем паузу перед следующей попыткой
+                      console.log(`Повторная попытка через ${attempt * 1000}мс...`);
+                      setTimeout(attemptCreateProfile, attempt * 1000);
+                    } else {
+                      console.error('Все попытки создания профиля исчерпаны');
+                      setIsCreatingFromRegistration(false);
+                    }
+                  }
+                };
+                
+                // Запускаем первую попытку с небольшой задержкой
+                setTimeout(attemptCreateProfile, 500);
               }
             }
         } else {
