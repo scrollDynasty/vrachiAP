@@ -1,8 +1,9 @@
 // frontend/src/stores/authStore.js
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api, { logout, setAuthToken } from '../api';
+import api, { logout, setAuthToken, DIRECT_API_URL } from '../api';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 // Store for managing authentication state
 const useAuthStore = create(
@@ -551,7 +552,7 @@ const useAuthStore = create(
           }
           
           // Send Google auth request
-          const response = await api.post('/auth/google', { 
+          const response = await axios.post(`${DIRECT_API_URL}/auth/google`, { 
             code,
             // Устанавливаем длительное время жизни токена - 7 дней
             expires_in_days: 7
@@ -560,7 +561,8 @@ const useAuthStore = create(
               'Content-Type': 'application/json',
               'Accept': 'application/json'
             },
-            timeout: 10000 // Увеличиваем таймаут для этого запроса
+            timeout: 10000, // Увеличиваем таймаут для этого запроса
+            withCredentials: true // Необходимо для сохранения cookie
           });
           
           console.log('processGoogleAuth: Google auth request status:', response.status);
@@ -609,9 +611,15 @@ const useAuthStore = create(
               });
               
               if (profileResponse.status === 200 && profileResponse.data) {
+                // Проверяем, что ответ - это объект, а не HTML-страница
+                if (typeof profileResponse.data === 'object') {
                 // Профиль уже существует
-                console.log('processGoogleAuth: Профиль пользователя найден:', profileResponse.data);
+                  console.log('processGoogleAuth: Профиль пользователя найден:', JSON.stringify(profileResponse.data).substring(0, 100) + '...');
                 needsProfile = false; // Переопределяем, так как профиль уже существует
+                } else {
+                  console.warn('processGoogleAuth: Получен некорректный формат ответа профиля');
+                  needsProfile = true;
+                }
               }
             } catch (profileError) {
               if (profileError.response && profileError.response.status === 404) {

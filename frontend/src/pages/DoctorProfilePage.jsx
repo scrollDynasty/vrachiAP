@@ -6,6 +6,7 @@ import useAuthStore from '../stores/authStore';
 import RequestConsultationModal from '../components/RequestConsultationModal';
 import api from '../api';
 import AvatarWithFallback from '../components/AvatarWithFallback';
+import { motion } from 'framer-motion';
 
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
@@ -56,10 +57,22 @@ const getAvatarSource = (doctorData) => {
 
 // Компонент для секции информации в профиле
 const InfoSection = ({ title, children }) => (
-  <div className="mb-6">
-    <h3 className="text-lg font-semibold mb-4 inline-block px-5 py-2 bg-gradient-to-r from-primary-500 to-primary-300 text-white rounded-lg shadow-sm">{title}</h3>
-    <div className="pl-3 mt-3 border-l-4 border-primary-100">{children}</div>
-  </div>
+  <motion.div 
+    className="mb-6"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    <h3 className="text-lg font-semibold mb-4 inline-block px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-md">{title}</h3>
+    <motion.div 
+      className="pl-3 mt-3 border-l-4 border-indigo-100"
+      initial={{ height: 0 }}
+      animate={{ height: "auto" }}
+      transition={{ duration: 0.4, delay: 0.2 }}
+    >
+      {children}
+    </motion.div>
+  </motion.div>
 );
 
 // Компонент для отображения звездного рейтинга
@@ -67,11 +80,24 @@ const StarRating = ({ rating }) => {
   return (
     <div className="flex items-center">
       {[1, 2, 3, 4, 5].map((star) => (
-        <span key={star} className={`text-2xl ${star <= rating ? 'text-yellow-500' : 'text-gray-300'}`}>
+        <motion.span 
+          key={star} 
+          className={`text-2xl ${star <= rating ? 'text-yellow-500' : 'text-gray-300'}`}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: star * 0.1 }}
+        >
           ★
-        </span>
+        </motion.span>
       ))}
-      <span className="ml-2 text-lg font-semibold">{rating.toFixed(1)}</span>
+      <motion.span 
+        className="ml-2 text-lg font-semibold"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.6 }}
+      >
+        {rating.toFixed(1)}
+      </motion.span>
     </div>
   );
 };
@@ -85,40 +111,63 @@ const ReviewItem = ({ review }) => {
   };
 
   return (
-    <Card className="mb-5 shadow-sm hover:shadow-md transition-all">
-      <CardBody className="p-5">
-        <div className="flex items-start gap-4">
-          <AvatarWithFallback 
-            size="md" 
-            name={review.patientName || 'Пациент'} 
-            color="primary"
-            className="flex-shrink-0 shadow-sm border-2 border-white"
-          />
-          <div className="flex-1">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-bold text-gray-800">{review.patientName || 'Пациент'}</h4>
-              <span className="text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
-                {formatDate(review.created_at)}
-              </span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ y: -5 }}
+    >
+      <Card className="mb-5 shadow-sm hover:shadow-md transition-all overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+        <CardBody className="p-5">
+          <div className="flex items-start gap-4">
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <AvatarWithFallback 
+                size="md" 
+                name={review.patientName || 'Пациент'} 
+                color="primary"
+                className="flex-shrink-0 shadow-sm border-2 border-white"
+              />
+            </motion.div>
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-bold text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{review.patientName || 'Пациент'}</h4>
+                <span className="text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                  {formatDate(review.created_at)}
+                </span>
+              </div>
+              <div className="mb-3 flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <motion.svg 
+                    key={star} 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    viewBox="0 0 24 24" 
+                    fill={star <= review.rating ? "#FFB400" : "#E2E8F0"} 
+                    className="w-5 h-5"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: star * 0.1, type: "spring", stiffness: 300 }}
+                  >
+                    <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                  </motion.svg>
+                ))}
+              </div>
+              <motion.p 
+                className="text-gray-700 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 rounded-lg border-l-4 border-indigo-300 shadow-sm"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              >
+                {review.comment || 'Отзыв без комментария'}
+              </motion.p>
             </div>
-            <div className="mb-3 flex">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <svg 
-                  key={star} 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  viewBox="0 0 24 24" 
-                  fill={star <= review.rating ? "#FFB400" : "#E2E8F0"} 
-                  className="w-5 h-5"
-                >
-                  <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                </svg>
-              ))}
-            </div>
-            <p className="text-gray-700 bg-gray-50 p-3 rounded-lg border-l-4 border-primary-300">{review.comment || 'Отзыв без комментария'}</p>
           </div>
-        </div>
-      </CardBody>
-    </Card>
+        </CardBody>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -400,294 +449,446 @@ function DoctorProfilePage() {
   const currentReviews = reviews.slice(indexOfFirstReview, indexOfLastReview);
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
   
-  // Отображаем индикатор загрузки
-  if (loading) {
-    return (
-      <div className="max-w-screen-xl mx-auto px-4 py-8 flex justify-center items-center min-h-[50vh]">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
-  
-  // Отображаем сообщение об ошибке
-  if (error) {
-    return (
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
-        <Card>
-          <CardBody>
-            <div className="text-danger text-center py-8">
-              <p>{error}</p>
-              <Button onPress={handleBackToSearch} color="primary" className="mt-4">
-                Назад к поиску
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
-  
-  // Если доктор не найден
-  if (!doctor) {
-    return (
-      <div className="max-w-screen-xl mx-auto px-4 py-8">
-        <Card>
-          <CardBody>
-            <div className="text-gray-600 text-center py-8">
-              <p>Врач не найден. Возможно, он был удален или деактивирован.</p>
-              <Button onPress={handleBackToSearch} color="primary" className="mt-4">
-                Назад к поиску
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
-  
-  // Преобразуем строку specializations в массив
-  const specializationsArray = doctor.specializations ? doctor.specializations.split(',').map(s => s.trim()) : [];
-  
-  // Преобразуем строку practice_areas в массив
-  const practiceAreasArray = doctor.practice_areas ? doctor.practice_areas.split(',').map(s => s.trim()) : [];
-  
-  // Форматирование даты
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('ru-RU', options);
-  };
-  
-  // Рассчитаем рейтинг врача
-  const doctorRating = calculateRating(reviews);
-  
   // Основной рендер
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" color="primary" />
-        </div>
-      ) : error ? (
-        <div className="bg-danger-50 text-danger p-6 rounded-lg shadow-sm border border-danger-200">
-          <div className="flex items-center mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 className="text-lg font-semibold">Ошибка</h3>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Динамический градиентный фон */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-0"
+        animate={{ 
+          background: [
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8), rgba(224, 231, 255, 0.8))',
+            'linear-gradient(to bottom right, rgba(236, 254, 255, 0.8), rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))'
+          ]
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "easeInOut"
+        }}
+      />
+      
+      {/* Анимированная сетка */}
+      <div className="absolute inset-0 overflow-hidden opacity-10">
+        <motion.div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px'
+          }}
+          animate={{
+            x: [0, -40],
+            y: [0, -40]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+      </div>
+      
+      {/* Декоративные плавающие элементы */}
+      <div className="absolute top-0 left-0 w-full h-full z-0 opacity-70">
+        <motion.div 
+          className="absolute top-20 left-[10%] w-64 h-64 rounded-full bg-gradient-to-r from-blue-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, 20, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, 5, 0, -5, 0]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-20 right-[10%] w-80 h-80 rounded-full bg-gradient-to-r from-purple-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, -25, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, -5, 0, 5, 0]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+      
+      <div className="max-w-7xl mx-auto py-8 px-4 relative z-10">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Spinner size="lg" color="primary" />
           </div>
-          <p>{error}</p>
-          <Button onPress={handleBackToSearch} color="primary" className="mt-4 shadow-sm" radius="full">
-            Назад к поиску
-          </Button>
-        </div>
-      ) : doctor ? (
-        <div>
-          <div className="mb-8">
-            <Button 
-              color="primary" 
-              variant="light" 
-              className="mb-6" 
-              startContent={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-              }
-              onPress={handleBackToSearch}
-              radius="full"
-            >
+        ) : error ? (
+          <motion.div 
+            className="bg-danger-50 text-danger p-6 rounded-lg shadow-md border border-danger-200"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex items-center mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-lg font-semibold">Ошибка</h3>
+            </div>
+            <p>{error}</p>
+            <Button onPress={handleBackToSearch} color="primary" className="mt-4 shadow-md" radius="full">
               Назад к поиску
             </Button>
-          </div>
-          
-          <div className="flex flex-col md:flex-row gap-6 items-start mb-8">
-            <div className="md:w-1/3">
-              <Card className="shadow-md hover:shadow-xl transition-all overflow-hidden">
-                <div className="h-2 bg-gradient-to-r from-primary-400 to-primary-600 w-full"></div>
-                <CardBody className="p-6 flex flex-col items-center">
-                  {/* Добавляем дополнительную отладочную информацию */}
-                  {doctor.avatar_path && (
-                    <div className="hidden">
-                      <p>DEBUG: Avatar path: {doctor.avatar_path}</p>
-                    </div>
-                  )}
-                  
-                  <div className="relative">
-                    <AvatarWithFallback 
-                      src={getAvatarSource(doctor)} 
-                      name={doctor.full_name || "?"}
-                      size="xl"
-                      className="w-40 h-40 mb-4 shadow-lg border-4 border-white" 
-                      isBordered
-                      color="primary"
-                    />
-                    {doctor.is_verified && (
-                      <div className="absolute -bottom-2 -right-2 bg-success-100 p-1.5 rounded-full border-2 border-white shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-success-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{doctor.full_name || 'Нет данных'}</h2>
-                  <div className="flex gap-2 mb-4 flex-wrap justify-center">
-                    <Chip color="primary" variant="flat">{doctor.specialization}</Chip>
-                    {doctor.is_verified && (
-                      <Chip color="success" variant="flat">Проверенный врач</Chip>
-                    )}
-                  </div>
-                  <Divider className="my-3 w-full" />
-                  <div className="flex flex-col gap-4 w-full">
-                    <div className="flex justify-between w-full">
-                      <span className="text-gray-500">Стоимость консультации:</span>
-                      <span className="font-bold text-primary">{doctor.cost_per_consultation} UZS</span>
-                    </div>
-                    
-                    <div className="flex justify-between w-full">
-                      <span className="text-gray-500">Рейтинг:</span>
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <svg 
-                            key={star} 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            viewBox="0 0 24 24" 
-                            fill={star <= doctor.rating ? "#FFB400" : "#E2E8F0"} 
-                            className="w-4 h-4"
-                          >
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                          </svg>
-                        ))}
-                        <span className="ml-1 font-semibold">{doctor.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {canRequestConsultation() && (
-                    <Button
-                      color="primary"
-                      size="lg"
-                      className="mt-6 w-full font-medium shadow-md"
-                      onClick={handleRequestConsultation}
-                      radius="full"
+          </motion.div>
+        ) : doctor ? (
+          <div>
+            {(() => {
+              // Преобразуем строку specializations в массив
+              const specializationsArray = doctor.specializations ? doctor.specializations.split(',').map(s => s.trim()) : [];
+              
+              // Преобразуем строку practice_areas в массив
+              const practiceAreasArray = doctor.practice_areas ? doctor.practice_areas.split(',').map(s => s.trim()) : [];
+              
+              // Рассчитаем рейтинг врача
+              const doctorRating = calculateRating(reviews);
+              
+              return (
+                <>
+                  <motion.div 
+                    className="mb-8"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Button 
+                      color="primary" 
+                      variant="light" 
+                      className="mb-6" 
                       startContent={
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                         </svg>
                       }
+                      onPress={handleBackToSearch}
+                      radius="full"
                     >
-                      Записаться на консультацию
+                      Назад к поиску
                     </Button>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
+                  </motion.div>
+                  
+                  <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
+                    <motion.div 
+                      className="md:w-2/5"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6 }}
+                    >
+                      <Card className="shadow-md hover:shadow-xl transition-all overflow-hidden">
+                        <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 w-full"></div>
+                        <CardBody className="p-6 flex flex-col items-center">
+                          {/* Добавляем дополнительную отладочную информацию */}
+                          {doctor.avatar_path && (
+                            <div className="hidden">
+                              <p>DEBUG: Avatar path: {doctor.avatar_path}</p>
+                            </div>
+                          )}
+                          
+                          <motion.div 
+                            className="relative"
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                          >
+                            <AvatarWithFallback 
+                              src={getAvatarSource(doctor)} 
+                              name={doctor.full_name || "?"}
+                              size="xl"
+                              className="w-40 h-40 mb-4 shadow-lg border-4 border-white" 
+                              isBordered
+                              color="primary"
+                            />
+                            {doctor.is_verified && (
+                              <motion.div 
+                                className="absolute -bottom-2 -right-2 bg-success-100 p-1.5 rounded-full border-2 border-white shadow-md"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ 
+                                  type: "spring", 
+                                  stiffness: 400, 
+                                  damping: 10,
+                                  delay: 0.5
+                                }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-success-600" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </motion.div>
+                            )}
+                          </motion.div>
+                          
+                          <motion.h2 
+                            className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
+                          >
+                            {doctor.full_name || 'Нет данных'}
+                          </motion.h2>
+                          
+                          <motion.div 
+                            className="flex gap-2 mb-4 flex-wrap justify-center"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 }}
+                          >
+                            <Chip color="primary" variant="flat" className="shadow-sm">
+                              {doctor.specialization}
+                            </Chip>
+                            {doctor.is_verified && (
+                              <Chip color="success" variant="flat" className="shadow-sm">
+                                Проверенный врач
+                              </Chip>
+                            )}
+                          </motion.div>
+                          
+                          <Divider className="my-3 w-full" />
+                          
+                          <motion.div 
+                            className="flex flex-col gap-4 w-full bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg shadow-inner"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.4 }}
+                          >
+                            <div className="flex justify-between w-full">
+                              <span className="text-gray-600 font-medium">Стоимость:</span>
+                              <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                                {doctor.cost_per_consultation} UZS
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between w-full">
+                              <span className="text-gray-600 font-medium">Рейтинг:</span>
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <motion.svg 
+                                    key={star} 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    viewBox="0 0 24 24" 
+                                    fill={star <= doctor.rating ? "#FFB400" : "#E2E8F0"} 
+                                    className="w-4 h-4"
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.4 + (star * 0.1), type: "spring", stiffness: 300 }}
+                                  >
+                                    <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                  </motion.svg>
+                                ))}
+                                <span className="ml-1 font-semibold">{doctor.rating}</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                          
+                          {canRequestConsultation() && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: 0.6 }}
+                              whileHover={{ scale: 1.03 }}
+                              whileTap={{ scale: 0.97 }}
+                            >
+                              <Button
+                                color="primary"
+                                size="lg"
+                                className="mt-6 w-full font-medium shadow-md bg-gradient-to-r from-blue-500 to-indigo-600 py-6 text-lg"
+                                onClick={handleRequestConsultation}
+                                radius="full"
+                                startContent={
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                                  </svg>
+                                }
+                              >
+                                Записаться на консультацию
+                              </Button>
+                            </motion.div>
+                          )}
+                        </CardBody>
+                      </Card>
+                    </motion.div>
 
-            <div className="md:w-2/3">
-              <Card className="shadow-md hover:shadow-lg transition-all mb-8 overflow-hidden">
-                <div className="h-2 bg-gradient-to-r from-primary-400 to-primary-600 w-full"></div>
+                    <motion.div 
+                      className="md:w-3/5"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.2 }}
+                    >
+                      <Card className="shadow-md hover:shadow-lg transition-all mb-8 overflow-hidden">
+                        <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 w-full"></div>
+                        <CardBody className="p-6">
+                          <motion.h3 
+                            className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            Информация о враче
+                          </motion.h3>
+                          
+                          {doctor.about && (
+                            <InfoSection title="О враче">
+                              <p className="text-gray-700">{doctor.about}</p>
+                            </InfoSection>
+                          )}
+                          
+                          {doctor.education && (
+                            <InfoSection title="Образование">
+                              <p className="text-gray-700">{doctor.education}</p>
+                            </InfoSection>
+                          )}
+                          
+                          {specializationsArray.length > 0 && (
+                            <InfoSection title="Специализации">
+                              <div className="flex flex-wrap gap-2">
+                                {specializationsArray.map((spec, index) => (
+                                  <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: 0.1 * index, duration: 0.3 }}
+                                    whileHover={{ scale: 1.05 }}
+                                  >
+                                    <Chip color="primary" variant="flat" className="shadow-sm">
+                                      {spec}
+                                    </Chip>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </InfoSection>
+                          )}
+                          
+                          {practiceAreasArray.length > 0 && (
+                            <InfoSection title="Районы практики">
+                              <div className="flex flex-wrap gap-2">
+                                {practiceAreasArray.map((area, index) => (
+                                  <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: 0.1 * index, duration: 0.3 }}
+                                    whileHover={{ scale: 1.05 }}
+                                  >
+                                    <Chip color="primary" variant="flat" className="shadow-sm">
+                                      {area}
+                                    </Chip>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </InfoSection>
+                          )}
+                        </CardBody>
+                      </Card>
+                    </motion.div>
+                  </div>
+                </>
+              );
+            })()}
+            
+            {/* Секция с отзывами */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <Card className="shadow-md hover:shadow-lg transition-all overflow-hidden">
+                <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 w-full"></div>
                 <CardBody className="p-6">
-                  <h3 className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">Информация о враче</h3>
-                  {doctor.about && (
-                    <InfoSection title="О враче">
-                      <p className="text-gray-700">{doctor.about}</p>
-                    </InfoSection>
-                  )}
+                  <motion.h3 
+                    className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    Отзывы о враче
+                  </motion.h3>
                   
-                  {doctor.education && (
-                    <InfoSection title="Образование">
-                      <p className="text-gray-700">{doctor.education}</p>
-                    </InfoSection>
-                  )}
-                  
-                  {specializationsArray.length > 0 && (
-                    <InfoSection title="Специализации">
-                      <div className="flex flex-wrap gap-2">
-                        {specializationsArray.map((spec, index) => (
-                          <Chip key={index} color="primary" variant="flat" className="shadow-sm">
-                            {spec}
-                          </Chip>
-                        ))}
-                      </div>
-                    </InfoSection>
-                  )}
-                  
-                  {practiceAreasArray.length > 0 && (
-                    <InfoSection title="Районы практики">
-                      <div className="flex flex-wrap gap-2">
-                        {practiceAreasArray.map((area, index) => (
-                          <Chip key={index} color="primary" variant="flat" className="shadow-sm">
-                            {area}
-                          </Chip>
-                        ))}
-                      </div>
-                    </InfoSection>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-          
-          {/* Секция с отзывами */}
-          <Card className="shadow-md hover:shadow-lg transition-all overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-primary-400 to-primary-600 w-full"></div>
-            <CardBody className="p-6">
-              <h3 className="text-xl font-bold mb-6 text-gray-800">Отзывы о враче</h3>
-              
-              {reviewsLoading ? (
-                <div className="flex justify-center py-10">
-                  <Spinner color="primary" />
-                </div>
-              ) : reviewsError ? (
-                <div className="text-center text-danger bg-danger-50 p-4 rounded-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p>{reviewsError}</p>
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="text-center text-gray-500 py-10 bg-gray-50 rounded-lg border border-gray-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <p className="text-lg font-medium mb-2">У этого врача пока нет отзывов</p>
-                  <p className="text-sm text-gray-500">Будьте первым, кто оставит отзыв после консультации</p>
-                </div>
-              ) : (
-                <div>
-                  {currentReviews.map((review, index) => (
-                    <ReviewItem key={index} review={review} />
-                  ))}
-                  
-                  {/* Пагинация */}
-                  {totalPages > 1 && (
-                    <div className="flex justify-center mt-6">
-                      <Pagination 
-                        total={totalPages} 
-                        initialPage={1}
-                        page={currentPage}
-                        onChange={setCurrentPage}
-                        color="primary"
-                        showShadow
-                        radius="full"
-                        classNames={{
-                          wrapper: "shadow-sm"
-                        }}
-                      />
+                  {reviewsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Spinner color="primary" />
+                    </div>
+                  ) : reviewsError ? (
+                    <motion.div 
+                      className="text-center text-danger bg-danger-50 p-4 rounded-lg"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p>{reviewsError}</p>
+                    </motion.div>
+                  ) : reviews.length === 0 ? (
+                    <motion.div 
+                      className="text-center text-gray-500 py-10 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-gray-100 shadow-inner"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <p className="text-lg font-medium mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">У этого врача пока нет отзывов</p>
+                      <p className="text-sm text-gray-500">Будьте первым, кто оставит отзыв после консультации</p>
+                    </motion.div>
+                  ) : (
+                    <div>
+                      {currentReviews.map((review, index) => (
+                        <ReviewItem key={index} review={review} />
+                      ))}
+                      
+                      {/* Пагинация */}
+                      {totalPages > 1 && (
+                        <motion.div 
+                          className="flex justify-center mt-6"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: 0.5 }}
+                        >
+                          <Pagination 
+                            total={totalPages} 
+                            initialPage={1}
+                            page={currentPage}
+                            onChange={setCurrentPage}
+                            color="primary"
+                            showShadow
+                            radius="full"
+                            classNames={{
+                              wrapper: "shadow-sm"
+                            }}
+                          />
+                        </motion.div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-            </CardBody>
-          </Card>
-          
-          {/* Модальное окно для запроса консультации */}
-          <RequestConsultationModal 
-            isOpen={isConsultationModalOpen}
-            onClose={() => setIsConsultationModalOpen(false)}
-            doctorId={doctor.user_id}
-            doctorName={doctor.full_name || `${doctor.last_name || ""} ${doctor.first_name || ""} ${doctor.middle_name || ""}`}
-          />
-        </div>
-      ) : null}
+                </CardBody>
+              </Card>
+            </motion.div>
+            
+            {/* Модальное окно для запроса консультации */}
+            <RequestConsultationModal 
+              isOpen={isConsultationModalOpen}
+              onClose={() => setIsConsultationModalOpen(false)}
+              doctorId={doctor.user_id}
+              doctorName={doctor.full_name || `${doctor.last_name || ""} ${doctor.first_name || ""} ${doctor.middle_name || ""}`}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

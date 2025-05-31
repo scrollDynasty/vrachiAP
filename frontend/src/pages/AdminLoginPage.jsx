@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { Card, CardBody, CardHeader, Avatar, Input, Button, Spinner } from '@nextui-org/react';
+import MedicalLoader from '../components/MedicalLoader';
 
 function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -48,10 +49,7 @@ function AdminLoginPage() {
   if (isLoading && !error) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-5 text-gray-600 font-medium">Загрузка...</p>
-        </div>
+        <MedicalLoader text="Проверка доступа" color="#6366f1" />
       </div>
     );
   }
@@ -60,9 +58,9 @@ function AdminLoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 flex flex-col items-center justify-center p-4">
       {/* Декоративные элементы */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-5 w-32 h-32 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-        <div className="absolute top-20 right-10 w-40 h-40 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-200"></div>
-        <div className="absolute bottom-20 left-1/3 w-36 h-36 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-400"></div>
+        <div className="absolute top-10 left-5 w-32 h-32 bg-purple-200 rounded-full mix-blend-multiply opacity-20 animate-blob"></div>
+        <div className="absolute top-20 right-10 w-40 h-40 bg-indigo-300 rounded-full mix-blend-multiply opacity-20 animate-blob animation-delay-200"></div>
+        <div className="absolute bottom-20 left-1/3 w-36 h-36 bg-purple-300 rounded-full mix-blend-multiply opacity-20 animate-blob animation-delay-400"></div>
       </div>
       
       {/* Заголовок */}
@@ -72,7 +70,7 @@ function AdminLoginPage() {
             <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
           </svg>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
-            MedCare Admin
+            Soglom Admin
           </h1>
         </div>
         <p className="text-lg text-gray-600">
@@ -159,7 +157,7 @@ function AdminLoginPage() {
                 radius="sm"
                 isLoading={isLoading}
               >
-                {isLoading ? <Spinner size="sm" color="white" /> : 'Войти в систему'}
+                {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" color="#6366f1" /></div> : 'Войти в систему'}
               </Button>
             </form>
             
@@ -189,7 +187,7 @@ function AdminLoginPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>Доступ только для администраторов MedCare</span>
+                <span>Доступ только для администраторов Soglom</span>
               </div>
             </div>
           </CardBody>

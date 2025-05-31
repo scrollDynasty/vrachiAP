@@ -1,5 +1,6 @@
 // WebSocket сервис для централизованного управления WebSocket соединениями
 import api from '../api';
+import { WS_BASE_URL } from '../api';
 
 // Синглтон для хранения соединений
 class WebSocketService {
@@ -19,7 +20,7 @@ class WebSocketService {
     // Для отслеживания попыток переподключения
     this.reconnectAttempts = {};
     this.reconnectTimers = {};
-    this.maxReconnectAttempts = 5; // Уменьшаем количество попыток переподключения
+    this.maxReconnectAttempts = 3; // Уменьшаем количество попыток переподключения
     
     // Флаги для отслеживания переподключений в процессе
     this.reconnectingFlags = {};
@@ -48,17 +49,13 @@ class WebSocketService {
     
     // Отслеживаем изменения видимости страницы
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    
-    console.log('[WebSocketService] Сервис инициализирован');
   }
   
   // Обработчик изменения видимости страницы
   handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
-      console.log('[WebSocketService] Страница стала видимой, проверяем соединения');
       this.checkAllConnections();
     } else {
-      console.log('[WebSocketService] Страница скрыта, оптимизируем соединения');
       // Если страница скрыта, прекращаем попытки переподключения
       Object.keys(this.reconnectTimers).forEach(key => {
         if (this.reconnectTimers[key]) {
@@ -71,11 +68,9 @@ class WebSocketService {
   
   // Проверяем все соединения
   checkAllConnections() {
-    console.log('[WebSocketService] Проверка всех соединений');
     Object.keys(this.connections).forEach(key => {
       const conn = this.connections[key];
       if (conn && (conn.readyState === WebSocket.CLOSED || conn.readyState === WebSocket.CLOSING)) {
-        console.log(`[WebSocketService] Соединение ${key} закрыто, удаляем его из списка`);
         this.closeConnection(key);
       }
     });
@@ -83,8 +78,6 @@ class WebSocketService {
   
   // Обработчик возобновления соединения
   handleOnline() {
-    console.log('[WebSocketService] Сеть снова доступна, восстанавливаем соединения');
-    
     // Переподключаем все активные соединения
     Object.keys(this.connections).forEach(key => {
       const conn = this.connections[key];
@@ -101,8 +94,6 @@ class WebSocketService {
   
   // Обработчик потери соединения
   handleOffline() {
-    console.log('[WebSocketService] Сеть недоступна, останавливаем попытки переподключения');
-    
     // Прекращаем все попытки переподключения
     Object.keys(this.reconnectTimers).forEach(key => {
       if (this.reconnectTimers[key]) {
@@ -134,11 +125,8 @@ class WebSocketService {
     // Увеличиваем счётчик запросов
     this.connectionRequestCounts[connectionKey] = (this.connectionRequestCounts[connectionKey] || 0) + 1;
     
-    console.log(`[WebSocketService] Запрос соединения ${connectionKey} (#${this.connectionRequestCounts[connectionKey]})`);
-    
     // Если есть активная блокировка на это соединение, ждём завершения
     if (this.connectionLocks[connectionKey]) {
-      console.log(`[WebSocketService] Соединение ${connectionKey} заблокировано, ожидаем`);
       if (onStatusChange) onStatusChange('connecting');
       return null;
     }
@@ -149,8 +137,6 @@ class WebSocketService {
     try {
       // Если соединение уже существует и открыто, возвращаем его
       if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-        console.log(`[WebSocketService] Используется существующее соединение для уведомлений пользователя ${userId}`);
-        
         // Обновляем обработчик сообщений
         if (onMessage && onMessage !== this.messageHandlers[connectionKey]) {
           this.messageHandlers[connectionKey] = onMessage;
@@ -166,7 +152,6 @@ class WebSocketService {
       
       // Закрываем существующее соединение, если оно есть
       if (this.connections[connectionKey]) {
-        console.log(`[WebSocketService] Закрываем существующее соединение для ${connectionKey}`);
         this.closeConnection(connectionKey);
       }
       
@@ -181,31 +166,35 @@ class WebSocketService {
       
       // Проверяем, что наш токен соединения всё ещё актуален
       if (!this.isValidToken(connectionKey, connectionToken)) {
-        console.log(`[WebSocketService] Токен соединения ${connectionKey} устарел, отменяем запрос`);
         this.connectionLocks[connectionKey] = false;
         return null;
       }
       
       if (!token) {
-        console.error('[WebSocketService] Не удалось получить WebSocket токен');
         if (onStatusChange) onStatusChange('error');
         this.connectionLocks[connectionKey] = false;
         return null;
       }
       
-      // Определяем хост для WebSocket
+      // Определяем протокол
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = '127.0.0.1:8000';  // Используем фиксированный хост бэкенда
-      const wsUrl = `${protocol}//${wsHost}/ws/notifications/${userId}?token=${token}`;
       
-      console.log(`[WebSocketService] Создание нового соединения для уведомлений пользователя ${userId}`);
+      // Проверяем, что ID пользователя определен
+      if (!userId) {
+        console.error('ID пользователя не определен для WebSocket соединения');
+        throw new Error('ID пользователя не определен');
+      }
+      
+      // Используем относительный URL для WebSocket через прокси Vite
+      const wsUrl = `${protocol}//${window.location.host}${WS_BASE_URL}/ws/notifications/${userId}?token=${token}`;
+      
+      console.log('Подключение к WebSocket:', wsUrl);
       
       // Создаем новое соединение
       const socket = new WebSocket(wsUrl);
       
       // Повторно проверяем, что наш токен соединения всё ещё актуален
       if (!this.isValidToken(connectionKey, connectionToken)) {
-        console.log(`[WebSocketService] Токен соединения ${connectionKey} устарел после создания WebSocket, закрываем`);
         socket.close();
         this.connectionLocks[connectionKey] = false;
         return null;
@@ -221,12 +210,10 @@ class WebSocketService {
       
       // Устанавливаем обработчики событий
       socket.onopen = () => {
-        console.log(`[WebSocketService] Соединение установлено для уведомлений пользователя ${userId}`);
-        
         // Сбрасываем счетчик попыток переподключения
         this.reconnectAttempts[connectionKey] = 0;
         
-        // Отправляем пинг каждые 30 секунд для поддержания соединения
+        // Отправляем пинг каждые 60 секунд для поддержания соединения
         if (this.pingIntervals[connectionKey]) {
           clearInterval(this.pingIntervals[connectionKey]);
         }
@@ -236,7 +223,6 @@ class WebSocketService {
             try {
               socket.send(JSON.stringify({ type: 'ping' }));
             } catch (err) {
-              console.error(`[WebSocketService] Ошибка при отправке ping для ${connectionKey}:`, err);
               clearInterval(this.pingIntervals[connectionKey]);
               this.pingIntervals[connectionKey] = null;
               
@@ -255,7 +241,7 @@ class WebSocketService {
             // Планируем переподключение
             this.scheduleReconnect(connectionKey, userId, onMessage, onStatusChange);
           }
-        }, 30000);
+        }, 60000); // Увеличиваем интервал до 60 сек
         
         if (onStatusChange) onStatusChange('connected');
         
@@ -275,8 +261,6 @@ class WebSocketService {
       };
       
       socket.onclose = (event) => {
-        console.log(`[WebSocketService] Соединение закрыто для ${connectionKey}: ${event.code} ${event.reason}`);
-        
         // Очищаем интервал пингов
         if (this.pingIntervals[connectionKey]) {
           clearInterval(this.pingIntervals[connectionKey]);
@@ -285,8 +269,11 @@ class WebSocketService {
         
         // Если не в процессе закрытия всех соединений и соединение было закрыто неожиданно
         if (!this.isShuttingDown && event.code !== 1000 && event.code !== 1001) {
-          // Планируем переподключение
-          this.scheduleReconnect(connectionKey, userId, onMessage, onStatusChange);
+          // Если не превышено максимальное количество попыток
+          if ((this.reconnectAttempts[connectionKey] || 0) < this.maxReconnectAttempts) {
+            // Планируем переподключение
+            this.scheduleReconnect(connectionKey, userId, onMessage, onStatusChange);
+          }
         } else {
           // Удаляем соединение из списка активных
           delete this.connections[connectionKey];
@@ -300,7 +287,6 @@ class WebSocketService {
       };
       
       socket.onerror = (error) => {
-        console.error(`[WebSocketService] Ошибка в соединении для ${connectionKey}:`, error);
         if (onStatusChange) onStatusChange('error');
         
         // Закрываем соединение с ошибкой
@@ -312,7 +298,6 @@ class WebSocketService {
       
       return socket;
     } catch (error) {
-      console.error(`[WebSocketService] Ошибка при создании соединения для ${connectionKey}:`, error);
       if (onStatusChange) onStatusChange('error');
       
       // Снимаем блокировку
@@ -329,11 +314,8 @@ class WebSocketService {
     // Увеличиваем счётчик запросов
     this.connectionRequestCounts[connectionKey] = (this.connectionRequestCounts[connectionKey] || 0) + 1;
     
-    console.log(`[WebSocketService] Запрос соединения ${connectionKey} (#${this.connectionRequestCounts[connectionKey]})`);
-    
     // Если есть активная блокировка на это соединение, ждём завершения
     if (this.connectionLocks[connectionKey]) {
-      console.log(`[WebSocketService] Соединение ${connectionKey} заблокировано, ожидаем`);
       if (onStatusChange) onStatusChange('connecting');
       return null;
     }
@@ -344,8 +326,6 @@ class WebSocketService {
     try {
       // Если соединение уже существует и открыто, возвращаем его
       if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-        console.log(`[WebSocketService] Используется существующее соединение для консультации ${consultationId}`);
-        
         // Обновляем обработчик сообщений
         if (onMessage && onMessage !== this.messageHandlers[connectionKey]) {
           this.messageHandlers[connectionKey] = onMessage;
@@ -361,7 +341,6 @@ class WebSocketService {
       
       // Закрываем существующее соединение, если оно есть
       if (this.connections[connectionKey]) {
-        console.log(`[WebSocketService] Закрываем существующее соединение для ${connectionKey}`);
         this.closeConnection(connectionKey);
       }
       
@@ -376,13 +355,11 @@ class WebSocketService {
       
       // Проверяем, что наш токен соединения всё ещё актуален
       if (!this.isValidToken(connectionKey, connectionToken)) {
-        console.log(`[WebSocketService] Токен соединения ${connectionKey} устарел, отменяем запрос`);
         this.connectionLocks[connectionKey] = false;
         return null;
       }
       
       if (!token) {
-        console.error('[WebSocketService] Не удалось получить WebSocket токен');
         if (onStatusChange) onStatusChange('error');
         this.connectionLocks[connectionKey] = false;
         return null;
@@ -390,17 +367,21 @@ class WebSocketService {
       
       // Определяем хост для WebSocket
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = '127.0.0.1:8000';  // Используем фиксированный хост бэкенда
-      const wsUrl = `${protocol}//${wsHost}/ws/consultations/${consultationId}?token=${token}`;
       
-      console.log(`[WebSocketService] Создание нового соединения для консультации ${consultationId}`);
+      // Проверяем, что ID консультации определен
+      if (!consultationId) {
+        console.error('ID консультации не определен для WebSocket соединения');
+        throw new Error('ID консультации не определен');
+      }
+      
+      // Используем относительный URL для WebSocket через прокси Vite
+      const wsUrl = `${protocol}//${window.location.host}${WS_BASE_URL}/ws/consultations/${consultationId}?token=${token}`;
       
       // Создаем новое соединение
       const socket = new WebSocket(wsUrl);
       
       // Повторно проверяем, что наш токен соединения всё ещё актуален
       if (!this.isValidToken(connectionKey, connectionToken)) {
-        console.log(`[WebSocketService] Токен соединения ${connectionKey} устарел после создания WebSocket, закрываем`);
         socket.close();
         this.connectionLocks[connectionKey] = false;
         return null;
@@ -416,12 +397,10 @@ class WebSocketService {
       
       // Устанавливаем обработчики событий
       socket.onopen = () => {
-        console.log(`[WebSocketService] Соединение установлено для консультации ${consultationId}`);
-        
         // Сбрасываем счетчик попыток переподключения
         this.reconnectAttempts[connectionKey] = 0;
         
-        // Отправляем пинг каждые 30 секунд для поддержания соединения
+        // Отправляем пинг каждые 60 секунд для поддержания соединения
         if (this.pingIntervals[connectionKey]) {
           clearInterval(this.pingIntervals[connectionKey]);
         }
@@ -431,7 +410,6 @@ class WebSocketService {
             try {
               socket.send(JSON.stringify({ type: 'ping' }));
             } catch (err) {
-              console.error(`[WebSocketService] Ошибка при отправке ping для ${connectionKey}:`, err);
               clearInterval(this.pingIntervals[connectionKey]);
               this.pingIntervals[connectionKey] = null;
               
@@ -450,7 +428,7 @@ class WebSocketService {
             // Планируем переподключение
             this.scheduleReconnect(connectionKey, consultationId, onMessage, onStatusChange, true);
           }
-        }, 30000);
+        }, 60000); // Увеличиваем интервал до 60 сек
         
         if (onStatusChange) onStatusChange('connected');
         
@@ -470,8 +448,6 @@ class WebSocketService {
       };
       
       socket.onclose = (event) => {
-        console.log(`[WebSocketService] Соединение закрыто для ${connectionKey}: ${event.code} ${event.reason}`);
-        
         // Очищаем интервал пингов
         if (this.pingIntervals[connectionKey]) {
           clearInterval(this.pingIntervals[connectionKey]);
@@ -480,8 +456,11 @@ class WebSocketService {
         
         // Если не в процессе закрытия всех соединений и соединение было закрыто неожиданно
         if (!this.isShuttingDown && event.code !== 1000 && event.code !== 1001) {
-          // Планируем переподключение
-          this.scheduleReconnect(connectionKey, consultationId, onMessage, onStatusChange, true);
+          // Если не превышено максимальное количество попыток
+          if ((this.reconnectAttempts[connectionKey] || 0) < this.maxReconnectAttempts) {
+            // Планируем переподключение
+            this.scheduleReconnect(connectionKey, consultationId, onMessage, onStatusChange, true);
+          }
         } else {
           // Удаляем соединение из списка активных
           delete this.connections[connectionKey];
@@ -495,7 +474,6 @@ class WebSocketService {
       };
       
       socket.onerror = (error) => {
-        console.error(`[WebSocketService] Ошибка в соединении для ${connectionKey}:`, error);
         if (onStatusChange) onStatusChange('error');
         
         // Закрываем соединение с ошибкой
@@ -507,7 +485,6 @@ class WebSocketService {
       
       return socket;
     } catch (error) {
-      console.error(`[WebSocketService] Ошибка при создании соединения для ${connectionKey}:`, error);
       if (onStatusChange) onStatusChange('error');
       
       // Снимаем блокировку
@@ -521,13 +498,11 @@ class WebSocketService {
   scheduleReconnect(connectionKey, id, onMessage, onStatusChange, isConsultation = false) {
     // Если соединение с сетью отсутствует, не пытаемся переподключаться
     if (!navigator.onLine) {
-      console.log(`[WebSocketService] Сеть недоступна, отложено переподключение для ${connectionKey}`);
       return;
     }
     
     // Если страница скрыта, не выполняем переподключение
     if (document.visibilityState !== 'visible') {
-      console.log(`[WebSocketService] Страница скрыта, отложено переподключение для ${connectionKey}`);
       return;
     }
     
@@ -536,16 +511,13 @@ class WebSocketService {
     
     // Проверяем, не превышено ли максимальное количество попыток
     if (this.reconnectAttempts[connectionKey] > this.maxReconnectAttempts) {
-      console.warn(`[WebSocketService] Достигнуто максимальное количество попыток переподключения для ${connectionKey}`);
       if (onStatusChange) onStatusChange('error', 'Не удалось подключиться к серверу после нескольких попыток');
       return;
     }
     
     // Рассчитываем задержку с экспоненциальной обратной связью
-    const baseDelay = 3000; // 3 секунды (увеличиваем начальную задержку)
-    const delay = Math.min(baseDelay * Math.pow(1.5, this.reconnectAttempts[connectionKey] - 1), 60000); // Максимум 1 минута
-    
-    console.log(`[WebSocketService] Запланировано переподключение для ${connectionKey}, попытка ${this.reconnectAttempts[connectionKey]} через ${delay}ms`);
+    const baseDelay = 10000; // 10 секунд (увеличиваем начальную задержку)
+    const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts[connectionKey] - 1), 120000); // Максимум 2 минуты
     
     // Обновляем статус соединения
     if (onStatusChange) onStatusChange('connecting');
@@ -559,17 +531,13 @@ class WebSocketService {
     this.reconnectTimers[connectionKey] = setTimeout(async () => {
       // Если в процессе закрытия всех соединений, не переподключаемся
       if (this.isShuttingDown) {
-        console.log(`[WebSocketService] Отмена переподключения для ${connectionKey}, т.к. сервис завершает работу`);
         return;
       }
       
       // Если страница скрыта, откладываем переподключение
       if (document.visibilityState !== 'visible') {
-        console.log(`[WebSocketService] Страница скрыта, откладываем переподключение для ${connectionKey}`);
         return;
       }
-      
-      console.log(`[WebSocketService] Выполняем переподключение для ${connectionKey}`);
       
       // Переподключаемся в зависимости от типа соединения
       if (isConsultation) {
@@ -605,8 +573,6 @@ class WebSocketService {
         // Удаляем соединение из списка активных
         delete this.connections[connectionKey];
         delete this.messageHandlers[connectionKey];
-        
-        console.log(`[WebSocketService] Соединение закрыто для ${connectionKey}`);
       } catch (error) {
         console.error(`[WebSocketService] Ошибка при закрытии соединения для ${connectionKey}:`, error);
       }
@@ -615,8 +581,6 @@ class WebSocketService {
   
   // Закрыть все соединения
   closeAllConnections() {
-    console.log('[WebSocketService] Закрытие всех соединений');
-    
     // Устанавливаем флаг, что сервис завершает работу
     this.isShuttingDown = true;
     

@@ -14,16 +14,10 @@ const EmailVerificationRequired = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isLoading = useAuthStore(state => state.isLoading);
 
-  // Пока идет проверка аутентификации, показываем индикатор загрузки
+  // Пока идет проверка аутентификации, не показываем содержимое
+  // Загрузку отображает PageTransitionLoader
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-5 text-gray-600 font-medium">Загрузка...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Если пользователь не аутентифицирован, перенаправляем на страницу логина

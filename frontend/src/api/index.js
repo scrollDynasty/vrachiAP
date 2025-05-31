@@ -2,7 +2,13 @@ import axios from 'axios';
 
 // Определяем базовый URL нашего бэкенда
 // В реальном проекте это должна быть переменная окружения Vite!
-const API_BASE_URL = 'http://127.0.0.1:8000'; // TODO: Замени на реальный URL бэкенда, если он отличается
+const API_BASE_URL = 'http://127.0.0.1:8000'; // Прямой URL для всех API-запросов
+
+// Экспортируем базовый URL для использования в других частях приложения
+export const DIRECT_API_URL = API_BASE_URL;
+
+// URL для WebSocket через прокси Vite
+export const WS_BASE_URL = ''; // Пустая строка для использования относительных путей через прокси
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -35,7 +41,8 @@ api.interceptors.request.use(
         config.url.includes('/api/doctors') ||
         config.url.includes('/api/specializations') ||
         config.url.includes('/api/districts') ||
-        config.url === '/status'
+        config.url === '/status' ||
+        /\/api\/doctors\/\d+/.test(config.url)
       );
       
       if (token && !hasExplicitAuth) {
@@ -142,7 +149,7 @@ api.interceptors.response.use(
           // Сначала попытаемся перенаправить на страницу Google авторизации
           // Сохраняем текущий URL для возврата
           sessionStorage.setItem('auth_redirect_url', window.location.href);
-          window.location.href = `${API_BASE_URL}/auth/google/login`;
+          window.location.href = `${DIRECT_API_URL}/auth/google/login`;
           
           // Отклоняем промис, так как будет перенаправление
           return Promise.reject(new Error('Выполняется перенаправление для обновления токена'));

@@ -1,8 +1,10 @@
 // frontend/src/components/RegisterForm.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Spinner, Checkbox, Card, CardHeader, CardBody, Input, Select, SelectItem, Divider, Radio, RadioGroup, Textarea } from '@nextui-org/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api'; // Импортируем API для получения списка районов
 import { useNavigate } from 'react-router-dom';
+import MedicalLoader from './MedicalLoader';
 
 function RegisterForm({ onSubmit, isLoading, error }) {
   const [email, setEmail] = useState('');
@@ -23,108 +25,140 @@ function RegisterForm({ onSubmit, isLoading, error }) {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const navigate = useNavigate();
 
+  // Анимационные переменные
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.06,
+        duration: 0.4
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
+
+  // Декоративные элементы для вау-эффекта - убираем блюр
+  const floatingElements = [
+    { size: '60px', delay: 0, duration: 8, x: [-10, 10], y: [-5, 5], color: 'from-blue-400/30 to-indigo-400/30' },
+    { size: '100px', delay: 1, duration: 10, x: [5, -5], y: [10, -10], color: 'from-purple-400/20 to-pink-400/20' },
+    { size: '80px', delay: 2, duration: 12, x: [-8, 8], y: [8, -8], color: 'from-indigo-300/20 to-sky-300/20' },
+    { size: '40px', delay: 3, duration: 9, x: [15, -15], y: [-12, 12], color: 'from-cyan-400/20 to-blue-400/20' },
+  ];
+
   // Загрузка списка районов при монтировании компонента
   useEffect(() => {
     const fetchDistricts = async () => {
       try {
         const districtsData = await api.getDistricts();
-        setDistricts(districtsData);
+        // Преобразуем массив строк в массив объектов с id и name
+        const formattedDistricts = districtsData.map((district, index) => ({
+          id: index + 1,
+          name: district
+        }));
+        setDistricts(formattedDistricts);
       } catch (error) {
         console.error('Failed to load districts:', error);
+        // В случае ошибки устанавливаем пустой массив
+        setDistricts([]);
       }
     };
     
     fetchDistricts();
   }, []);
 
-  // Проверяем совпадение паролей при изменении любого из них
+  // Проверка валидности email с помощью регулярного выражения
+  const isValidEmail = useCallback((email) => {
+    // Простая проверка формата email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  }, []);
+
+  // Проверка совпадения паролей
   useEffect(() => {
-    if (password && confirmPassword) {
-      setPasswordMismatch(password !== confirmPassword);
+    if (confirmPassword && password !== confirmPassword) {
+      setPasswordMismatch(true);
     } else {
       setPasswordMismatch(false);
     }
   }, [password, confirmPassword]);
 
-  // Валидация формы
-  const validateForm = () => {
-    // Базовая валидация полей
-    if (!email) return "Пожалуйста, введите email";
-    if (!password) return "Пожалуйста, введите пароль";
-    if (password !== confirmPassword) return "Пароли не совпадают";
-    if (passwordMismatch) return "Пароли не совпадают";
-    if (password.length < 8) return "Пароль должен содержать минимум 8 символов";
-    if (!fullName) return "Пожалуйста, введите ваше ФИО";
-    if (!phone) return "Пожалуйста, введите номер телефона";
-    if (!district) return "Пожалуйста, выберите район проживания";
-    if (!address) return "Пожалуйста, введите ваш адрес";
-    if (!agreeTos) return "Вы должны согласиться с условиями использования";
-    
-    // Email валидация
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      return "Пожалуйста, введите корректный email";
-    }
-    
-    // Телефонная валидация (простая)
-    const phoneRegex = /^[+]?[0-9]{10,15}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      return "Пожалуйста, введите корректный номер телефона (от 10 до 15 цифр)";
-    }
-    
-    return null;
-  };
-
-  // Функция для обновления состояния пароля с проверкой совпадения
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-  };
-
-  // Функция для обновления состояния подтверждения пароля с проверкой совпадения
-  const handleConfirmPasswordChange = (e) => {
-    setConfirmPassword(e.target.value);
-  };
-
   // Обработчик отправки формы
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    // Сбрасываем ошибку перед валидацией
+    // Сбрасываем ошибки перед новой отправкой
     setFormError(null);
     
-    // Валидация формы
-    const validationError = validateForm();
-    if (validationError) {
-      setFormError(validationError);
+    // Проверка заполнения обязательных полей
+    if (!fullName) {
+      setFormError("Пожалуйста, введите ваше полное имя");
+      return;
+    }
+    if (!email) {
+      setFormError("Пожалуйста, введите email");
+      return;
+    }
+    if (!password) {
+      setFormError("Пожалуйста, введите пароль");
+      return;
+    }
+    if (!confirmPassword) {
+      setFormError("Пожалуйста, подтвердите пароль");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFormError("Пароли не совпадают");
+      return;
+    }
+    if (password.length < 8) {
+      setFormError("Пароль должен содержать не менее 8 символов");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setFormError("Пожалуйста, введите корректный email");
+      return;
+    }
+    if (!phone) {
+      setFormError("Пожалуйста, введите номер телефона");
+      return;
+    }
+    if (!district) {
+      setFormError("Пожалуйста, выберите район");
+      return;
+    }
+    if (!agreeTos) {
+      setFormError("Для регистрации необходимо согласиться с условиями использования");
       return;
     }
     
+    // Создаем объект с данными пользователя
+    const userData = {
+      email: email.trim(),
+      password,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      district,
+      address: address.trim(),
+      medicalInfo: medicalInfo.trim(),
+      userType
+    };
+    
     try {
-      // Подготовка данных для регистрации
-      const userData = {
-        email: email.trim(),
-        password: password,
-        role: "patient", // Всегда роль пациента
-        district: district,
-        full_name: fullName.trim(),
-        contact_phone: phone.trim(),
-        contact_address: address.trim(),
-        medical_info: medicalInfo.trim()
-      };
+      console.log("RegisterForm: Submitting registration form");
       
-      console.log("RegisterForm: Sending registration data", { 
-        email: userData.email,
-        role: userData.role,
-        hasPassword: !!userData.password,
-        district: userData.district
-      });
-      
-      // Вызываем функцию onSubmit из родительского компонента
+      // Вызов функции регистрации из родительского компонента (обычно AuthPage.handleRegister)
       const result = await onSubmit(userData);
       
-      console.log("RegisterForm: Registration result", result);
-      
-      // Проверяем результат на явный признак неудачной регистрации
       if (result && result.success === false) {
         console.error('Registration failed with explicit failure:', result.error);
         setFormError(result.error || "Ошибка при регистрации. Пожалуйста, попробуйте позже.");
@@ -155,382 +189,493 @@ function RegisterForm({ onSubmit, isLoading, error }) {
         setRegisteredEmail(email.trim());
       }
       
-    } catch (error) {
-      console.error('Registration error:', error);
-      
-      // Если есть оригинальное сообщение об ошибке в error.message, используем его
-      const errorMessage = error.message || "Ошибка при регистрации";
-      console.log("Original error message:", errorMessage);
-      
-      // Обработка ошибок
-      if (error.response) {
-        const status = error.response.status;
-        let detail = error.response.data?.detail || '';
-        
-        // Выводим подробную информацию для отладки
-        console.log("RegisterForm: Error details:", {
-          status,
-          statusText: error.response.statusText,
-          data: error.response.data,
-          detail: error.response.data?.detail
-        });
-        
-        // Если есть детали ошибки в ответе, используем их
-        if (detail) {
-          console.log("Registration error detail from server:", detail);
-          
-          // Проверяем разные типы ошибок по сообщению
-          if (detail.toLowerCase().includes('email') && detail.toLowerCase().includes('уже зарегистрирован')) {
-            setFormError("Этот email уже зарегистрирован. Пожалуйста, используйте другой email или выполните вход.");
-          } else if (detail.toLowerCase().includes('телефон') && detail.toLowerCase().includes('уже зарегистрирован')) {
-            setFormError("Этот номер телефона уже зарегистрирован. Пожалуйста, используйте другой номер или выполните вход.");
-          } else if (detail.toLowerCase().includes('уже зарегистрирован')) {
-            setFormError("Этот пользователь уже зарегистрирован. Пожалуйста, используйте другие данные или выполните вход.");
-          } else if (detail.toLowerCase().includes('already registered')) {
-            setFormError("Этот пользователь уже зарегистрирован. Пожалуйста, используйте другие данные или выполните вход.");
-          } else {
-            // Показываем оригинальное сообщение от сервера
-            setFormError(detail);
-          }
-        } else {
-          // Если нет деталей, используем статус для формирования сообщения
-          if (status === 400) {
-            setFormError("Ошибка в данных регистрации. Пожалуйста, проверьте все поля.");
-          } else if (status === 409) {
-            setFormError("Пользователь с такими данными уже существует.");
-          } else {
-            setFormError("Ошибка регистрации: " + errorMessage);
-          }
-        }
-      } else if (errorMessage) {
-        // Если нет ответа, но есть сообщение об ошибке, показываем его
-        setFormError(errorMessage);
-      } else {
-        // Общее сообщение, если ничего другого не подходит
-        setFormError("Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
-      }
+    } catch (err) {
+      console.error("RegisterForm Error:", err);
+      setFormError(err.message || "Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
     }
   };
 
-  // Если регистрация прошла успешно, показываем сообщение об этом
+  // Если форма уже отправлена и есть ошибка от родительского компонента, показываем ее
+  useEffect(() => {
+    if (error) {
+      setFormError(error);
+    }
+  }, [error]);
+
+  // Показать ошибку валидации формы
+  const displayError = formError || error;
+
+  // Если регистрация успешна, показываем сообщение об успехе
   if (registrationSuccessful) {
     return (
-      <div className="w-full max-w-2xl mx-auto">
-        <Card className="shadow-xl border border-gray-100">
-          <CardHeader className="flex flex-col gap-1 items-center bg-green-50 py-6">
-            <div className="w-16 h-16 flex items-center justify-center rounded-full bg-green-100 mb-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md mx-auto"
+      >
+        <Card className="bg-white/90 border border-gray-100 shadow-xl">
+          <CardBody className="px-8 py-10 text-center">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-green-800">Регистрация успешна!</h2>
-            <p className="text-green-600 text-sm">Ваш аккаунт успешно создан</p>
-          </CardHeader>
-          
-          <CardBody className="px-6 py-8">
+            </motion.div>
+            
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">Регистрация успешна!</h2>
+            
             {verificationRequired ? (
-              <div className="space-y-6">
-                <div className="bg-blue-50 p-5 rounded-lg text-blue-700 border border-blue-200">
-                  <h3 className="font-bold text-lg mb-2">Подтвердите ваш Email</h3>
-                  <p className="mb-3">Мы отправили письмо с ссылкой для подтверждения на адрес:</p>
-                  <div className="p-3 bg-white rounded-md border border-blue-100 font-medium text-center mb-3">
-                    {registeredEmail}
-                  </div>
-                  <p className="mb-2">Пожалуйста, проверьте вашу почту и нажмите на ссылку для активации аккаунта.</p>
-                  <p className="text-sm text-blue-600">Письмо может прийти в течение нескольких минут. Проверьте также папку "Спам".</p>
-                </div>
+              <>
+                <p className="text-gray-600 mb-6">
+                  Мы отправили письмо с подтверждением на адрес <span className="font-semibold">{registeredEmail}</span>. 
+                  Пожалуйста, проверьте вашу почту и перейдите по ссылке в письме для активации аккаунта.
+                </p>
                 
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Что делать дальше?</h4>
-                  <ol className="list-decimal list-inside space-y-2 pl-4">
-                    <li>Проверьте ваш почтовый ящик</li>
-                    <li>Найдите письмо от MedCare</li>
-                    <li>Нажмите на ссылку для подтверждения в письме</li>
-                    <li>После подтверждения вы сможете войти в систему</li>
-                  </ol>
-                </div>
-                
-                <div className="flex gap-4 pt-4">
-                  <Button 
-                    color="primary" 
-                    className="w-full py-6 font-semibold"
-                    onClick={() => navigate('/verify-email')}
-                  >
-                    Подтвердить email
-                  </Button>
-                  <Button 
-                    color="default" 
-                    variant="flat"
-                    className="w-full py-6 font-semibold"
-                    onClick={() => navigate('/login')}
-                  >
-                    Перейти к входу
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-green-50 p-5 rounded-lg text-green-700 border border-green-200">
-                  <h3 className="font-bold text-lg mb-2">Регистрация завершена</h3>
-                  <p>Ваш аккаунт успешно создан. Теперь вы можете войти в систему.</p>
-                </div>
-                
-                <Button 
-                  color="primary" 
-                  className="w-full py-6 font-semibold"
+                <Button
+                  color="primary"
+                  className="w-full font-semibold text-white py-7 mt-2 bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/30"
                   onClick={() => navigate('/login')}
+                  radius="lg"
                 >
-                  Перейти к входу
+                  Перейти на страницу входа
                 </Button>
-              </div>
+                
+                <p className="text-sm text-gray-500 mt-6">
+                  Не получили письмо? Проверьте папку "Спам" или{' '}
+                  <button 
+                    className="text-primary font-medium hover:text-primary-dark transition-colors"
+                    onClick={() => {/* Логика повторной отправки письма */}}
+                  >
+                    отправить повторно
+                  </button>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-6">
+                  Ваш аккаунт успешно создан. Теперь вы можете войти в систему, используя указанные учетные данные.
+                </p>
+                
+                <Button
+                  color="primary"
+                  className="w-full font-semibold text-white py-7 mt-2 bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/30"
+                  onClick={() => navigate('/login')}
+                  radius="lg"
+                >
+                  Перейти на страницу входа
+                </Button>
+              </>
             )}
           </CardBody>
         </Card>
-      </div>
+      </motion.div>
     );
   }
 
+  // Основная форма регистрации
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <Card className="shadow-xl border border-gray-100">
-        <CardHeader className="flex flex-col gap-1 items-center bg-primary-50 py-6">
-          <div className="w-16 h-16 flex items-center justify-center rounded-full bg-primary-100 mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary-600" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-primary-800">Регистрация</h2>
-          <p className="text-primary-600 text-sm">Создайте новый аккаунт в MedCare</p>
-        </CardHeader>
-        
-        <CardBody className="px-6 py-8">
-          {/* Отображение загрузки */}
-          {isLoading && (
-            <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 backdrop-blur-sm">
-              <div className="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center">
-                <Spinner size="lg" color="primary" className="mb-4" />
-                <p className="text-gray-700 font-medium">Регистрация...</p>
-              </div>
-            </div>
-          )}
+    <div className="w-full max-w-2xl mx-auto relative register-form">
+      {/* Плавающие декоративные элементы */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        {floatingElements.map((el, index) => (
+          <motion.div
+            key={index}
+            className={`absolute rounded-full bg-gradient-to-br ${el.color} opacity-60`}
+            style={{ 
+              width: el.size, 
+              height: el.size,
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              x: el.x,
+              y: el.y,
+              scale: [1, 1.05, 0.95, 1],
+            }}
+            transition={{
+              repeat: Infinity,
+              repeatType: "reverse",
+              duration: el.duration,
+              delay: el.delay,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+      
+      <motion.div
+        initial={{ rotateX: -10, scale: 0.95, opacity: 0 }}
+        animate={{ rotateX: 0, scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100, damping: 20, duration: 0.8 }}
+        style={{ perspective: 1000 }}
+        className="relative z-10"
+      >
+        <Card className="bg-white/90 border border-white/20 shadow-2xl overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
           
-          {/* Отображаем ошибку */}
-          {(error || formError) && (
-            <div className="p-4 rounded-lg mb-6 bg-red-50 text-red-700 border border-red-200">
-              <p className="font-medium">{error || formError}</p>
-            </div>
-          )}
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 to-purple-50/20 pointer-events-none"></div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">ФИО и контактные данные</h3>
-              
-              <Input
-                type="text"
-                label="ФИО"
-                placeholder="Введите ваше полное имя"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                isRequired
-                startContent={
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                }
-              />
-              
-              <Input
-                type="tel"
-                label="Номер телефона"
-                placeholder="Введите ваш номер телефона"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                isRequired
-                startContent={
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                }
-              />
-              
-              <Input
-                type="text"
-                label="Адрес"
-                placeholder="Введите ваш адрес"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                isRequired
-                startContent={
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                }
-              />
-            </div>
-            
-            <Divider />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Район проживания</h3>
-              
-              <Select
-                label="Район проживания"
-                placeholder="Выберите район"
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                isRequired
-                selectedKeys={district ? [district] : []}
-                onSelectionChange={(keys) => {
-                  if (keys.size > 0) {
-                    setDistrict(Array.from(keys)[0]);
-                  } else {
-                    setDistrict('');
-                  }
-                }}
-                startContent={
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                }
-              >
-                {districts.map((district) => (
-                  <SelectItem key={district} value={district}>
-                    {district}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
-            
-            <Divider />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Медицинская информация</h3>
-              
-              <Textarea
-                label="Медицинская информация"
-                placeholder="Введите информацию о вашем здоровье, хронических заболеваниях, аллергиях и т.д."
-                value={medicalInfo}
-                onChange={(e) => setMedicalInfo(e.target.value)}
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                minRows={3}
-                maxRows={5}
-              />
-            </div>
-            
-            <Divider />
-            
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Учётные данные</h3>
-              
-              <Input
-                type="email"
-                label="Email"
-                placeholder="Введите ваш email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                variant="bordered"
-                radius="sm"
-                fullWidth
-                isRequired
-                startContent={
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                }
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  type="password"
-                  label="Пароль"
-                  placeholder="Введите пароль"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  variant="bordered"
-                  radius="sm"
-                  fullWidth
-                  isRequired
-                  isInvalid={passwordMismatch}
-                  color={passwordMismatch ? "danger" : "default"}
-                  errorMessage={passwordMismatch ? "Пароли не совпадают" : ""}
-                  startContent={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          <motion.div 
+            className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-gradient-to-br from-blue-400/20 to-indigo-400/20 opacity-30"
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 90, 180, 270, 360],
+              opacity: [0.3, 0.5, 0.3]
+            }}
+            transition={{ 
+              duration: 15,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          <CardBody className="px-6 py-8">
+            <AnimatePresence>
+              {displayError && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -10, height: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200"
+                >
+                  <div className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                  }
-                />
-                
-                <Input
-                  type="password"
-                  label="Подтверждение пароля"
-                  placeholder="Повторите пароль"
-                  value={confirmPassword}
-                  onChange={handleConfirmPasswordChange}
-                  variant="bordered"
-                  radius="sm"
-                  fullWidth
-                  isRequired
-                  isInvalid={passwordMismatch}
-                  color={passwordMismatch ? "danger" : "default"}
-                  errorMessage={passwordMismatch ? "Пароли не совпадают" : ""}
-                  startContent={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  }
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <Checkbox
-                isSelected={agreeTos}
-                onValueChange={setAgreeTos}
-                color="primary"
-              >
-                <span className="text-sm">
-                  Я согласен с <a href="#" className="text-primary-600 hover:underline">условиями использования</a> и <a href="#" className="text-primary-600 hover:underline">политикой конфиденциальности</a>
-                </span>
-              </Checkbox>
+                    <p>{displayError}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <motion.form 
+              onSubmit={handleSubmit}
+              className="space-y-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.div variants={itemVariants}>
+                <motion.h3 
+                  className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  Основная информация
+                </motion.h3>
+                <div className="space-y-4">
+                  <Input
+                    type="text"
+                    label="Полное имя"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Введите ваше ФИО"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="name"
+                    fullWidth
+                    isRequired
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    }
+                  />
+                  
+                  <Input
+                    type="email"
+                    label="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Введите ваш email"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="email"
+                    fullWidth
+                    isRequired
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    }
+                  />
+                  
+                  <Input
+                    type="tel"
+                    label="Номер телефона"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Введите ваш номер телефона"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="tel"
+                    fullWidth
+                    isRequired
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    }
+                  />
+                </div>
+              </motion.div>
               
-              <Button
-                type="submit"
-                color="primary"
-                className="w-full py-6 font-semibold"
-                isLoading={isLoading}
-                isDisabled={!agreeTos}
-              >
-                {isLoading ? <Spinner size="sm" color="white" /> : 'Зарегистрироваться'}
-              </Button>
+              <motion.div 
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.5 }}
+                className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-6"
+              />
               
-              <div className="text-center mt-4">
-                <p className="text-gray-600">
-                  Уже есть аккаунт?{' '}
-                  <button 
-                    onClick={() => navigate('/login')}
-                    className="text-primary-600 hover:underline font-medium"
+              <motion.div variants={itemVariants}>
+                <motion.h3 
+                  className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  Безопасность
+                </motion.h3>
+                <div className="space-y-4">
+                  <Input
+                    type="password"
+                    label="Пароль"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Минимум 8 символов"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="new-password"
+                    fullWidth
+                    isRequired
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    }
+                  />
+                  
+                  <Input
+                    type="password"
+                    label="Подтверждение пароля"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Повторите пароль"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="new-password"
+                    fullWidth
+                    isRequired
+                    isInvalid={passwordMismatch}
+                    errorMessage={passwordMismatch ? "Пароли не совпадают" : ""}
+                    classNames={{
+                      inputWrapper: `bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all ${passwordMismatch ? 'border-red-500' : ''}`,
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${passwordMismatch ? 'text-red-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                    }
+                  />
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-6"
+              />
+              
+              <motion.div variants={itemVariants}>
+                <motion.h3 
+                  className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  Дополнительная информация
+                </motion.h3>
+                <div className="space-y-4">
+                  <Select
+                    label="Район"
+                    placeholder="Выберите ваш район"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    variant="bordered"
+                    radius="lg"
+                    fullWidth
+                    isRequired
+                    classNames={{
+                      trigger: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all h-[56px]",
+                      value: "text-gray-800"
+                    }}
                   >
-                    Войти
-                  </button>
-                </p>
-              </div>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
+                    {districts && districts.length > 0 ? (
+                      districts.map((dist) => (
+                        <SelectItem key={dist.id} value={dist.id.toString()} textValue={dist.name}>
+                          {dist.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem key="loading" value="" textValue="Загрузка районов...">
+                        Загрузка районов...
+                      </SelectItem>
+                    )}
+                  </Select>
+                  
+                  <Input
+                    type="text"
+                    label="Адрес"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Введите ваш адрес"
+                    variant="bordered"
+                    radius="lg"
+                    autoComplete="street-address"
+                    fullWidth
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    }
+                  />
+                  
+                  <Textarea
+                    label="Медицинская информация"
+                    value={medicalInfo}
+                    onChange={(e) => setMedicalInfo(e.target.value)}
+                    placeholder="Введите информацию о хронических заболеваниях, аллергиях и т.д."
+                    variant="bordered"
+                    radius="lg"
+                    fullWidth
+                    minRows={3}
+                    classNames={{
+                      inputWrapper: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all",
+                      input: "text-gray-800 placeholder:text-gray-400"
+                    }}
+                  />
+                </div>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="space-y-4 pt-4">
+                <Checkbox
+                  isSelected={agreeTos}
+                  onValueChange={setAgreeTos}
+                  color="primary"
+                  className="items-start"
+                  classNames={{
+                    label: "text-sm text-left",
+                    wrapper: "before:border-2 before:border-gray-300 group-data-[selected=true]:before:border-primary"
+                  }}
+                >
+                  <span className="text-sm">
+                    Я согласен с <motion.a 
+                      href="#" 
+                      className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>условиями использования</span>
+                      <motion.span 
+                        className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </motion.a> и <motion.a 
+                      href="#" 
+                      className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>политикой конфиденциальности</span>
+                      <motion.span 
+                        className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </motion.a>
+                  </span>
+                </Checkbox>
+                
+                <motion.div 
+                  className="relative overflow-hidden group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    type="submit"
+                    color="primary"
+                    className="w-full font-semibold text-white py-7 text-base bg-gradient-to-r from-primary to-indigo-600 shadow-lg hover:shadow-xl z-10 relative"
+                    isLoading={isLoading}
+                    isDisabled={!agreeTos}
+                    radius="lg"
+                    disableRipple
+                    startContent={!isLoading && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                    )}
+                  >
+                    {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" /></div> : 'Зарегистрироваться'}
+                  </Button>
+                  
+                  <motion.div 
+                    className="absolute inset-0 bg-gradient-to-r from-blue-600/80 to-indigo-700/80 z-0"
+                    initial={{ y: '100%' }}
+                    whileHover={{ y: 0 }}
+                    transition={{ duration: 0.4 }}
+                  />
+                </motion.div>
+                
+                <div className="text-center mt-4">
+                  <p className="text-gray-600">
+                    Уже есть аккаунт?{' '}
+                    <motion.a 
+                      href="/login"
+                      className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span className="relative z-10">Войти</span>
+                      <motion.span 
+                        className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </motion.a>
+                  </p>
+                </div>
+              </motion.div>
+            </motion.form>
+          </CardBody>
+        </Card>
+      </motion.div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // frontend/src/App.jsx
 import React, { useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 
 // Импортируем компоненты страниц
 import HomePage from './pages/HomePage'
@@ -30,6 +31,8 @@ import useAuthStore from './stores/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
 // Импортируем компонент для проверки подтверждения email
 import EmailVerificationRequired from './components/EmailVerificationRequired'
+import MedicalLoader from './components/MedicalLoader'
+import PageTransitionLoader from './components/PageTransitionLoader'
 
 // Импортируем основные стили
 import './index.scss'
@@ -87,7 +90,9 @@ function App() {
       '/verify-email',
       '/auth/google/callback',
       '/admin-piisa-popa',
-      '/404'
+      '/404',
+      '/search-doctors',  // Делаем поиск врачей публичным
+      '/doctors'          // Делаем профили врачей публичными
     ];
     
     // Проверяем, является ли текущий путь публичным
@@ -153,19 +158,6 @@ function App() {
     pendingVerificationEmail
   });
 
-  // Если идет загрузка инициализации стора
-  if (isLoading) {
-    console.log('App: Showing loading state');
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-5 text-gray-600 font-medium">Загрузка приложения...</p>
-        </div>
-      </div>
-    )
-  }
-
   // Основной UI приложения
   console.log('App: Rendering main UI', {
     showHeader: isAuthenticated && user && !error,
@@ -176,7 +168,105 @@ function App() {
   });
   
   return (
-    <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen">
+    <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen relative overflow-hidden medical-theme">
+      {/* Декоративные фоновые элементы для улучшения визуального вида */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Верхний градиентный круг */}
+        <motion.div 
+          className="absolute top-0 -right-40 w-96 h-96 rounded-full bg-gradient-to-br from-blue-100/40 to-indigo-100/40"
+          animate={{ 
+            y: [0, 15, -15, 0],
+            rotate: [0, 5, 0, -5, 0],
+            scale: [1, 1.05, 0.95, 1]
+          }}
+          transition={{ 
+            duration: 20, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        {/* Нижний градиентный круг */}
+        <motion.div 
+          className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-gradient-to-br from-red-100/30 to-pink-100/30"
+          animate={{ 
+            y: [0, -15, 15, 0],
+            rotate: [0, -5, 0, 5, 0],
+            scale: [1, 0.95, 1.05, 1]
+          }}
+          transition={{ 
+            duration: 25, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        {/* Декоративная волнистая линия */}
+        <svg className="absolute bottom-0 left-0 right-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+          <motion.path 
+            fill="#f3f4f6" 
+            fillOpacity="0.2"
+            d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,213.3C1248,203,1344,213,1392,218.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+            animate={{ 
+              d: [
+                "M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,213.3C1248,203,1344,213,1392,218.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
+                "M0,160L48,181.3C96,203,192,245,288,234.7C384,224,480,160,576,138.7C672,117,768,139,864,176C960,213,1056,267,1152,266.7C1248,267,1344,213,1392,186.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
+                "M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,213.3C1248,203,1344,213,1392,218.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+              ]
+            }}
+            transition={{ 
+              duration: 30, 
+              repeat: Infinity,
+              ease: "easeInOut" 
+            }}
+          />
+        </svg>
+        
+        {/* Медицинские символы, которые появляются в разных частях экрана */}
+        <motion.div 
+          className="absolute top-1/4 right-10 text-red-500/10"
+          initial={{ opacity: 0 }}
+          animate={{ 
+            opacity: [0, 0.1, 0],
+            rotate: [0, 10, 0, -10, 0],
+            scale: [0.8, 1, 0.8]
+          }}
+          transition={{ 
+            duration: 15, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM7 4.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm-.5 2.5A.5.5 0 0 1 7 6.5h2a.5.5 0 0 1 0 1H7a.5.5 0 0 1-.5-.5zm-1 1a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-.5 2.5A.5.5 0 0 1 5 10h4a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z"/>
+          </svg>
+        </motion.div>
+        
+        <motion.div 
+          className="absolute bottom-1/3 left-20 text-blue-500/10"
+          initial={{ opacity: 0 }}
+          animate={{ 
+            opacity: [0, 0.1, 0],
+            rotate: [0, -15, 0, 15, 0],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{ 
+            duration: 18, 
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 5
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-3 9h10V7H4v10Z"/>
+            <path d="M2 2a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2Zm11 12h-1v-3a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v3H3V2h10v12Z"/>
+          </svg>
+        </motion.div>
+      </div>
+      
+      {/* Компонент анимации перехода между страницами */}
+      <PageTransitionLoader isAuthLoading={isLoading} />
+      
       {/* Хедер приложения (показываем только если пользователь аутентифицирован и нет ошибок) */}
       {isAuthenticated && user && !error && <Header />}
       
@@ -196,7 +286,7 @@ function App() {
       />
       
       {/* Основное содержимое */}
-      <main className="pt-4 pb-8">
+      <main className="pt-4 pb-8 relative z-10">
       {/* Определение набора маршрутов приложения с помощью компонента Routes */}
       <Routes>
           {/* Публичные роуты */}
@@ -240,7 +330,7 @@ function App() {
       {isAuthenticated && user && !error && (
         <footer className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200 py-6 text-center text-gray-600 text-sm">
           <div className="container mx-auto">
-            <p>© {new Date().getFullYear()} MedCare. Все права защищены.</p>
+            <p>© {new Date().getFullYear()} Soglom. Все права защищены.</p>
             <div className="mt-2 flex justify-center gap-4">
               <a href="#" className="hover:text-primary transition-colors">Политика конфиденциальности</a>
               <a href="#" className="hover:text-primary transition-colors">Условия использования</a>

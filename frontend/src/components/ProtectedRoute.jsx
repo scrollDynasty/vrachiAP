@@ -14,18 +14,11 @@ function ProtectedRoute({ allowedRoles }) {
   const needsProfileUpdate = useAuthStore(state => state.needsProfileUpdate);
   const authError = useAuthStore(state => state.error);
 
-  // Пока идет проверка аутентификации при старте приложения (загрузка из Local Storage и валидация токена на бэкенде)
-  // В это время мы еще не знаем точно, авторизован пользователь или нет.
-  // Показываем индикатор загрузки или null.
+  // Если идет загрузка аутентификации, ничего не отображаем 
+  // (загрузку показывает PageTransitionLoader)
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-5 text-gray-600 font-medium">Загрузка...</p>
-        </div>
-      </div>
-    );
+    // Возвращаем null вместо лоадера, так как PageTransitionLoader уже отображает загрузку
+    return null;
   }
 
   // Если есть ошибка аутентификации, перенаправляем на страницу логина

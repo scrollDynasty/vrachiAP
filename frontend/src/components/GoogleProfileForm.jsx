@@ -360,7 +360,7 @@ const GoogleProfileForm = ({ onCompleted }) => {
                     }
                   >
                     {districts.map((district) => (
-                      <SelectItem key={district} value={district}>
+                      <SelectItem key={district} value={district} textValue={district}>
                         {district}
                       </SelectItem>
                     ))}

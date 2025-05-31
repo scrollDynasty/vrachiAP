@@ -22,6 +22,8 @@ import useChatStore from '../stores/chatStore';
 import api from '../api';
 import webSocketService from '../services/webSocketService';
 import AvatarWithFallback from './AvatarWithFallback';
+import '../styles/AppIcon.css'; // Импортируем наши стили
+import { motion } from 'framer-motion';
 
 function Header() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -37,6 +39,17 @@ function Header() {
   
   // Используем useRef для отслеживания установленного соединения
   const wsInitializedRef = useRef(false);
+  
+  // Состояние для отслеживания развернутых уведомлений
+  const [expandedNotifications, setExpandedNotifications] = useState({});
+  
+  // Функция для переключения состояния развернутости уведомления
+  const toggleNotificationExpand = (notificationId) => {
+    setExpandedNotifications(prev => ({
+      ...prev,
+      [notificationId]: !prev[notificationId]
+    }));
+  };
   
   // Загружаем фото профиля из localStorage при монтировании компонента
   useEffect(() => {
@@ -228,10 +241,7 @@ function Header() {
         <NavbarBrand>
           <Link to="/" className="flex items-center">
             <div className="flex items-center gap-2 transition-all hover:scale-105">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-primary mr-1">
-                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-              </svg>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">MedCare</span>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Soglom</span>
             </div>
           </Link>
         </NavbarBrand>
@@ -242,10 +252,7 @@ function Header() {
         <NavbarBrand>
           <Link to="/" className="flex items-center">
             <div className="flex items-center gap-2 transition-all hover:scale-105">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-primary mr-1">
-                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-              </svg>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">MedCare</span>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Soglom</span>
             </div>
           </Link>
         </NavbarBrand>
@@ -304,25 +311,92 @@ function Header() {
                 <Button
                   isIconOnly
                   variant="light"
-                  className="rounded-full"
+                  className="rounded-full relative overflow-hidden group hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 transition-all duration-300"
                 >
-                  <Badge content={unreadCount || null} color="danger" shape="circle" size="sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
+                  <Badge 
+                    content={unreadCount || null} 
+                    color="danger" 
+                    shape="circle" 
+                    size="sm"
+                    className={`${unreadCount ? 'animate-pulse' : 'group-hover:animate-pulse'}`}
+                    classNames={{
+                      badge: unreadCount ? "bg-gradient-to-r from-red-500 to-rose-500 shadow-md scale-125" : ""
+                    }}
+                  >
+                    <div className="relative w-7 h-7 flex items-center justify-center">
+                      {/* Фоновое свечение при наведении */}
+                      <motion.div 
+                        className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-0 group-hover:opacity-70 blur-md"
+                        animate={{ scale: [0.85, 1, 0.85], opacity: [0, 0.4, 0] }}
+                        transition={{ 
+                          duration: 3, 
+                          repeat: Infinity,
+                          repeatType: "loop" 
+                        }}
+                      />
+                      
+                      {/* Основной фон кнопки */}
+                      <div className="absolute inset-0 bg-white rounded-full group-hover:bg-gradient-to-r group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300"></div>
+                      
+                      {/* Иконка колокольчика */}
+                      <motion.div
+                        className="relative z-10"
+                        animate={unreadCount ? {
+                          rotate: [-2, 2, -2, 0],
+                          y: [0, -1, 0]
+                        } : {}}
+                        transition={unreadCount ? {
+                          duration: 0.5,
+                          repeat: unreadCount ? 3 : 0,
+                          repeatType: "loop",
+                          repeatDelay: 4
+                        } : {}}
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          strokeWidth={1.8} 
+                          className="w-5 h-5 relative transition-all duration-300 group-hover:scale-110 
+                            group-hover:stroke-indigo-600 stroke-gray-700"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" 
+                          />
+                        </svg>
+                      </motion.div>
+                      
+                      {/* Дополнительная анимация при наличии уведомлений */}
+                      {unreadCount > 0 && (
+                        <motion.div 
+                          className="absolute inset-0 rounded-full border-2 border-transparent"
+                          animate={{ 
+                            scale: [1, 1.2, 1],
+                            borderColor: ['rgba(99, 102, 241, 0)', 'rgba(99, 102, 241, 0.5)', 'rgba(99, 102, 241, 0)']
+                          }}
+                          transition={{ 
+                            duration: 2.5, 
+                            repeat: Infinity,
+                            repeatDelay: 1
+                          }}
+                        />
+                      )}
+                    </div>
                   </Badge>
                 </Button>
               </DropdownTrigger>
               <DropdownMenu 
                 aria-label="Уведомления" 
-                className="w-80"
+                className="w-96 max-h-[70vh] overflow-auto"
                 emptyContent={
                   <div className="py-6 text-center text-gray-500">
                     <p>У вас нет уведомлений</p>
                   </div>
                 }
               >
-                <DropdownItem isReadOnly className="py-2">
+                <DropdownItem isReadOnly className="py-2 sticky top-0 bg-white z-10 shadow-sm">
                   <div className="flex justify-between items-center">
                     <p className="font-medium">Уведомления</p>
                     {notifications.length > 0 && (
@@ -347,38 +421,60 @@ function Header() {
                 <DropdownItem isReadOnly className="h-px bg-gray-200 my-1" />
                 
                 {notifications.length > 0 ? (
-                  notifications.slice(0, 5).map((notification) => (
-                    <DropdownItem
-                      key={notification.id}
-                      className={`py-3 ${!notification.is_viewed ? 'bg-blue-50' : ''}`}
-                      onPress={() => markAsRead(notification.id)}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex justify-between">
-                          <p className="font-medium">{notification.title}</p>
-                          {!notification.is_viewed && (
-                            <Badge color="primary" variant="flat" size="sm">Новое</Badge>
-                          )}
+                  notifications.map((notification) => {
+                    const isExpanded = expandedNotifications[notification.id] || false;
+                    const needsExpand = notification.message && notification.message.length > 120;
+                    
+                    return (
+                      <DropdownItem
+                        key={notification.id}
+                        className={`py-3 ${!notification.is_viewed ? 'bg-blue-50' : ''}`}
+                        onClick={(e) => {
+                          // Предотвращаем стандартное поведение клика для кнопки "Подробнее"
+                          if (e.target.closest('.expand-button')) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          } else {
+                            markAsRead(notification.id);
+                          }
+                        }}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <p className="font-medium">{notification.title}</p>
+                            {!notification.is_viewed && (
+                              <Badge color="primary" variant="flat" size="sm">Новое</Badge>
+                            )}
+                          </div>
+                          <div>
+                            <p className={`text-sm text-gray-600 ${!isExpanded && needsExpand ? 'line-clamp-3' : ''}`}>
+                              {notification.message}
+                            </p>
+                            {needsExpand && (
+                              <Button 
+                                className="expand-button p-0 h-auto min-w-0 mt-1"
+                                size="sm" 
+                                variant="light" 
+                                color="primary"
+                                onClick={() => toggleNotificationExpand(notification.id)}
+                              >
+                                {isExpanded ? 'Свернуть' : 'Подробнее'}
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(notification.created_at).toLocaleString('ru-RU', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(notification.created_at).toLocaleString('ru-RU', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                    </DropdownItem>
-                  ))
+                      </DropdownItem>
+                    );
+                  })
                 ) : null}
-                
-                {notifications.length > 5 && (
-                  <DropdownItem onPress={() => navigate('/notifications')}>
-                    <p className="text-center text-primary">Показать все уведомления</p>
-                  </DropdownItem>
-                )}
               </DropdownMenu>
             </Dropdown>
             
@@ -390,7 +486,7 @@ function Header() {
                     src={user?.avatar_path || profileImage}
                     name={getAvatarText()}
                     size="sm"
-                    className="cursor-pointer"
+                    className="cursor-pointer user-avatar"
                     color="primary"
                   />
                   {connectionStatus === 'connected' && (

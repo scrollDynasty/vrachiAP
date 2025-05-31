@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardBody, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tabs, Tab, Spinner, Divider, Button, Avatar, Badge } from '@nextui-org/react';
+import { Card, CardHeader, CardBody, Tabs, Tab, Spinner, Divider, Button, Avatar, Badge } from '@nextui-org/react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import api from '../api';
+import { motion } from 'framer-motion';
 
 // Компонент страницы истории консультаций и платежей
 function HistoryPage() {
@@ -131,6 +132,17 @@ function HistoryPage() {
     }
   };
   
+  // Функция для получения градиента статуса консультации
+  const getStatusGradient = (status) => {
+    switch(status) {
+      case "completed": return "from-green-500 to-emerald-600";
+      case "active": return "from-yellow-500 to-amber-600";
+      case "pending": return "from-blue-500 to-indigo-600";
+      case "cancelled": return "from-red-500 to-rose-600";
+      default: return "from-gray-500 to-gray-600";
+    }
+  };
+  
   // Форматирование даты для отображения
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -182,146 +194,316 @@ function HistoryPage() {
     return unreadMessages[consultationId] || 0;
   };
   
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">История</h1>
-      
-      <Tabs 
-        selectedKey={activeTab}
-        onSelectionChange={setActiveTab}
-        variant="underlined"
-        classNames={{
-          tab: "py-2 px-4",
-          tabContent: "group-data-[selected=true]:text-primary",
-          cursor: "bg-primary",
-          panel: "pt-3"
-        }}
+  // Компонент карточки консультации
+  const ConsultationCard = ({ consultation, index }) => {
+    const statusGradient = getStatusGradient(consultation.status);
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.1 }}
+        whileHover={{ y: -5, scale: 1.01 }}
+        className="mb-4"
       >
-        <Tab 
-          key="consultations" 
-          title="Консультации" 
-          className="py-1 px-0"
+        <Card 
+          shadow="sm" 
+          className="overflow-hidden border border-gray-100 hover:shadow-md transition-all"
+          isPressable
+          onPress={() => goToConsultation(consultation.id)}
         >
-          <Card shadow="sm" className="mt-4">
-            <CardHeader className="bg-gray-50 px-5 py-3">
-              <h2 className="text-lg font-medium">История консультаций</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Spinner size="lg" color="primary" />
+          {/* Цветная полоса статуса сверху */}
+          <div className={`h-1.5 bg-gradient-to-r ${statusGradient} w-full`}></div>
+          
+          <CardBody className="p-0">
+            <div className="flex flex-col md:flex-row">
+              {/* Левая колонка с информацией о собеседнике */}
+              <div className="md:w-1/3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col justify-center items-center md:items-start">
+                <div className="flex flex-col items-center md:flex-row md:items-start gap-3 mb-3">
+                  <Avatar 
+                    src={getUserAvatar(consultation)} 
+                    fallback={
+                      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white flex items-center justify-center h-full">
+                        {getParticipantName(consultation).charAt(0)}
+                      </div>
+                    }
+                    size="lg"
+                    className="mb-2 md:mb-0 border-2 border-white shadow-sm"
+                  />
+                  <div className="text-center md:text-left">
+                    <div className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
+                      {getParticipantName(consultation)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {user.role === 'patient' ? 'Врач' : 'Пациент'}
+                    </div>
+                  </div>
                 </div>
-              ) : error ? (
-                <div className="py-8 px-5 text-danger text-center">{error}</div>
-              ) : consultations.length === 0 ? (
-                <div className="py-8 px-5 text-center text-gray-500">
-                  <p>У вас пока нет консультаций.</p>
-                  {user.role === 'patient' && (
-                    <Button 
-                      color="primary" 
-                      className="mt-4"
-                      onPress={() => navigate('/search-doctors')}
+                
+                <Divider className="my-3 bg-gradient-to-r from-transparent via-indigo-200 to-transparent w-full" />
+                
+                <div className="flex flex-col items-center md:items-start">
+                  <div className="text-sm text-gray-600">Статус:</div>
+                  <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${statusGradient} text-white text-sm font-medium shadow-sm mt-1`}>
+                    {getConsultationStatusText(consultation.status)}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Правая колонка с деталями и действиями */}
+              <div className="md:w-2/3 p-4">
+                <div className="flex flex-col h-full">
+                  <div className="flex flex-col md:flex-row md:justify-between mb-3">
+                    <div>
+                      <div className="text-sm text-gray-600">Дата создания:</div>
+                      <div className="font-medium">{formatDate(consultation.created_at)}</div>
+                    </div>
+                    
+                    {consultation.started_at && (
+                      <div className="mt-2 md:mt-0">
+                        <div className="text-sm text-gray-600">Время начала:</div>
+                        <div className="font-medium">{formatTime(consultation.started_at)}</div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Divider className="my-3" />
+                  
+                  <div className="flex-grow">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">Сообщения:</div>
+                        <div className="flex items-center gap-2">
+                          <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                            {consultation.message_count} / {consultation.message_limit}
+                          </div>
+                          
+                          {consultation.message_count > 0 && consultation.status === 'active' && (
+                            hasUnreadMessages(consultation.id) ? (
+                              <Badge content={getUnreadCount(consultation.id)} color="danger" variant="flat" size="sm">
+                                <span className="text-xs text-danger font-medium">Новые сообщения</span>
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-success font-medium">Есть сообщения</span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div 
+                        className="mt-3 md:mt-0 bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm text-white px-4 py-2 rounded-full flex items-center gap-1 cursor-pointer hover:shadow-md transition-all"
+                        onClick={() => goToConsultation(consultation.id)}
+                      >
+                        <span>{hasUnreadMessages(consultation.id) ? "Прочитать" : "Открыть чат"}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </motion.div>
+    );
+  };
+  
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Динамический градиентный фон */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-0"
+        animate={{ 
+          background: [
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8), rgba(224, 231, 255, 0.8))',
+            'linear-gradient(to bottom right, rgba(236, 254, 255, 0.8), rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))'
+          ]
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "easeInOut"
+        }}
+      />
+      
+      {/* Анимированная сетка */}
+      <div className="absolute inset-0 overflow-hidden opacity-10">
+        <motion.div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px), 
+                            linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px'
+          }}
+          animate={{
+            x: [0, -40],
+            y: [0, -40]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+      </div>
+      
+      {/* Декоративные плавающие элементы */}
+      <div className="absolute top-0 left-0 w-full h-full z-0 opacity-70 pointer-events-none">
+        <motion.div 
+          className="absolute top-20 left-[10%] w-64 h-64 rounded-full bg-gradient-to-r from-blue-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, 20, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, 5, 0, -5, 0]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-20 right-[10%] w-80 h-80 rounded-full bg-gradient-to-r from-purple-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, -25, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, -5, 0, 5, 0]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
+        <motion.h1 
+          className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          История
+        </motion.h1>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Tabs 
+            selectedKey={activeTab}
+            onSelectionChange={setActiveTab}
+            variant="underlined"
+            classNames={{
+              tab: "py-2 px-6",
+              tabContent: "group-data-[selected=true]:text-primary font-medium",
+              cursor: "bg-gradient-to-r from-blue-500 to-indigo-600",
+              panel: "pt-6"
+            }}
+          >
+            <Tab 
+              key="consultations" 
+              title="Консультации" 
+              className="py-1 px-0"
+            >
+              <Card shadow="sm" className="mt-4 border border-gray-100 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                  <h2 className="text-lg font-medium">История консультаций</h2>
+                </CardHeader>
+                <CardBody className="p-4">
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <Spinner size="lg" color="primary" />
+                    </div>
+                  ) : error ? (
+                    <motion.div 
+                      className="py-8 px-5 text-danger text-center bg-danger-50 rounded-lg border border-danger-100"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
                     >
-                      Найти врача
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <Table aria-label="История консультаций">
-                  <TableHeader>
-                    <TableColumn>{user.role === 'patient' ? 'Врач' : 'Пациент'}</TableColumn>
-                    <TableColumn>Дата и время</TableColumn>
-                    <TableColumn>Статус</TableColumn>
-                    <TableColumn>Сообщения</TableColumn>
-                    <TableColumn>Действия</TableColumn>
-                  </TableHeader>
-                  <TableBody items={consultations}>
-                    {(item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar 
-                              src={getUserAvatar(item)} 
-                              fallback={
-                                <div className="bg-primary text-white flex items-center justify-center h-full">
-                                  {getParticipantName(item).charAt(0)}
-                                </div>
-                              }
-                              size="sm"
-                            />
-                            <div>
-                              <div className="font-medium">
-                                {getParticipantName(item)}
-                              </div>
-                              {item.status === 'active' && (
-                                <Badge variant="flat" color="success" size="sm">
-                                  Активная сессия
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div>{formatDate(item.created_at)}</div>
-                            <div className="text-sm text-gray-500">
-                              {item.started_at ? formatTime(item.started_at) : 'Не начата'}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            color={getConsultationStatusColor(item.status)}
-                            variant="flat"
-                            size="sm"
-                          >
-                            {getConsultationStatusText(item.status)}
-                          </Chip>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm flex flex-col">
-                            <span>{item.message_count} / {item.message_limit}</span>
-                            {item.message_count > 0 && item.status === 'active' && (
-                              hasUnreadMessages(item.id) ? (
-                                <Badge content={getUnreadCount(item.id)} color="danger" variant="flat" size="sm">
-                                  <span className="text-xs text-success">Новые сообщения</span>
-                                </Badge>
-                              ) : (
-                                <span className="text-xs text-success">Есть сообщения</span>
-                              )
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-4 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-lg font-medium">{error}</p>
+                    </motion.div>
+                  ) : consultations.length === 0 ? (
+                    <motion.div 
+                      className="py-12 px-5 text-center"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <p className="text-xl text-gray-500 font-medium mb-4">У вас пока нет консультаций</p>
+                      {user.role === 'patient' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3, duration: 0.5 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
                           <Button 
                             color="primary" 
-                            size="sm" 
-                            variant="light"
-                            onPress={() => goToConsultation(item.id)}
+                            className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md px-6 py-6"
+                            onPress={() => navigate('/search-doctors')}
+                            size="lg"
+                            radius="full"
                           >
-                            {hasUnreadMessages(item.id) ? "Прочитать" : "Открыть"}
+                            Найти врача
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </CardBody>
-          </Card>
-        </Tab>
-        <Tab key="payments" title="Платежи" className="py-1 px-0">
-          <Card shadow="sm" className="mt-4">
-            <CardHeader className="bg-gray-50 px-5 py-3">
-              <h2 className="text-lg font-medium">История платежей</h2>
-            </CardHeader>
-            <CardBody className="px-5 py-8 text-center text-gray-500">
-              {/* Заглушка пока не реализована история платежей */}
-              <p>История платежей будет доступна в ближайшее время</p>
-            </CardBody>
-          </Card>
-        </Tab>
-      </Tabs>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <div className="space-y-4">
+                      {consultations.map((consultation, index) => (
+                        <ConsultationCard 
+                          key={consultation.id} 
+                          consultation={consultation}
+                          index={index}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            </Tab>
+            <Tab key="payments" title="Платежи" className="py-1 px-0">
+              <Card shadow="sm" className="mt-4 border border-gray-100 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                  <h2 className="text-lg font-medium">История платежей</h2>
+                </CardHeader>
+                <CardBody className="p-8">
+                  <motion.div 
+                    className="text-center text-gray-500 py-12"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xl font-medium mb-2">История платежей будет доступна в ближайшее время</p>
+                    <p className="text-gray-400">Мы работаем над этой функцией</p>
+                  </motion.div>
+                </CardBody>
+              </Card>
+            </Tab>
+          </Tabs>
+        </motion.div>
+      </div>
     </div>
   );
 }

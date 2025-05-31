@@ -634,11 +634,11 @@ function AdminPage() {
                           className="mb-4"
                           variant="bordered"
                         >
-                          <SelectItem key="system" value="system">Системное</SelectItem>
-                          <SelectItem key="consultation" value="consultation">Консультация</SelectItem>
-                          <SelectItem key="appointment" value="appointment">Запись</SelectItem>
-                          <SelectItem key="message" value="message">Сообщение</SelectItem>
-                          <SelectItem key="update" value="update">Обновление</SelectItem>
+                          <SelectItem key="system" value="system" textValue="Системное">Системное</SelectItem>
+                          <SelectItem key="consultation" value="consultation" textValue="Консультация">Консультация</SelectItem>
+                          <SelectItem key="appointment" value="appointment" textValue="Запись">Запись</SelectItem>
+                          <SelectItem key="message" value="message" textValue="Сообщение">Сообщение</SelectItem>
+                          <SelectItem key="update" value="update" textValue="Обновление">Обновление</SelectItem>
                         </Select>
                       </div>
                       

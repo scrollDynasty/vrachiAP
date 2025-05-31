@@ -82,7 +82,7 @@ function sendBrowserNotification(title, options = {}) {
     
     // Создаем новое уведомление
     const notification = new Notification(title || 'Уведомление', {
-      icon: '/favicon.ico', // можно заменить на логотип приложения
+      icon: '/soglom.jpg', // Используем единую иконку Soglom
       ...(options || {})
     });
     
@@ -105,6 +105,8 @@ function sendBrowserNotification(title, options = {}) {
 
 // Компонент для отображения уведомления о статусе заявки на роль врача
 function DoctorApplicationNotification({ application, onClose }) {
+  const [expanded, setExpanded] = useState(false);
+  
   if (!application) return null;
   
   // Автоматическое скрытие уведомления через 15 секунд
@@ -171,10 +173,22 @@ function DoctorApplicationNotification({ application, onClose }) {
     }
   };
   
+  // Функция для переключения развернутого состояния
+  const toggleExpanded = (e) => {
+    e.stopPropagation();
+    setExpanded(!expanded);
+  };
+  
+  // Определяем максимальную длину сообщения для сокращенного вида
+  const maxLength = 100;
+  const isLongMessage = message && message.length > maxLength;
+  const displayMessage = expanded || !isLongMessage ? message : `${message.substring(0, maxLength)}...`;
+  
   return (
     <Card 
-      className={`mb-4 shadow-md border-${color}`}
+      className={`mb-4 shadow-md border-${color} cursor-pointer transition-all hover:shadow-lg`}
       style={{ borderLeftWidth: '4px' }}
+      onClick={toggleExpanded}
     >
       <CardBody className="p-4">
         <div className="flex items-start gap-4">
@@ -189,12 +203,27 @@ function DoctorApplicationNotification({ application, onClose }) {
                   {application.status === 'approved' ? 'Одобрено' : 
                    application.status === 'rejected' ? 'Отклонено' : 'Обновлено'}
                 </Chip>
-                <p className="text-gray-600">{message}</p>
+                <p className="text-gray-600">{displayMessage}</p>
+                
+                {isLongMessage && (
+                  <Button 
+                    size="sm" 
+                    variant="light" 
+                    color="primary" 
+                    className="mt-2 px-2 min-w-0" 
+                    onClick={toggleExpanded}
+                  >
+                    {expanded ? 'Свернуть' : 'Показать полностью'}
+                  </Button>
+                )}
               </div>
               <button 
                 type="button"
                 className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-red-500 flex items-center justify-center transition-colors border border-transparent hover:border-gray-200"
-                onClick={handleCloseClick}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseClick();
+                }}
                 aria-label="Закрыть"
                 style={{ minWidth: '32px', minHeight: '32px' }}
               >
@@ -227,6 +256,7 @@ function ApplicationStatusTracker() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastAppIds, setLastAppIds] = useState(new Set());
+  const [showAll, setShowAll] = useState(false);
   
   // Загружаем статусы заявок при монтировании компонента
   useEffect(() => {
@@ -345,13 +375,15 @@ function ApplicationStatusTracker() {
       <NotificationPermissionHandler />
       
       {/* Отображаем уведомления о заявках */}
-      {applications.map(application => (
-        <DoctorApplicationNotification 
-          key={application.id}
-          application={application}
-          onClose={() => handleDismissNotification(application.id)}
-        />
-      ))}
+      <div className="max-h-[400px] overflow-y-auto pr-1 notification-scrollbar">
+        {applications.map(application => (
+          <DoctorApplicationNotification 
+            key={application.id}
+            application={application}
+            onClose={() => handleDismissNotification(application.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

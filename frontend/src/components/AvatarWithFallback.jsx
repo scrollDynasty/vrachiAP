@@ -92,7 +92,7 @@ const AvatarWithFallback = forwardRef(({
     width: `${sizeInPx}px`,
     height: `${sizeInPx}px`,
     borderRadius: '50%', // Круглая форма
-    border: isBordered ? `2px solid ${getBackgroundColor()}` : 'none',
+    border: isBordered ? `3px solid ${getBackgroundColor()}` : 'none', // Увеличиваю толщину рамки с 2px до 3px
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',

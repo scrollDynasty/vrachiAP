@@ -205,6 +205,11 @@ origins = [
     "http://127.0.0.1",  # Разрешаем доступ с 127.0.0.1 (аналог localhost)
     "http://127.0.0.1:5173",  # <--- РАЗРЕШАЕМ ДОСТУП С НАШЕГО ФРОНТЕНДА НА VITE (через 127.0.0.1)!
     "http://localhost:8000",  # Разрешаем доступ с бэкенда
+    "http://127.0.0.1:8000",  # Разрешаем доступ с бэкенда через IP
+    "ws://localhost:5173",    # Разрешаем WebSocket с фронтенда
+    "ws://127.0.0.1:5173",    # Разрешаем WebSocket с фронтенда через IP
+    "ws://localhost:8000",    # Разрешаем прямой WebSocket с бэкенда
+    "ws://127.0.0.1:8000",    # Разрешаем прямой WebSocket с бэкенда через IP
     "http://localhost:3000",  # Для разработки на стандартном порту React
     "http://127.0.0.1:3000",
     "https://fa06-84-54-122-64.ngrok-free.app"  # Для разработки на стандартном порту React через IP
@@ -255,7 +260,7 @@ def send_verification_email(email: str, token: str):
         msg = MIMEMultipart()
         msg["From"] = EMAIL_FROM
         msg["To"] = email
-        msg["Subject"] = "Подтверждение регистрации в MedCare"
+        msg["Subject"] = "Подтверждение регистрации в Soglom"
 
         # Создаем HTML-тело письма
         html = f"""
@@ -263,7 +268,7 @@ def send_verification_email(email: str, token: str):
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.5;">
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
                     <h2 style="color: #3b82f6; margin-bottom: 20px;">Подтверждение регистрации</h2>
-                    <p>Спасибо за регистрацию в системе MedCare!</p>
+                    <p>Спасибо за регистрацию в системе Soglom!</p>
                     <p>Для активации аккаунта, пожалуйста, перейдите по ссылке:</p>
                     <p style="margin: 30px 0;">
                         <a href="{verification_link}" 
@@ -272,7 +277,7 @@ def send_verification_email(email: str, token: str):
                         </a>
                     </p>
                     <p>Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.</p>
-                    <p>С уважением,<br>Команда MedCare</p>
+                    <p>С уважением,<br>Команда Soglom</p>
                 </div>
             </body>
         </html>
@@ -3560,49 +3565,52 @@ async def websocket_consultation_endpoint(
 ):
     # Проверяем авторизацию через токен
     if token is None:
-        await websocket.close(code=4001, reason="Authentication required")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Отсутствует токен авторизации")
         return
     
     try:
-        # Ищем токен в базе данных
-        db_token = (
-            db.query(WebSocketToken)
-            .filter(WebSocketToken.token == token)
-            .filter(WebSocketToken.expires_at > datetime.utcnow())
-            .first()
-        )
+        # Проверяем токен в базе данных напрямую (без JWT декодирования)
+        ws_token = db.query(WebSocketToken).filter(
+            WebSocketToken.token == token,
+            WebSocketToken.expires_at > datetime.utcnow()
+        ).first()
         
-        if not db_token:
-            await websocket.close(code=4001, reason="Invalid or expired token")
+        if not ws_token:
+            print(f"WebSocket token validation failed for consultation {consultation_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Недействительный токен")
             return
-        
-        # Получаем пользователя по ID из токена
-        user = db.query(User).filter(User.id == db_token.user_id).first()
-        if user is None:
-            await websocket.close(code=4001, reason="User not found")
-            return
+            
+        # Получаем ID пользователя из токена
+        user_id = ws_token.user_id
         
         # Получаем консультацию
         consultation = db.query(Consultation).filter(Consultation.id == consultation_id).first()
         # Проверяем, имеет ли пользователь доступ к этой консультации
         if consultation is None:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Consultation not found")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Консультация не найдена")
             return
         
-        if user.id != consultation.patient_id and user.id != consultation.doctor_id:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Access denied")
+        if user_id != consultation.patient_id and user_id != consultation.doctor_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Доступ запрещен")
             return
         
-        # Принимаем WebSocket соединение
+        # Проверка существования пользователя
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        if user is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Пользователь не найден")
+            return
+        
+        # Принимаем соединение
         await websocket.accept()
+        print(f"WebSocket соединение принято для консультации {consultation_id}, пользователь {user_id}")
         
-        # Сохраняем соединение в глобальных словарях
-        if user.id not in active_websocket_connections:
-            active_websocket_connections[user.id] = []
+        # Добавляем соединение в список активных
+        if user_id not in active_websocket_connections:
+            active_websocket_connections[user_id] = []
         
         # Проверяем, не добавлено ли уже это соединение (избегаем дублирования)
-        if websocket not in active_websocket_connections[user.id]:
-            active_websocket_connections[user.id].append(websocket)
+        if websocket not in active_websocket_connections[user_id]:
+            active_websocket_connections[user_id].append(websocket)
         
         if consultation_id not in consultation_websocket_connections:
             consultation_websocket_connections[consultation_id] = []
@@ -3962,9 +3970,9 @@ async def websocket_consultation_endpoint(
             # В любом случае удаляем соединение из списков при завершении
             if user.id in active_websocket_connections:
                 if websocket in active_websocket_connections.get(user.id, []):
-                    active_websocket_connections[user.id].remove(websocket)
-                    if not active_websocket_connections[user.id]:
-                        del active_websocket_connections[user.id]
+                    active_websocket_connections[user_id].remove(websocket)
+                    if not active_websocket_connections[user_id]:
+                        del active_websocket_connections[user_id]
             
             if consultation_id in consultation_websocket_connections:
                 if websocket in consultation_websocket_connections.get(consultation_id, []):
@@ -4878,63 +4886,46 @@ async def websocket_notifications_endpoint(
 ):
     # Проверяем авторизацию через токен
     if token is None:
-        await websocket.close(code=4001, reason="Authentication required")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Отсутствует токен авторизации")
         return
     
     try:
-        # Ищем токен в базе данных
-        db_token = (
-            db.query(WebSocketToken)
-            .filter(WebSocketToken.token == token)
-            .filter(WebSocketToken.expires_at > datetime.utcnow())
-            .first()
-        )
+        # Проверяем токен в базе данных напрямую (без JWT декодирования)
+        ws_token = db.query(WebSocketToken).filter(
+            WebSocketToken.token == token,
+            WebSocketToken.user_id == user_id,
+            WebSocketToken.expires_at > datetime.utcnow()
+        ).first()
         
-        if not db_token:
-            await websocket.close(code=4001, reason="Invalid or expired token")
+        if not ws_token:
+            print(f"WebSocket token validation failed for user {user_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Недействительный токен")
             return
         
-        # Получаем пользователя по ID из токена
-        user = db.query(User).filter(User.id == db_token.user_id).first()
+        # Проверка существования пользователя
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
         if user is None:
-            await websocket.close(code=4001, reason="User not found")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Пользователь не найден")
             return
             
-        # Проверяем, совпадает ли ID пользователя из токена с ID в URL
-        if user.id != user_id:
-            await websocket.close(code=4003, reason="User ID mismatch")
-            return
-        
-        # Закрываем существующие соединения для этого пользователя
-        if user_id in active_websocket_connections:
-            old_connections = active_websocket_connections[user_id].copy()
-            for old_conn in old_connections:
-                try:
-                    await old_conn.close(code=4000, reason="New connection established")
-                    if old_conn in active_websocket_connections[user_id]:
-                        active_websocket_connections[user_id].remove(old_conn)
-                except Exception as e:
-                    print(f"Ошибка при закрытии старого соединения: {str(e)}")
-            
-            # Очищаем список соединений после закрытия всех старых
-            if user_id in active_websocket_connections:
-                active_websocket_connections[user_id] = []
-        
-        # Принимаем WebSocket соединение
+        # Принимаем соединение
         await websocket.accept()
+        print(f"WebSocket соединение принято для пользователя {user_id}")
         
-        # Сохраняем соединение в глобальном словаре
+        # Добавляем соединение в список активных
         if user_id not in active_websocket_connections:
             active_websocket_connections[user_id] = []
         
-        # Проверяем, не добавлено ли уже это соединение
+        # Добавляем только если соединения с таким же ID еще нет
         if websocket not in active_websocket_connections[user_id]:
             active_websocket_connections[user_id].append(websocket)
-            
-        # Инициализируем список отправленных уведомлений для пользователя
+        
+        print(f"Новое WebSocket соединение для уведомлений пользователя {user_id}")
+        
+        # Инициализируем множество для хранения ID отправленных уведомлений
         if user_id not in sent_notifications:
             sent_notifications[user_id] = set()
-            
+        
         # Отправляем текущие непрочитанные уведомления
         try:
             unread_notifications = db.query(Notification).filter(
@@ -4968,70 +4959,54 @@ async def websocket_notifications_endpoint(
                         "type": "unread_notifications",
                         "notifications": notifications_list
                     })
-                    print(f"Отправлено {len(notifications_list)} непрочитанных уведомлений пользователю {user_id}")
         except Exception as e:
             print(f"Ошибка при отправке непрочитанных уведомлений: {str(e)}")
         
-        # Слушаем сообщения от клиента
+        # Ждем сообщения или закрытия соединения
         try:
             while True:
+                # Проверяем наличие сообщений от клиента и обрабатываем их при необходимости
                 data = await websocket.receive_json()
                 
-                # Обрабатываем прочтение уведомления
-                if data.get("type") == "mark_read" and data.get("notification_id"):
-                    # Создаем новую сессию для обработки каждого запроса
-                    mark_db = SessionLocal()
-                    try:
-                        notification_id = data.get("notification_id")
-                        notification = mark_db.query(Notification).filter(
-                            Notification.id == notification_id,
-                            Notification.user_id == user_id
-                        ).first()
-                        
-                        if notification:
-                            notification.is_viewed = True
-                            mark_db.commit()
-                            await websocket.send_json({
-                                "type": "notification_marked_read",
-                                "notification_id": notification_id
-                            })
-                            print(f"Уведомление {notification_id} отмечено как прочитанное для пользователя {user_id}")
-                    except Exception as e:
-                        print(f"Ошибка при отметке уведомления как прочитанного: {str(e)}")
-                    finally:
-                        mark_db.close()
-                
-                # Отмечаем все уведомления как прочитанные
-                elif data.get("type") == "mark_all_read":
-                    mark_all_db = SessionLocal()
-                    try:
-                        # Получаем все непрочитанные уведомления пользователя
-                        notifications = mark_all_db.query(Notification).filter(
-                            Notification.user_id == user_id,
-                            Notification.is_viewed == False
-                        ).all()
-                        
-                        # Отмечаем каждое как прочитанное
-                        notification_ids = []
-                        for notification in notifications:
-                            notification.is_viewed = True
-                            notification_ids.append(notification.id)
-                        
-                        mark_all_db.commit()
+                # Если клиент отправил команду mark_read, отмечаем уведомление как прочитанное
+                if data.get("action") == "mark_read" and "notification_id" in data:
+                    notif_id = data["notification_id"]
+                    notification = db.query(Notification).filter(
+                        Notification.id == notif_id,
+                        Notification.user_id == user_id
+                    ).first()
+                    
+                    if notification:
+                        notification.is_viewed = True
+                        db.commit()
                         
                         # Отправляем подтверждение клиенту
                         await websocket.send_json({
-                            "type": "all_notifications_marked_read",
-                            "count": len(notification_ids)
+                            "type": "mark_read_confirmation",
+                            "notification_id": notif_id,
+                            "success": True
                         })
-                        print(f"Все уведомления ({len(notification_ids)}) отмечены как прочитанные для пользователя {user_id}")
-                    except Exception as e:
-                        print(f"Ошибка при отметке всех уведомлений как прочитанных: {str(e)}")
-                    finally:
-                        mark_all_db.close()
-        
+                    else:
+                        # Отправляем ошибку
+                        await websocket.send_json({
+                            "type": "mark_read_confirmation",
+                            "notification_id": notif_id,
+                            "success": False,
+                            "error": "Уведомление не найдено"
+                        })
+                
+                # Если клиент отправил ping, отвечаем pong
+                elif data.get("action") == "ping":
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                
+                # Можно добавить обработку других команд от клиента по мере необходимости
+                
         except WebSocketDisconnect:
-            print(f"WebSocket для уведомлений отключен пользователем {user_id}")
+            # Тихое отключение, без логов
+            pass
         except Exception as e:
             print(f"WebSocket ошибка при работе с уведомлениями: {str(e)}")
         finally:
@@ -5041,7 +5016,6 @@ async def websocket_notifications_endpoint(
                 if not active_websocket_connections[user_id]:
                     del active_websocket_connections[user_id]
             
-            print(f"WebSocket соединение для уведомлений пользователя {user_id} закрыто")
             # Закрываем сессию БД, чтобы освободить ресурсы
             db.close()
     except Exception as e:
@@ -5053,7 +5027,8 @@ async def websocket_notifications_endpoint(
         finally:
             # Обязательно закрываем сессию БД
             db.close()
-    
+
+if "AVATAR_DIR" in os.environ:
     # Эндпоинт для загрузки аватара пользователя
     @app.post("/users/me/avatar", status_code=status.HTTP_200_OK)
     async def upload_avatar(
@@ -5100,264 +5075,269 @@ async def websocket_notifications_endpoint(
             "avatar_path": avatar_path
         }
 
-    # Модель для представления уведомлений в ответах API
-    class NotificationResponse(BaseModel):
-        id: int
-        user_id: int
-        title: str
-        message: str
-        type: str
-        is_viewed: bool
-        related_id: Optional[int] = None
-        created_at: datetime
-        
-        class Config:
-            from_attributes = True
+# Модель для представления уведомлений в ответах API
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    type: str
+    is_viewed: bool
+    related_id: Optional[int] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
-    class NotificationList(BaseModel):
-        items: List[NotificationResponse]
+class NotificationList(BaseModel):
+    items: List[NotificationResponse]
 
 
-    # Эндпоинт для получения уведомлений пользователя
-    @app.get("/api/notifications", response_model=NotificationList)
-    async def get_api_notifications(
-        db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
-    ):
-        """
-        Получает список уведомлений для текущего пользователя.
-        Возвращает последние 30 уведомлений, отсортированные по дате создания (новые сверху).
-        """
-        notifications = (
-            db.query(Notification)
-            .filter(Notification.user_id == current_user.id)
-            .order_by(Notification.created_at.desc())
-            .limit(30)
-            .all()
-        )
-        
-        return {"items": notifications}
-
-    # Отметка уведомления как прочитанное
-    @app.post(
-        "/api/notifications/{notification_id}/view", status_code=status.HTTP_204_NO_CONTENT
+# Функция для создания уведомлений
+async def create_notification(
+    db: Session,
+    user_id: int, 
+    title: str, 
+    message: str,
+    notification_type: str = "system",
+    related_id: Optional[int] = None
+) -> Notification:
+    """
+    Создаёт новое уведомление для пользователя и возвращает его.
+    
+    Args:
+        db: сессия БД
+        user_id: ID пользователя, которому предназначено уведомление
+        title: заголовок уведомления
+        message: текст уведомления
+        notification_type: тип уведомления (system, consultation, new_message и т.д.)
+        related_id: ID связанного объекта (например, ID консультации)
+    
+    Returns:
+        Созданный объект уведомления
+    """
+    # Создаем объект уведомления
+    notification = Notification(
+        user_id=user_id,
+        title=title,
+        message=message,
+        type=notification_type,
+        related_id=related_id,
+        is_viewed=False
     )
-    async def mark_api_notification_as_read(
-        notification_id: int,
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-    ):
-        """
-        Отмечает уведомление как прочитанное.
-        """
-        notification = db.query(Notification).filter(
-            Notification.id == notification_id,
-            Notification.user_id == current_user.id
-        ).first()
-        
-        if not notification:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Уведомление не найдено или у вас нет к нему доступа"
-            )
-        
-        # Отмечаем как прочитанное
+    
+    # Добавляем в БД и сохраняем
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    
+    # Отладка
+    print(f"Создано уведомление ID {notification.id} для пользователя {user_id}: {title}")
+    
+    # Добавляем в список отправленных уведомлений
+    if user_id not in sent_notifications:
+        sent_notifications[user_id] = set()
+    sent_notifications[user_id].add(notification.id)
+    
+    # Отправляем уведомление через WebSocket, если пользователь подключен
+    try:
+        print(f"Проверка WebSocket соединений для пользователя {user_id}: {user_id in active_websocket_connections}")
+        if user_id in active_websocket_connections and active_websocket_connections[user_id]:
+            print(f"Активные соединения для пользователя {user_id}: {len(active_websocket_connections[user_id])}")
+            notification_data = {
+                "id": notification.id,
+                "title": notification.title,
+                "message": notification.message,
+                "type": notification.type,
+                "related_id": notification.related_id,
+                "created_at": notification.created_at.isoformat(),
+                "is_viewed": notification.is_viewed
+            }
+            
+            # Отправляем на все соединения пользователя
+            for connection in active_websocket_connections[user_id]:
+                try:
+                    print(f"Отправка уведомления через WebSocket для соединения пользователя {user_id}")
+                    await connection.send_json({
+                        "type": "new_notification",
+                        "notification": notification_data
+                    })
+                    print(f"Уведомление успешно отправлено через WebSocket пользователю {user_id}")
+                except Exception as e:
+                    print(f"Ошибка отправки уведомления через WebSocket для соединения {connection}: {str(e)}")
+        else:
+            print(f"У пользователя {user_id} нет активных WebSocket соединений для отправки уведомления")
+    except Exception as e:
+        print(f"Общая ошибка при отправке WebSocket уведомления для пользователя {user_id}: {str(e)}")
+    
+    return notification
+
+
+# Эндпоинт для получения уведомлений пользователя
+@app.get("/api/notifications", response_model=NotificationList)
+async def get_api_notifications(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """
+    Получает список уведомлений для текущего пользователя.
+    Возвращает последние 30 уведомлений, отсортированные по дате создания (новые сверху).
+    """
+    notifications = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id)
+        .order_by(Notification.created_at.desc())
+        .limit(30)
+        .all()
+    )
+    
+    return {"items": notifications}
+
+# Отметка уведомления как прочитанное
+@app.post(
+    "/api/notifications/{notification_id}/view", status_code=status.HTTP_204_NO_CONTENT
+)
+async def mark_api_notification_as_read(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Отмечает уведомление как прочитанное.
+    """
+    notification = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == current_user.id
+    ).first()
+    
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Уведомление не найдено или у вас нет к нему доступа"
+        )
+    
+    # Отмечаем как прочитанное
+    notification.is_viewed = True
+    
+    # Добавляем в список отправленных через WebSocket
+    if current_user.id not in sent_notifications:
+        sent_notifications[current_user.id] = set()
+    sent_notifications[current_user.id].add(notification_id)
+    
+    db.commit()
+    
+    # Возвращаем 204 No Content
+    return None
+
+# Отметка всех уведомлений как прочитанных
+@app.post("/api/notifications/mark-all-read", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_all_api_notifications_read(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Отмечает все уведомления пользователя как прочитанные.
+    """
+    # Получаем все непрочитанные уведомления
+    notifications = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_viewed == False
+    ).all()
+    
+    # Отмечаем все как прочитанные
+    for notification in notifications:
         notification.is_viewed = True
         
         # Добавляем в список отправленных через WebSocket
         if current_user.id not in sent_notifications:
             sent_notifications[current_user.id] = set()
-        sent_notifications[current_user.id].add(notification_id)
-        
-        db.commit()
-        
-        # Возвращаем 204 No Content
-        return None
+        sent_notifications[current_user.id].add(notification.id)
+    
+    db.commit()
+    
+    # Возвращаем 204 No Content
+    return None
 
-    # Отметка всех уведомлений как прочитанных
-    @app.post("/api/notifications/mark-all-read", status_code=status.HTTP_204_NO_CONTENT)
-    async def mark_all_api_notifications_read(
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-    ):
-        """
-        Отмечает все уведомления пользователя как прочитанные.
-        """
-        # Получаем все непрочитанные уведомления
-        notifications = db.query(Notification).filter(
-            Notification.user_id == current_user.id,
-            Notification.is_viewed == False
+@app.get("/notifications/unread-count", response_model=dict)
+async def get_notifications_unread_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Возвращает количество непрочитанных уведомлений для текущего пользователя.
+    """
+    unread_count = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_viewed == False
+    ).count()
+    
+    return {"unread_count": unread_count}
+
+# Модель для администратора для создания уведомлений
+class AdminNotificationCreate(BaseModel):
+    title: str
+    message: str
+    type: str = "system"
+    target_type: str = "all"  # all, role, user
+    role: Optional[str] = None
+    user_id: Optional[int] = None
+
+@app.post("/admin/notifications/send", status_code=status.HTTP_201_CREATED)
+async def send_admin_notification(
+    notification_data: AdminNotificationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """
+    Отправляет административное уведомление пользователям.
+    
+    Args:
+        notification_data: Данные уведомления
+        db: Сессия базы данных
+        current_user: Администратор, отправляющий уведомление
+    
+    Returns:
+        Список созданных уведомлений
+    """
+    created_notifications = []
+    
+    # Определяем целевых пользователей на основе параметров
+    target_users = []
+    
+    if notification_data.target_type == "all":
+        # Отправка всем пользователям
+        target_users = db.query(User).filter(User.is_active == True).all()
+    elif notification_data.target_type == "role" and notification_data.role:
+        # Отправка пользователям с определенной ролью
+        target_users = db.query(User).filter(
+            User.is_active == True,
+            User.role == notification_data.role
         ).all()
-        
-        # Отмечаем все как прочитанные
-        for notification in notifications:
-            notification.is_viewed = True
-            
-            # Добавляем в список отправленных через WebSocket
-            if current_user.id not in sent_notifications:
-                sent_notifications[current_user.id] = set()
-            sent_notifications[current_user.id].add(notification.id)
-        
-        db.commit()
-        
-        # Возвращаем 204 No Content
-        return None
-
-    @app.get("/notifications/unread-count", response_model=dict)
-    async def get_notifications_unread_count(
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-    ):
-        """
-        Возвращает количество непрочитанных уведомлений для текущего пользователя.
-        """
-        unread_count = db.query(Notification).filter(
-            Notification.user_id == current_user.id,
-            Notification.is_viewed == False
-        ).count()
-        
-        return {"unread_count": unread_count}
-
-    # Функция для создания уведомлений
-    async def create_notification(
-        db: Session,
-        user_id: int, 
-        title: str, 
-        message: str,
-        notification_type: str = "system",
-        related_id: Optional[int] = None
-    ) -> Notification:
-        """
-        Создаёт новое уведомление для пользователя и возвращает его.
-        
-        Args:
-            db: сессия БД
-            user_id: ID пользователя, которому предназначено уведомление
-            title: заголовок уведомления
-            message: текст уведомления
-            notification_type: тип уведомления (system, consultation, new_message и т.д.)
-            related_id: ID связанного объекта (например, ID консультации)
-        
-        Returns:
-            Созданный объект уведомления
-        """
-        # Создаем объект уведомления
-        notification = Notification(
-            user_id=user_id,
-            title=title,
-            message=message,
-            type=notification_type,
-            related_id=related_id,
-            is_viewed=False
+    elif notification_data.target_type == "user" and notification_data.user_id:
+        # Отправка конкретному пользователю
+        user = db.query(User).filter(
+            User.is_active == True,
+            User.id == notification_data.user_id
+        ).first()
+        if user:
+            target_users = [user]
+    
+    if not target_users:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не найдены пользователи для отправки уведомления"
         )
-        
-        # Добавляем в БД и сохраняем
-        db.add(notification)
-        db.commit()
-        db.refresh(notification)
-        
-        # Отладка
-        print(f"Создано уведомление ID {notification.id} для пользователя {user_id}: {title}")
-        
-        # Добавляем в список отправленных уведомлений
-        if user_id not in sent_notifications:
-            sent_notifications[user_id] = set()
-        sent_notifications[user_id].add(notification.id)
-        
-        # Отправляем уведомление через WebSocket, если пользователь подключен
-        try:
-            if user_id in active_websocket_connections and active_websocket_connections[user_id]:
-                notification_data = {
-                    "id": notification.id,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "type": notification.type,
-                    "related_id": notification.related_id,
-                    "created_at": notification.created_at.isoformat(),
-                    "is_viewed": notification.is_viewed
-                }
-                
-                # Отправляем только первому (активному) соединению пользователя
-                # Из-за нашей логики должно быть только одно активное соединение
-                if active_websocket_connections[user_id]:
-                    try:
-                        await active_websocket_connections[user_id][0].send_json({
-                            "type": "new_notification",
-                            "notification": notification_data
-                        })
-                        print(f"Уведомление отправлено через WebSocket пользователю {user_id}")
-                    except Exception as e:
-                        print(f"Ошибка отправки уведомления через WebSocket: {str(e)}")
-        except Exception as e:
-            print(f"Ошибка при отправке WebSocket уведомления: {str(e)}")
-        
-        return notification
-
-    # Новый эндпоинт для административной отправки уведомлений
-    class AdminNotificationCreate(BaseModel):
-        title: str
-        message: str
-        type: str = "system"
-        target_type: str = "all"  # all, role, user
-        role: Optional[str] = None
-        user_id: Optional[int] = None
-
-    @app.post("/admin/notifications/send", status_code=status.HTTP_201_CREATED)
-    async def send_admin_notification(
-        notification_data: AdminNotificationCreate,
-        db: Session = Depends(get_db),
-        current_user: User = Depends(require_role("admin")),
-    ):
-        """
-        Отправляет административное уведомление пользователям.
-        
-        Args:
-            notification_data: Данные уведомления
-            db: Сессия базы данных
-            current_user: Администратор, отправляющий уведомление
-        
-        Returns:
-            Список созданных уведомлений
-        """
-        created_notifications = []
-        
-        # Определяем целевых пользователей на основе параметров
-        target_users = []
-        
-        if notification_data.target_type == "all":
-            # Отправка всем пользователям
-            target_users = db.query(User).filter(User.is_active == True).all()
-        elif notification_data.target_type == "role" and notification_data.role:
-            # Отправка пользователям с определенной ролью
-            target_users = db.query(User).filter(
-                User.is_active == True,
-                User.role == notification_data.role
-            ).all()
-        elif notification_data.target_type == "user" and notification_data.user_id:
-            # Отправка конкретному пользователю
-            user = db.query(User).filter(
-                User.is_active == True,
-                User.id == notification_data.user_id
-            ).first()
-            if user:
-                target_users = [user]
-        
-        if not target_users:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Не найдены пользователи для отправки уведомления"
-            )
-        
-        # Отправляем уведомления каждому целевому пользователю
-        for user in target_users:
-            notification = await create_notification(
-                db=db,
-                user_id=user.id,
-                title=notification_data.title,
-                message=notification_data.message,
-                notification_type=notification_data.type
-            )
-            created_notifications.append(notification)
-        
-        # Возвращаем количество созданных уведомлений
-        return {"count": len(created_notifications)}
+    
+    # Отправляем уведомления каждому целевому пользователю
+    for user in target_users:
+        notification = await create_notification(
+            db=db,
+            user_id=user.id,
+            title=notification_data.title,
+            message=notification_data.message,
+            notification_type=notification_data.type
+        )
+        created_notifications.append(notification)
+    
+    # Возвращаем количество созданных уведомлений
+    return {"count": len(created_notifications)}
     
