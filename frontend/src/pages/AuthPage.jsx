@@ -20,6 +20,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import MedicalLoader from '../components/MedicalLoader';
 
+import { DIRECT_API_URL } from '../api';
+
 // Страница для Входа и Регистрации пользователя. Отображается на маршрутах /login, /register и корневом / (для неавторизованных).
 function AuthPage() {
   // Состояние для активной вкладки ('login' - Вход, 'register' - Регистрация)
@@ -239,7 +241,7 @@ function AuthPage() {
     // Вместо вызова функции, которая не существует, перенаправляем на Google OAuth
     // Получаем URL эндпоинта для авторизации Google из переменных окружения
     const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || 
-                          'http://localhost:8000/auth/google/login';
+                          `${DIRECT_API_URL}/auth/google/login`;
     
     // Перенаправляем пользователя на URL авторизации Google
     window.location.href = googleAuthUrl;

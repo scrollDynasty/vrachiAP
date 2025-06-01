@@ -399,7 +399,7 @@ const useAuthStore = create(
           sessionStorage.setItem('auth_redirect_url', currentUrl);
           
           // Перенаправляем на авторизацию Google
-          window.location.href = 'http://127.0.0.1:8000/auth/google/login';
+          window.location.href = `${DIRECT_API_URL}/auth/google/login`;
           
           return true;
         } catch (error) {
