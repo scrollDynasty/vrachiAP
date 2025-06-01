@@ -361,215 +361,352 @@ function ProfileSettingsPage() {
 
   // Основной UI страницы настроек профиля (после успешной загрузки или если профиль не создан)
   return (
-    <motion.div 
-      initial="hidden"
-      animate="visible"
-      variants={staggerContainer}
-      className="py-12 px-6 sm:px-8 lg:px-10 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-[calc(100vh-100px)]"
-    >
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Динамический градиентный фон */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-0"
+        animate={{ 
+          background: [
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8), rgba(224, 231, 255, 0.8))',
+            'linear-gradient(to bottom right, rgba(236, 254, 255, 0.8), rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8))',
+            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))'
+          ]
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "easeInOut"
+        }}
+      />
+      
+      {/* Анимированная сетка */}
+      <div className="absolute inset-0 overflow-hidden opacity-10">
         <motion.div 
-          variants={slideUp}
-          className="text-center mb-10"
-        >
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
-            Мой профиль
-          </h1>
-          <p className="text-gray-600">Управляйте личными данными и настройками</p>
-        </motion.div>
-        
-        <motion.div variants={slideUp}>
-          <Card className="shadow-xl border-none overflow-hidden mb-6 hover:shadow-2xl transition-all duration-300">
-            {/* Декоративная линия */}
-            <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 relative overflow-hidden">
-              <motion.div 
-                className="absolute inset-0 bg-white opacity-30"
-                animate={{ 
-                  x: ["0%", "100%"],
-                  opacity: [0, 0.3, 0]
-                }}
-                transition={{ 
-                  repeat: Infinity, 
-                  duration: 3,
-                  ease: "easeInOut"
-                }}
-              />
-            </div>
-            
-            <CardHeader className="flex justify-between items-center gap-3 p-8 bg-gradient-to-b from-indigo-50 to-transparent">
-              <div className="flex items-center gap-4">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="relative"
-                >
-                  <motion.div 
-                    className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full opacity-0 blur-md"
-                    animate={{ 
-                      scale: [0.85, 1.05, 0.85], 
-                      opacity: [0, 0.3, 0] 
-                    }}
-                    transition={{ 
-                      duration: 3, 
-                      repeat: Infinity,
-                      repeatType: "loop" 
-                    }}
-                  />
-                  <AvatarWithFallback 
-                    src={user?.avatar_path || undefined}
-                    name={user?.name || user?.email?.charAt(0)?.toUpperCase() || "?"}
-                    size="lg"
-                    className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white z-10 relative"
-                  />
-                </motion.div>
-                <div>
-                  <h2 className="text-xl font-semibold">{profileData?.full_name || user?.email || "Пользователь"}</h2>
-                  <p className="text-sm text-gray-500">
-                    {user?.role === 'patient' ? 'Пациент' : 
-                     user?.role === 'doctor' ? 'Врач' : 
-                     user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Кнопка для подачи заявки на роль врача (только для пациентов) */}
-              {user?.role === 'patient' && (
-                <motion.div
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Link to="/doctor-application">
-                    <Button 
-                      color="primary" 
-                      variant="shadow"
-                      className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
-                    >
-                      Подать заявку на роль врача
-                    </Button>
-                  </Link>
-                </motion.div>
-              )}
-              
-              {/* Ссылка на админ-панель (только для админов) */}
-              {user?.role === 'admin' && (
-                <motion.div
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Link to="/admin_control_panel_52x9a8">
-                    <Button 
-                      color="secondary" 
-                      variant="shadow"
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                    >
-                      Перейти в админ-панель
-                    </Button>
-                  </Link>
-                </motion.div>
-              )}
-            </CardHeader>
-            
-            <Divider />
-            
-            <CardBody className="p-8">
-              {/* Вывод сообщений */}
-              {saveSuccess && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 p-5 rounded-lg border border-green-200"
-                >
-                  <div className="flex items-center">
-                    <motion.div
-                      animate={{ scale: [0.8, 1.2, 1] }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </motion.div>
-                    <p className="font-medium">Профиль успешно сохранен!</p>
-                  </div>
-                </motion.div>
-              )}
-              
-              {error && error !== "Профиль еще не создан. Пожалуйста, заполните информацию." && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="mb-6 bg-gradient-to-r from-red-50 to-rose-50 text-danger p-5 rounded-lg border border-danger-200"
-                >
-                  <div className="flex items-center">
-                    <motion.div
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    </motion.div>
-                    <p className="font-medium">{error}</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {profileData === null && error === "Профиль еще не создан. Пожалуйста, заполните информацию." && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 p-5 rounded-lg border border-blue-200"
-                >
-                  <div className="flex items-center">
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </motion.div>
-                    <p className="font-medium">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
-                  </div>
-                </motion.div>
-              )}
-              
-              {/* Формы профиля */}
-              <motion.div 
-                variants={slideUp}
-                className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100"
-              >
-                {user.role === 'patient' && (
-                  <PatientProfileForm
-                    profile={profileData}
-                    onSave={handleSaveProfile}
-                    isLoading={isSaving}
-                    error={error}
-                  />
-                )}
-
-                {user.role === 'doctor' && (
-                  <DoctorProfileForm
-                    profile={profileData}
-                    onSave={handleSaveProfile}
-                    isLoading={isSaving}
-                    error={error}
-                  />
-                )}
-
-                {user.role !== 'patient' && user.role !== 'doctor' && (
-                  <div className="text-center py-4">
-                    <p className="text-gray-600">Для вашей роли профиль не предусмотрен в этом разделе.</p>
-                  </div>
-                )}
-              </motion.div>
-            </CardBody>
-          </Card>
-        </motion.div>
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px'
+          }}
+          animate={{
+            x: [0, -40],
+            y: [0, -40]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
       </div>
-    </motion.div>
+      
+      {/* Декоративные плавающие элементы */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Верхний градиентный круг */}
+        <motion.div 
+          className="absolute top-0 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-200/60 to-indigo-300/60 blur-[60px]"
+          animate={{ 
+            y: [0, 15, -15, 0],
+            rotate: [0, 5, 0, -5, 0],
+            scale: [1, 1.05, 0.95, 1]
+          }}
+          transition={{ 
+            duration: 20, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        {/* Нижний градиентный круг */}
+        <motion.div 
+          className="absolute -bottom-20 -left-20 w-[450px] h-[450px] rounded-full bg-gradient-to-br from-red-200/50 to-pink-300/50 blur-[50px]"
+          animate={{ 
+            y: [0, -15, 15, 0],
+            rotate: [0, -5, 0, 5, 0],
+            scale: [1, 0.95, 1.05, 1]
+          }}
+          transition={{ 
+            duration: 25, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        {/* Маленькие плавающие круги */}
+        <motion.div 
+          className="absolute top-1/3 left-1/4 w-[200px] h-[200px] rounded-full bg-gradient-to-br from-green-200/50 to-teal-300/50 blur-[40px]"
+          animate={{ 
+            y: [0, 30, 0],
+            x: [0, 15, 0],
+            rotate: [0, 10, 0],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ 
+            duration: 15, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full bg-gradient-to-br from-purple-200/50 to-indigo-300/50 blur-[45px]"
+          animate={{ 
+            y: [0, -20, 0],
+            x: [0, -10, 0],
+            rotate: [0, -8, 0],
+            scale: [1, 0.9, 1]
+          }}
+          transition={{ 
+            duration: 18, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        {/* Дополнительные яркие шарики */}
+        <motion.div 
+          className="absolute top-1/2 left-10 w-[150px] h-[150px] rounded-full bg-gradient-to-r from-violet-300/60 to-fuchsia-300/60 blur-[30px]"
+          animate={{ 
+            y: [0, -40, 0],
+            x: [0, 20, 0],
+            rotate: [0, 20, 0],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{ 
+            duration: 17, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-1/4 right-20 w-[180px] h-[180px] rounded-full bg-gradient-to-r from-rose-200/60 to-pink-300/60 blur-[35px]"
+          animate={{ 
+            y: [0, 30, 0],
+            x: [0, -25, 0],
+            rotate: [0, -15, 0],
+            scale: [1, 0.9, 1]
+          }}
+          transition={{ 
+            duration: 22, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        />
+      </div>
+      
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="relative z-10 py-12 px-6 sm:px-8 lg:px-10 min-h-[calc(100vh-100px)]"
+      >
+        <div className="max-w-4xl mx-auto">
+          <motion.div 
+            variants={slideUp}
+            className="text-center mb-10"
+          >
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
+              Мой профиль
+            </h1>
+            <p className="text-gray-600">Управляйте личными данными и настройками</p>
+          </motion.div>
+          
+          <motion.div variants={slideUp}>
+            <Card className="shadow-xl border-none overflow-hidden mb-6 hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm">
+              {/* Декоративная линия */}
+              <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 relative overflow-hidden">
+                <motion.div 
+                  className="absolute inset-0 bg-white opacity-30"
+                  animate={{ 
+                    x: ["0%", "100%"],
+                    opacity: [0, 0.3, 0]
+                  }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    duration: 3,
+                    ease: "easeInOut"
+                  }}
+                />
+              </div>
+            
+              <CardHeader className="flex justify-between items-center gap-3 p-8 bg-gradient-to-b from-indigo-50 to-transparent">
+                <div className="flex items-center gap-4">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative"
+                  >
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full opacity-0 blur-md"
+                      animate={{ 
+                        scale: [0.85, 1.05, 0.85], 
+                        opacity: [0, 0.3, 0] 
+                      }}
+                      transition={{ 
+                        duration: 3, 
+                        repeat: Infinity,
+                        repeatType: "loop" 
+                      }}
+                    />
+                    <AvatarWithFallback 
+                      src={user?.avatar_path || undefined}
+                      name={user?.name || user?.email?.charAt(0)?.toUpperCase() || "?"}
+                      size="lg"
+                      className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white z-10 relative"
+                    />
+                  </motion.div>
+                  <div>
+                    <h2 className="text-xl font-semibold">{profileData?.full_name || user?.email || "Пользователь"}</h2>
+                    <p className="text-sm text-gray-500">
+                      {user?.role === 'patient' ? 'Пациент' : 
+                       user?.role === 'doctor' ? 'Врач' : 
+                       user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Кнопка для подачи заявки на роль врача (только для пациентов) */}
+                {user?.role === 'patient' && (
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Link to="/doctor-application">
+                      <Button 
+                        color="primary" 
+                        variant="shadow"
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
+                      >
+                        Подать заявку на роль врача
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
+                
+                {/* Ссылка на админ-панель (только для админов) */}
+                {user?.role === 'admin' && (
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Link to="/admin_control_panel_52x9a8">
+                      <Button 
+                        color="secondary" 
+                        variant="shadow"
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                      >
+                        Перейти в админ-панель
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
+              </CardHeader>
+              
+              <Divider />
+              
+              <CardBody className="p-8">
+                {/* Вывод сообщений */}
+                {saveSuccess && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 p-5 rounded-lg border border-green-200"
+                  >
+                    <div className="flex items-center">
+                      <motion.div
+                        animate={{ scale: [0.8, 1.2, 1] }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </motion.div>
+                      <p className="font-medium">Профиль успешно сохранен!</p>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {error && error !== "Профиль еще не создан. Пожалуйста, заполните информацию." && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mb-6 bg-gradient-to-r from-red-50 to-rose-50 text-danger p-5 rounded-lg border border-danger-200"
+                  >
+                    <div className="flex items-center">
+                      <motion.div
+                        animate={{ rotate: [0, 10, -10, 0] }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </motion.div>
+                      <p className="font-medium">{error}</p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {profileData === null && error === "Профиль еще не создан. Пожалуйста, заполните информацию." && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 p-5 rounded-lg border border-blue-200"
+                  >
+                    <div className="flex items-center">
+                      <motion.div
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </motion.div>
+                      <p className="font-medium">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Формы профиля */}
+                <motion.div 
+                  variants={slideUp}
+                  className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100"
+                >
+                  {user.role === 'patient' && (
+                    <PatientProfileForm
+                      profile={profileData}
+                      onSave={handleSaveProfile}
+                      isLoading={isSaving}
+                      error={error}
+                    />
+                  )}
+
+                  {user.role === 'doctor' && (
+                    <DoctorProfileForm
+                      profile={profileData}
+                      onSave={handleSaveProfile}
+                      isLoading={isSaving}
+                      error={error}
+                    />
+                  )}
+
+                  {user.role !== 'patient' && user.role !== 'doctor' && (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600">Для вашей роли профиль не предусмотрен в этом разделе.</p>
+                    </div>
+                  )}
+                </motion.div>
+              </CardBody>
+            </Card>
+          </motion.div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 

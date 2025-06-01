@@ -665,22 +665,11 @@ export const consultationsApi = {
   completeConsultation: async (consultationId) => {
     try {
       console.log(`Завершение консультации ${consultationId} через REST API`);
-      const response = await api.post(`/api/consultations/${consultationId}/complete`, {
-        status: 'completed'
-      });
+      const response = await api.post(`/api/consultations/${consultationId}/complete`);
       return response.data;
     } catch (error) {
-      // Пробуем альтернативный метод, если у бэкенда нет /complete эндпоинта
-      console.warn('Ошибка при завершении через POST, пробуем PUT запрос');
-      try {
-        const putResponse = await api.put(`/api/consultations/${consultationId}`, {
-          status: 'completed'
-        });
-        return putResponse.data;
-      } catch (secondError) {
-        console.error('Обе попытки завершения консультации через API не удались');
-        throw secondError;
-      }
+      console.error(`Ошибка при завершении консультации ${consultationId} через API:`, error);
+      throw error;
     }
   }
 };

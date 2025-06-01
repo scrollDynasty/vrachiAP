@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button, Textarea, Spinner, Card, CardBody, CardHeader, Divider, Badge, Chip, Avatar, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, CardFooter } from '@nextui-org/react';
 import { toast } from 'react-hot-toast';
-import api from '../api';
+import api, { consultationsApi } from '../api';
 import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import { useNavigate } from 'react-router-dom';
@@ -468,6 +468,18 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
         console.log('[WebSocket] Получено сообщение:', data.type);
       }
       
+      // Если пришло сообщение о добавлении отзыва, сразу обновляем состояние
+      if (data.type === 'review_added') {
+        console.log('[WebSocket] Получено уведомление о добавлении отзыва');
+        setHasReview(true);
+        localStorage.setItem(`review_added_${consultationId}`, 'true');
+        
+        // Показываем уведомление только для пациента
+        if (isPatient) {
+          toast.success('Ваш отзыв сохранен');
+        }
+      }
+      
       messageHandler(data);
     } catch (error) {
       console.error('[WebSocket] Ошибка разбора сообщения:', error, event.data);
@@ -558,7 +570,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       if (message) {
         // Показываем toast только при первоначальной ошибке подключения и только один раз
         const toastId = 'connection-error';
-        if (!toast.isActive(toastId) && messages.length === 0) {
+        if (messages.length === 0) {
           toast.error(message, { id: toastId, duration: 3000 });
         }
       }
@@ -584,90 +596,106 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
   const completeConsultation = async () => {
     setIsCompleteModalOpen(false); // Закрываем модальное окно сразу
     
-    // Получаем WebSocket соединение из сервиса
-    const wsConnection = await webSocketService.getConsultationConnection(
-      consultationId,
-      handleWebSocketMessage,
-      updateConnectionStatus
-    );
-    
-    // Проверяем соединение WebSocket
-    if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
-      toast.error('Нет соединения с сервером. Проверьте подключение к интернету.');
-      return;
-    }
+    // Показываем индикатор загрузки
+    toast.loading('Завершение консультации...', {id: 'complete-consultation'});
     
     try {
-      // Показываем индикатор загрузки
-      toast.loading('Завершение консультации...', {id: 'complete-consultation'});
+      // Сначала пробуем через WebSocket
+      console.log("[Chat] Запускаем завершение консультации");
       
-      // Отправляем через WebSocket
-      // Создаем Promise, который разрешится при получении подтверждения
-      const completePromise = new Promise((resolve, reject) => {
-        // Обработчик для получения подтверждения
-        const statusHandler = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            // Если это обновление статуса консультации
-            if (data.type === 'status_update' && data.consultation && 
-                data.consultation.id === Number(consultationId) && 
-                data.consultation.status === 'completed') {
-              
-              // Удаляем этот обработчик
-              wsConnection.removeEventListener('message', statusHandler);
-              
-              // Отменяем таймаут
-              clearTimeout(timeoutId);
-              
-              // Разрешаем Promise
-              resolve(data.consultation);
-            }
-          } catch (e) {
-            console.error('[WebSocket] Ошибка при обработке ответа на завершение консультации:', e);
-          }
-        };
+      // Получаем WebSocket соединение из сервиса
+      const wsConnection = await webSocketService.getConsultationConnection(
+        consultationId,
+        handleWebSocketMessage,
+        updateConnectionStatus
+      );
+      
+      // Проверяем соединение WebSocket
+      if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        console.log("[Chat] WebSocket соединение активно, отправляем запрос на завершение");
         
-        // Добавляем обработчик
-        wsConnection.addEventListener('message', statusHandler);
-        
-        // Устанавливаем таймаут
-        const timeoutId = setTimeout(() => {
-          // Удаляем обработчик
-          wsConnection.removeEventListener('message', statusHandler);
-          
-          // Показываем ошибку
-          toast.dismiss('complete-consultation');
-          toast.error('Сервер не ответил на запрос завершения консультации. Попробуйте позже.');
-          
-          reject(new Error('Таймаут при завершении консультации'));
-        }, 5000);
-        
-        // Отправляем запрос на завершение
+        // Отправляем запрос на завершение через WebSocket
         wsConnection.send(JSON.stringify({
           type: 'status_update',
           consultation_id: Number(consultationId),
           status: 'completed'
         }));
         
-        console.log("[WebSocket] Запрос на завершение консультации отправлен");
-      });
-      
-      // Ждем подтверждения
-      await completePromise;
-      
-      // Успешное завершение
-      toast.dismiss('complete-consultation');
-      toast.success('Консультация успешно завершена');
-      
-      // Обновляем данные консультации через колбэк
-      if (onConsultationUpdated) {
-        onConsultationUpdated();
+        // Запускаем таймер для запасного варианта через HTTP API
+        const fallbackTimer = setTimeout(async () => {
+          console.log("[Chat] Сработал таймаут WebSocket, пробуем HTTP API");
+          
+          try {
+            // Пробуем завершить через HTTP API
+            const result = await consultationsApi.completeConsultation(consultationId);
+            
+            toast.dismiss('complete-consultation');
+            toast.success('Консультация успешно завершена');
+            
+            // Обновляем данные консультации через колбэк
+            if (onConsultationUpdated) {
+              onConsultationUpdated(result);
+            }
+          } catch (apiError) {
+            console.error("[Chat] Не удалось завершить консультацию через HTTP API:", apiError);
+            toast.dismiss('complete-consultation');
+            toast.error('Не удалось завершить консультацию. Пожалуйста, обновите страницу и попробуйте еще раз.');
+          }
+        }, 5000); // 5 секунд таймаут для WebSocket
+        
+        // Ждем ответа от сервера о смене статуса
+        const statusUpdateListener = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Если получили обновление статуса и консультация завершена
+            if (data.type === 'status_update' && 
+                data.consultation && 
+                data.consultation.id === Number(consultationId) &&
+                data.consultation.status === 'completed') {
+              
+              // Очищаем слушатель и таймер
+              wsConnection.removeEventListener('message', statusUpdateListener);
+              clearTimeout(fallbackTimer);
+              
+              // Обновляем UI
+              toast.dismiss('complete-consultation');
+              toast.success('Консультация успешно завершена');
+              
+              // Обновляем данные консультации через колбэк
+              if (onConsultationUpdated) {
+                onConsultationUpdated(data.consultation);
+              }
+            }
+          } catch (e) {
+            console.error('[Chat] Ошибка при обработке сообщения WebSocket:', e);
+          }
+        };
+        
+        // Добавляем временный слушатель для обработки ответа о смене статуса
+        wsConnection.addEventListener('message', statusUpdateListener);
+        
+        // Возвращаемся здесь, ожидая, что ответ придет асинхронно
+        return;
+      } else {
+        // Если WebSocket не работает, сразу пробуем через HTTP
+        console.log("[Chat] WebSocket соединение не активно, пробуем HTTP API");
+        
+        // Пробуем завершить через HTTP API
+        const result = await consultationsApi.completeConsultation(consultationId);
+        
+        toast.dismiss('complete-consultation');
+        toast.success('Консультация успешно завершена');
+        
+        // Обновляем данные консультации через колбэк
+        if (onConsultationUpdated) {
+          onConsultationUpdated(result);
+        }
       }
     } catch (error) {
+      console.error("[Chat] Ошибка при завершении консультации:", error);
       toast.dismiss('complete-consultation');
-      console.error("Ошибка при завершении консультации:", error);
-      toast.error("Ошибка при завершении консультации. Пожалуйста, попробуйте еще раз.");
+      toast.error('Не удалось завершить консультацию. Пожалуйста, попробуйте еще раз.');
     }
   };
 
@@ -961,6 +989,12 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                     console.log('[Chat] Показываем модальное окно отзыва после завершения консультации');
                     window.showReviewModal((success) => {
                       console.log('[Chat] Результат отправки отзыва:', success ? 'успешно' : 'неудачно');
+                      // Если отзыв успешно отправлен, обновляем статус
+                      if (success) {
+                        setHasReview(true);
+                        // Сохраняем информацию об отправке отзыва в localStorage
+                        localStorage.setItem(`review_added_${consultationId}`, 'true');
+                      }
                     });
                   } else {
                     console.warn('[Chat] Функция showReviewModal не найдена');
@@ -969,6 +1003,17 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
               }
             }
           }
+          break;
+          
+        case 'review_added':
+          // Получено уведомление о добавлении отзыва
+          console.log('[WebSocket] Получено уведомление о добавлении отзыва для консультации:', data.consultation_id || consultationId);
+          
+          // Обновляем статус отзыва (данный код дублирует логику в handleWebSocketMessage, но оставляем для надежности)
+          setHasReview(true);
+          
+          // Сохраняем информацию в localStorage для сохранения между сессиями
+          localStorage.setItem(`review_added_${consultationId}`, 'true');
           break;
           
         case 'consultation_data':
@@ -1170,6 +1215,14 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
           }
         }
         
+        // Проверяем ключ review_added в localStorage (новый формат)
+        const reviewAddedKey = `review_added_${consultationId}`;
+        if (localStorage.getItem(reviewAddedKey) === 'true') {
+          console.log('[Chat] Найден отзыв в localStorage (новый формат) для консультации', consultationId);
+          setHasReview(true);
+          return;
+        }
+        
         // Проверяем также отдельный ключ для текущей консультации (для обратной совместимости)
         const reviewKey = `consultation_${consultationId}_review`;
         const reviewData = localStorage.getItem(reviewKey);
@@ -1287,7 +1340,13 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                   color="warning" 
                   variant="flat"
                   className="animate-pulse hover:animate-none transition-all duration-300"
-                  onPress={() => setIsCompleteModalOpen(true)}
+                  onPress={() => {
+                    if (window.showReviewModal) {
+                      window.showReviewModal();
+                    } else {
+                      toast.error('Не удалось открыть форму отзыва');
+                    }
+                  }}
                 >
                   Оставить отзыв
                 </Button>
@@ -1299,7 +1358,12 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                   color="danger" 
                   variant="light"
                   className="hover:bg-danger-100 transition-all duration-300"
-                  onPress={() => setIsCompleteModalOpen(true)}
+                  onPress={() => {
+                    console.log('[Chat] Нажата кнопка "Завершить"');
+                    console.log('[Chat] Текущий статус модального окна:', isCompleteModalOpen);
+                    setIsCompleteModalOpen(true);
+                    console.log('[Chat] Новый статус модального окна:', true);
+                  }}
                 >
                   Завершить
                 </Button>
@@ -1424,6 +1488,52 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
           
           <SafeStyles />
         </Card>
+        
+        {/* Модальное окно подтверждения завершения консультации */}
+        <Modal 
+          isOpen={isCompleteModalOpen} 
+          onClose={() => {
+            console.log('[Chat] Закрытие модального окна без завершения консультации');
+            setIsCompleteModalOpen(false);
+          }}
+          className="z-50"
+        >
+          <ModalContent>
+            <ModalHeader className="flex flex-col gap-1">
+              Завершение консультации
+            </ModalHeader>
+            <ModalBody>
+              <p>
+                Вы уверены, что хотите завершить консультацию? 
+                После завершения отправка сообщений будет недоступна.
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Пациент получит возможность оставить отзыв о консультации.
+              </p>
+            </ModalBody>
+            <ModalFooter>
+              <Button 
+                color="default" 
+                variant="light" 
+                onPress={() => {
+                  console.log('[Chat] Отмена завершения консультации');
+                  setIsCompleteModalOpen(false);
+                }}
+              >
+                Отмена
+              </Button>
+              <Button 
+                color="danger" 
+                onPress={() => {
+                  console.log('[Chat] Подтверждение завершения консультации');
+                  completeConsultation();
+                }}
+              >
+                Завершить
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </SafeRender>
     );
   } catch (error) {

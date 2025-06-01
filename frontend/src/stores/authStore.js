@@ -800,15 +800,33 @@ const useAuthStore = create(
             
             // Показываем успешное уведомление
             if (alreadyVerified) {
-              toast.success(`Email ${userEmail} уже подтвержден. Добро пожаловать!`, {
-                position: "top-right",
-                autoClose: 3000
-              });
+              const lastToastTime = localStorage.getItem('lastAuthToastTime');
+              const now = Date.now();
+              
+              // Показываем только если прошло более 5 секунд с момента последнего уведомления
+              if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
+                toast.success(`Email ${userEmail} уже подтвержден. Добро пожаловать!`, {
+                  position: "top-right",
+                  autoClose: 3000
+                });
+                
+                // Сохраняем время показа
+                localStorage.setItem('lastAuthToastTime', now.toString());
+              }
             } else {
-              toast.success(`Email успешно подтвержден. Добро пожаловать!`, {
-                position: "top-right",
-                autoClose: 3000
-              });
+              const lastToastTime = localStorage.getItem('lastAuthToastTime');
+              const now = Date.now();
+              
+              // Показываем только если прошло более 5 секунд с момента последнего уведомления
+              if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
+                toast.success(`Email успешно подтвержден. Добро пожаловать!`, {
+                  position: "top-right",
+                  autoClose: 3000
+                });
+                
+                // Сохраняем время показа
+                localStorage.setItem('lastAuthToastTime', now.toString());
+              }
             }
             
             // Задержка перед созданием профиля, чтобы убедиться, что все данные обновлены

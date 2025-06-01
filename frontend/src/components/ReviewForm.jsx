@@ -150,7 +150,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
                       value={rating.toString()}
                       onValueChange={(value) => setRating(parseInt(value))}
                       classNames={{
-                        wrapper: "gap-2"
+                        wrapper: "gap-6"
                       }}
                     >
                       {[1, 2, 3, 4, 5].map((value) => (
@@ -165,7 +165,9 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
                           classNames={{
                             base: `hover:bg-${getRatingColor(value)}-100 ${
                               rating === value ? `bg-${getRatingColor(value)}-100` : ''
-                            }`
+                            }`,
+                            wrapper: "w-10 h-10",
+                            labelWrapper: "text-lg font-medium"
                           }}
                         >
                           {value}

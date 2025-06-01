@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import api from '../api';
 import { WS_BASE_URL } from '../api';
 import useAuthStore from '../stores/authStore';
@@ -58,38 +58,102 @@ const NotificationWebSocket = () => {
   // Флаг закрытия соединения с сервера (не клиентом)
   const serverClosedRef = useRef(false);
   
-  // Соединяемся с WebSocket, когда пользователь авторизован
+  // Храним WebSocketService instance
+  const webSocketServiceRef = useRef(null);
+  
+  // Импортируем WebSocketService если он еще не был импортирован
   useEffect(() => {
-    // При монтировании компонента
-    mountedRef.current = true;
+    // Импортируем WebSocketService динамически, если он еще не был импортирован
+    if (!webSocketServiceRef.current) {
+      import('../services/webSocketService').then(module => {
+        webSocketServiceRef.current = module.default;
+      }).catch(error => {
+        console.error('Ошибка при импорте WebSocketService:', error);
+      });
+    }
     
-    // Проверка, не была ли уже показана нотификация с таким ID
-    const isNotificationShown = (notificationId) => {
-      if (!shownNotificationsRef.current.has(notificationId)) {
-        return false;
+    return () => {
+      // Очистка при размонтировании
+      mountedRef.current = false;
+    };
+  }, []);
+  
+  // Функция для проверки, было ли уже показано уведомление
+  const isNotificationShown = (notificationId) => {
+    if (!shownNotificationsRef.current.has(notificationId)) {
+      return false;
+    }
+    
+    // Проверяем, что уведомление было показано недавно (в течение 5 минут)
+    const shownTime = shownNotificationsRef.current.get(notificationId);
+    const timeDiff = Date.now() - shownTime;
+    const timeThreshold = 5 * 60 * 1000; // 5 минут
+    
+    return timeDiff < timeThreshold;
+  };
+  
+  // Отметка, что нотификация показана
+  const markNotificationShown = (notificationId) => {
+    shownNotificationsRef.current.set(notificationId, Date.now());
+    
+    // Сохраняем ID показанных уведомлений в localStorage, чтобы предотвратить
+    // повторный показ после перезагрузки страницы
+    try {
+      const shownNotificationsStr = localStorage.getItem('shownNotifications');
+      let shownNotifications = {};
+      
+      if (shownNotificationsStr) {
+        shownNotifications = JSON.parse(shownNotificationsStr);
       }
       
-      // Проверяем, что уведомление было показано недавно (в течение 5 минут)
-      const shownTime = shownNotificationsRef.current.get(notificationId);
-      const timeDiff = Date.now() - shownTime;
+      shownNotifications[notificationId] = Date.now();
+      
+      // Очищаем старые записи (старше 5 минут)
+      const now = Date.now();
       const timeThreshold = 5 * 60 * 1000; // 5 минут
       
-      return timeDiff < timeThreshold;
-    };
-    
-    // Отметка, что нотификация показана
-    const markNotificationShown = (notificationId) => {
-      shownNotificationsRef.current.set(notificationId, Date.now());
-      
-      // Очищаем старые ID через 5 минут, чтобы не накапливать их бесконечно
-      setTimeout(() => {
-        if (mountedRef.current) {
-          shownNotificationsRef.current.delete(notificationId);
+      Object.keys(shownNotifications).forEach(id => {
+        if (now - shownNotifications[id] > timeThreshold) {
+          delete shownNotifications[id];
         }
-      }, 5 * 60 * 1000); // 5 минут
-    };
+      });
+      
+      localStorage.setItem('shownNotifications', JSON.stringify(shownNotifications));
+    } catch (e) {
+      console.error('Ошибка при сохранении показанных уведомлений в localStorage:', e);
+    }
     
-    // Периодическая очистка старых уведомлений
+    // Очищаем старые ID через 5 минут, чтобы не накапливать их бесконечно
+    setTimeout(() => {
+      if (mountedRef.current) {
+        shownNotificationsRef.current.delete(notificationId);
+      }
+    }, 5 * 60 * 1000); // 5 минут
+  };
+  
+  // Загружаем показанные уведомления из localStorage при монтировании
+  useEffect(() => {
+    try {
+      const shownNotificationsStr = localStorage.getItem('shownNotifications');
+      
+      if (shownNotificationsStr) {
+        const shownNotifications = JSON.parse(shownNotificationsStr);
+        const now = Date.now();
+        const timeThreshold = 5 * 60 * 1000; // 5 минут
+        
+        Object.entries(shownNotifications).forEach(([id, timestamp]) => {
+          if (now - timestamp < timeThreshold) {
+            shownNotificationsRef.current.set(id, timestamp);
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Ошибка при загрузке показанных уведомлений из localStorage:', e);
+    }
+  }, []);
+  
+  // Периодическая очистка старых уведомлений
+  useEffect(() => {
     const cleanupInterval = setInterval(() => {
       if (mountedRef.current) {
         const now = Date.now();
@@ -104,160 +168,89 @@ const NotificationWebSocket = () => {
       }
     }, 60 * 1000); // Каждую минуту
     
-    const cleanupWebsocket = (ws) => {
-      if (ws) {
-        try {
-          // Удаляем все обработчики событий перед закрытием
-          ws.onopen = null;
-          ws.onmessage = null;
-          ws.onerror = null;
-          ws.onclose = null;
-          ws.close();
-        } catch (e) {
-          console.error('Ошибка при закрытии WebSocket соединения:', e);
-        }
-      }
+    return () => {
+      clearInterval(cleanupInterval);
     };
-    
-    const connectToWebSocket = async () => {
-      // Если уже идет подключение или компонент размонтирован, не продолжаем
-      if (isConnectingRef.current || !mountedRef.current || !isAuthenticated || !user) {
-        return;
-      }
+  }, []);
+  
+  // Обработчик сообщений WebSocket
+  const handleWebSocketMessage = useCallback((data) => {
+    try {
+      console.log('NotificationWebSocket: Получено сообщение', data);
       
-      // Устанавливаем флаг подключения
-      isConnectingRef.current = true;
-      
-      try {
-        // Закрываем предыдущее соединение, если оно существует
-        if (socket) {
-          cleanupWebsocket(socket);
-          setSocket(null);
-        }
+      // Обрабатываем новое уведомление
+      if (data.type === 'new_notification' && data.notification && mountedRef.current) {
+        const notification = data.notification;
+        console.log('NotificationWebSocket: Получено новое уведомление', notification);
         
-        // Получаем токен для WebSocket
-        const tokenResponse = await api.get('/api/ws-token');
-        const wsToken = tokenResponse.data.token;
-        
-        // Определяем протокол
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        
-        // Проверяем, что ID пользователя определен
-        if (!user || !user.id) {
-          console.error('ID пользователя не определен для WebSocket соединения');
-          throw new Error('ID пользователя не определен');
-        }
-        
-        // Формируем URL с проверкой ID пользователя
-        const wsUrl = `${protocol}//${window.location.host}${WS_BASE_URL}/ws/notifications/${user.id}?token=${wsToken}`;
-        console.log('NotificationWebSocket: Подключение к', wsUrl);
-        
-        const ws = new WebSocket(wsUrl);
-        
-        ws.onopen = () => {
-          console.log('NotificationWebSocket: Соединение установлено');
-          // Сбрасываем счетчик попыток подключения
-          reconnectAttemptsRef.current = 0;
-          // Сбрасываем флаг закрытия сервером
-          serverClosedRef.current = false;
+        // Проверяем, не показывали ли мы уже это уведомление
+        if (!isNotificationShown(notification.id)) {
+          console.log('NotificationWebSocket: Показываем уведомление', notification.id);
+          // Показываем уведомление в интерфейсе
+          toast(notification.title, {
+            description: notification.message,
+            duration: 5000,
+          });
           
-          if (mountedRef.current) {
-            setSocket(ws);
-            // Сбрасываем флаг подключения
-            isConnectingRef.current = false;
-          }
-        };
+          // Отправляем браузерное уведомление
+          sendBrowserNotification(notification.title, {
+            body: notification.message,
+            tag: `notification-${notification.id}`
+          });
+          
+          // Отмечаем, что уведомление показано
+          markNotificationShown(notification.id);
+        } else {
+          console.log('NotificationWebSocket: Уведомление уже было показано', notification.id);
+        }
+      } else if (data.type === 'login_success' && mountedRef.current) {
+        // Для уведомлений о входе используем уникальный ключ
+        const loginKey = `login_${Date.now()}`;
         
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            console.log('NotificationWebSocket: Получено сообщение', data);
-            
-            // Обрабатываем новое уведомление
-            if (data.type === 'new_notification' && data.notification && mountedRef.current) {
-              const notification = data.notification;
-              console.log('NotificationWebSocket: Получено новое уведомление', notification);
-              
-              // Проверяем, не показывали ли мы уже это уведомление
-              if (!isNotificationShown(notification.id)) {
-                console.log('NotificationWebSocket: Показываем уведомление', notification.id);
-                // Показываем уведомление в интерфейсе
-                toast(notification.title, {
-                  description: notification.message,
-                  duration: 5000,
-                });
-                
-                // Отправляем браузерное уведомление
-                sendBrowserNotification(notification.title, {
-                  body: notification.message,
-                  tag: `notification-${notification.id}`
-                });
-                
-                // Отмечаем, что уведомление показано
-                markNotificationShown(notification.id);
-              } else {
-                console.log('NotificationWebSocket: Уведомление уже было показано', notification.id);
-              }
-            }
-          } catch (error) {
-            console.error('Ошибка при обработке WebSocket сообщения:', error);
-          }
-        };
+        // Проверяем, показывали ли мы уже уведомление о входе недавно
+        const lastLoginTime = localStorage.getItem('lastLoginNotificationTime');
+        const now = Date.now();
         
-        ws.onerror = (error) => {
-          console.error('NotificationWebSocket: Ошибка соединения', error);
-          isConnectingRef.current = false;
-          serverClosedRef.current = true;
-        };
-        
-        ws.onclose = (event) => {
-          console.log('NotificationWebSocket: Соединение закрыто', event.code, event.reason);
-          isConnectingRef.current = false;
-          // Если соединение закрыто сервером или произошла ошибка, пытаемся переподключиться
-          if (mountedRef.current && (serverClosedRef.current || event.code !== 1000)) {
-            const reconnectDelay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
-            reconnectAttemptsRef.current++;
-            console.log(`NotificationWebSocket: Попытка переподключения через ${reconnectDelay}мс`);
-            
-            // Планируем переподключение
-            reconnectTimerRef.current = setTimeout(() => {
-              if (mountedRef.current) {
-                connectToWebSocket();
-              }
-            }, reconnectDelay);
-          }
-        };
-      } catch (error) {
-        console.error('Ошибка при подключении к WebSocket:', error);
-        isConnectingRef.current = false;
-        // Планируем повторную попытку
-        const reconnectDelay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
-        reconnectAttemptsRef.current++;
-        
-        reconnectTimerRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            connectToWebSocket();
-          }
-        }, reconnectDelay);
+        if (!lastLoginTime || (now - parseInt(lastLoginTime)) > 5000) {
+          toast.success('Вы успешно авторизованы', {
+            duration: 3000,
+          });
+          
+          // Запоминаем время показа уведомления о входе
+          localStorage.setItem('lastLoginNotificationTime', now.toString());
+        }
       }
-    };
-    
-    // Подключаемся при аутентификации
-    if (isAuthenticated && user && !socket && !isConnectingRef.current) {
-      connectToWebSocket();
+    } catch (error) {
+      console.error('Ошибка при обработке WebSocket сообщения:', error);
+    }
+  }, []);
+  
+  // Эффект для соединения с WebSocket при монтировании компонента
+  useEffect(() => {
+    if (isAuthenticated && user && user.id && webSocketServiceRef.current && !socket) {
+      // Используем WebSocketService для установки соединения
+      webSocketServiceRef.current.getNotificationConnection(
+        user.id,
+        handleWebSocketMessage,
+        (status, message) => {
+          console.log(`NotificationWebSocket: Статус соединения изменился на ${status}`, message || '');
+        }
+      ).then(newSocket => {
+        if (newSocket && mountedRef.current) {
+          setSocket(newSocket);
+        }
+      }).catch(error => {
+        console.error('Ошибка при получении соединения WebSocket:', error);
+      });
     }
     
-    // Очистка при размонтировании
     return () => {
-      mountedRef.current = false;
-      clearTimeout(reconnectTimerRef.current);
-      clearInterval(cleanupInterval);
-      
-      if (socket) {
-        cleanupWebsocket(socket);
+      // Очистка при размонтировании или изменении зависимостей
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
       }
     };
-  }, [isAuthenticated, user, socket]);
+  }, [isAuthenticated, user, handleWebSocketMessage, socket]);
   
   // Ничего не отображаем, этот компонент только для логики
   return null;

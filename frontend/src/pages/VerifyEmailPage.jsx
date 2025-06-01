@@ -97,9 +97,18 @@ const VerifyEmailPage = () => {
                 ? 'Email уже был подтвержден! Переходим в ваш профиль через 5 секунд.'
                 : 'Email успешно подтвержден! Переходим в ваш профиль через 5 секунд.';
               
-              toast.success(message, {
-                autoClose: 3000
-              });
+              // Проверяем, было ли недавно показано уведомление
+              const lastToastTime = localStorage.getItem('lastVerifyToastTime');
+              const now = Date.now();
+              
+              if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
+                toast.success(message, {
+                  autoClose: 3000
+                });
+                
+                // Сохраняем время показа
+                localStorage.setItem('lastVerifyToastTime', now.toString());
+              }
               
               // Начинаем обратный отсчет для редиректа
               startRedirectCountdown();

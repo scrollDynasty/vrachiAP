@@ -171,6 +171,38 @@ const ReviewItem = ({ review }) => {
   );
 };
 
+// Функция для получения названия района по идентификатору
+const getDistrictName = (districtId) => {
+  if (!districtId) return 'Не указано';
+  
+  // Статический список районов
+  const districtsList = [
+    "Алмазарский район",
+    "Бектемирский район",
+    "Мирабадский район",
+    "Мирзо-Улугбекский район",
+    "Сергелийский район",
+    "Учтепинский район",
+    "Чиланзарский район",
+    "Шайхантаурский район",
+    "Юнусабадский район",
+    "Яккасарайский район",
+    "Яшнабадский район"
+  ];
+  
+  // Если districtId - число и находится в пределах массива
+  if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
+    return districtsList[parseInt(districtId) - 1];
+  }
+  
+  // Если districtId совпадает с названием района, возвращаем его как есть
+  if (districtsList.includes(districtId)) {
+    return districtId;
+  }
+  
+  return districtId; // Если не удалось распознать, возвращаем как есть
+};
+
 // Компонент страницы профиля врача
 function DoctorProfilePage() {
   const { doctorId } = useParams(); // Получаем ID врача из URL
@@ -553,7 +585,7 @@ function DoctorProfilePage() {
               const specializationsArray = doctor.specializations ? doctor.specializations.split(',').map(s => s.trim()) : [];
               
               // Преобразуем строку practice_areas в массив
-              const practiceAreasArray = doctor.practice_areas ? doctor.practice_areas.split(',').map(s => s.trim()) : [];
+              const practiceAreasArray = doctor.practice_areas ? doctor.practice_areas.split(',').map(s => s.trim()).map(area => getDistrictName(area)) : [];
               
               // Рассчитаем рейтинг врача
               const doctorRating = calculateRating(reviews);

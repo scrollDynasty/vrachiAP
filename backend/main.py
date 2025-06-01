@@ -614,154 +614,147 @@ def verify_email(
     """
     print(f"Received verification request with token: {token[:10]}... (length: {len(token)})")
     
-    # Ищем пользователя в базе данных по предоставленному токену подтверждения email
-    pending_user = db.query(PendingUser).filter(PendingUser.verification_token == token).first()
-    
-    if pending_user is None:
-        print(f"No pending user found for token: {token[:10]}...")
+    try:
+        # Ищем пользователя в базе данных по предоставленному токену подтверждения email с блокировкой строки
+        # with_for_update() добавляет FOR UPDATE в SQL запрос для предотвращения одновременного изменения
+        pending_user = db.query(PendingUser).filter(
+            PendingUser.verification_token == token
+        ).with_for_update().first()
         
-        # Проверим, возможно, этот токен уже был успешно использован для верификации
-        # Это определить сложно, так как мы удаляем PendingUser после верификации
-        # Но можем посмотреть всех пользователей, созданных недавно (за последние 10 минут)
-        time_threshold = datetime.utcnow() - timedelta(minutes=10)
-        recently_verified_users = db.query(User).filter(
-            User.created_at > time_threshold,
-            User.is_active == True,
-            User.auth_provider == "email"
-        ).all() if hasattr(User, 'created_at') else []
-        
-        # Если есть недавно созданные пользователи, вероятно токен был уже использован
-        if recently_verified_users:
-            print(f"Found {len(recently_verified_users)} recently verified users, token likely used successfully")
-            # Создаем временный токен для переадресации пользователя
-            newest_user = recently_verified_users[0] if recently_verified_users else None
-            if newest_user:
-                # Генерируем новый токен для этого пользователя
-                access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                access_token = create_access_token(
-                    data={"sub": newest_user.email, "role": newest_user.role},
-                    expires_delta=access_token_expires
-                )
-                print(f"Generated new token for recently verified user {newest_user.email}")
-                return {
-                    "access_token": access_token, 
-                    "token_type": "bearer", 
-                    "already_verified": True,
-                    "email": newest_user.email
-                }
-        
-        # Выведем информацию о существующих токенах для отладки
-        all_pending = db.query(PendingUser).all()
-        print(f"Total pending users: {len(all_pending)}")
-        for p in all_pending:
-            print(f"Pending user: {p.email}, token: {p.verification_token[:10]}...")
+        if pending_user is None:
+            print(f"No pending user found for token: {token[:10]}...")
             
-        # Если токен не найден в базе данных
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Недействительный токен подтверждения или время его действия истекло."
-        )
-        
-    # Проверяем, не существует ли уже пользователь с таким email
-    existing_user = db.query(User).filter(User.email == pending_user.email).first()
-    if existing_user:
-        # Если пользователь уже существует, удаляем pending_user
-        db.delete(pending_user)
-        db.commit()
-        
-        if existing_user.is_active:
-            # Если пользователь уже существует и активен, создаем токен для входа
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(
-                data={"sub": existing_user.email, "role": existing_user.role},
-                expires_delta=access_token_expires
-            )
-            print(f"User already exists and is active: {existing_user.email}")
-            return {
-                "access_token": access_token, 
-                "token_type": "bearer",
-                "already_verified": True,
-                "email": existing_user.email
-            }
-        else:
+            # Проверим, возможно, этот токен уже был успешно использован для верификации
+            # Это определить сложно, так как мы удаляем PendingUser после верификации
+            # Но можем посмотреть всех пользователей, созданных недавно (за последние 10 минут)
+            time_threshold = datetime.utcnow() - timedelta(minutes=10)
+            recently_verified_users = db.query(User).filter(
+                User.created_at > time_threshold,
+                User.is_active == True,
+                User.auth_provider == "email"
+            ).all() if hasattr(User, 'created_at') else []
+            
+            # Если есть недавно созданные пользователи, вероятно токен был уже использован
+            if recently_verified_users:
+                print(f"Found {len(recently_verified_users)} recently verified users, token likely used successfully")
+                # Создаем временный токен для переадресации пользователя
+                newest_user = recently_verified_users[0] if recently_verified_users else None
+                if newest_user:
+                    # Генерируем новый токен для этого пользователя
+                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    access_token = create_access_token(
+                        data={"sub": newest_user.email, "role": newest_user.role},
+                        expires_delta=access_token_expires
+                    )
+                    print(f"Generated new token for recently verified user {newest_user.email}")
+                    return {
+                        "access_token": access_token, 
+                        "token_type": "bearer", 
+                        "already_verified": True,
+                        "email": newest_user.email
+                    }
+            
+            # Выведем информацию о существующих токенах для отладки
+            all_pending = db.query(PendingUser).all()
+            print(f"Total pending users: {len(all_pending)}")
+            for p in all_pending:
+                print(f"Pending user: {p.email}, token: {p.verification_token[:10]}...")
+                
+            # Если токен не найден в базе данных
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пользователь с таким email уже существует."
+                detail="Недействительный токен подтверждения или время его действия истекло."
             )
-
-    # Проверяем, не истек ли срок действия токена
-    current_time = datetime.utcnow()
-    if current_time > pending_user.expires_at:
-        # Удаляем просроченную запись
-        db.delete(pending_user)
-        db.commit()
+            
+        # Сохраняем email из pending_user, чтобы использовать его при проверке
+        email = pending_user.email
         
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Срок действия токена истек. Пожалуйста, запросите повторную отправку письма для подтверждения."
-        )
-
-    # Создаем нового пользователя на основе данных из pending_user
-    try:
-        # Для безопасности повторно проверяем, не появился ли пользователь с таким email
-        # пока мы обрабатывали запрос (конкурентный запрос)
-        existing_user = db.query(User).filter(User.email == pending_user.email).first()
+        # Проверяем, не истек ли срок действия токена
+        current_time = datetime.utcnow()
+        if current_time > pending_user.expires_at:
+            # Удаляем просроченную запись и завершаем транзакцию
+            db.delete(pending_user)
+            db.commit()
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Срок действия токена истек. Пожалуйста, запросите повторную отправку письма для подтверждения."
+            )
+        
+        # Проверяем, не существует ли уже пользователь с таким email с блокировкой
+        existing_user = db.query(User).filter(User.email == pending_user.email).with_for_update().first()
+        
+        # Флаг для отслеживания, был ли создан новый пользователь
+        user_created = False
+        
         if existing_user:
             # Если пользователь уже существует, используем его
             print(f"User {pending_user.email} already exists with ID: {existing_user.id}")
             new_user = existing_user
-            # Пропускаем создание нового пользователя и идем дальше
+            
+            if existing_user.is_active:
+                # Если пользователь активен, генерируем для него токен
+                pass
+            else:
+                # Если пользователь неактивен, активируем его
+                existing_user.is_active = True
+                db.flush()
+                user_created = True
         else:
             # Создаем нового пользователя
-            new_user = User(
-                email=pending_user.email,
-                hashed_password=pending_user.hashed_password,
-                is_active=True,  # Пользователь сразу активный, т.к. email подтвержден
-                role=pending_user.role,
-                auth_provider="email"
-            )
-
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            
-            print(f"User {new_user.email} created with ID: {new_user.id} and role: {new_user.role}")
-    except IntegrityError as e:
-        # Если произошла ошибка дублирования email
-        db.rollback()
-        print(f"IntegrityError creating user: {str(e)}")
-        # Находим существующего пользователя
-        existing_user = db.query(User).filter(User.email == pending_user.email).first()
-        if existing_user:
-            print(f"Found existing user with ID: {existing_user.id}")
-            new_user = existing_user
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Ошибка при создании пользователя: email уже существует, но пользователь не найден."
-            )
-
-    # Если это пациент, создаем профиль пациента
-    if pending_user.role == "patient":
-        # Проверяем, есть ли данные для профиля
-        has_profile_data = any([
-            pending_user.full_name,
-            pending_user.contact_phone,
-            pending_user.district,
-            pending_user.contact_address,
-            pending_user.medical_info
-        ])
-        
-        if has_profile_data:
-            # Обработка создания профиля в отдельной транзакции
             try:
-                with db.begin_nested():  # Создаем savepoint для возможного отката
-                    # Проверяем, существует ли уже профиль для этого пользователя
-                    existing_profile = db.query(PatientProfile).filter(PatientProfile.user_id == new_user.id).with_for_update().first()
-                    
-                    if existing_profile:
-                        print(f"Patient profile already exists for user {new_user.id}, skipping creation")
-                    else:
+                new_user = User(
+                    email=pending_user.email,
+                    hashed_password=pending_user.hashed_password,
+                    is_active=True,  # Пользователь сразу активный, т.к. email подтвержден
+                    role=pending_user.role,
+                    auth_provider="email"
+                )
+                
+                db.add(new_user)
+                db.flush()  # Выполняем SQL, но не коммитим транзакцию
+                user_created = True
+                print(f"User {new_user.email} created with ID: {new_user.id} and role: {new_user.role}")
+            except IntegrityError as e:
+                # Если произошла ошибка дублирования email, проверяем еще раз
+                db.rollback()  # Откатываем только последнее действие
+                print(f"IntegrityError creating user: {str(e)}")
+                
+                # Пробуем найти пользователя с таким email (после предыдущего запроса)
+                existing_user = db.query(User).filter(User.email == pending_user.email).first()
+                if existing_user:
+                    print(f"Found existing user with ID: {existing_user.id}")
+                    new_user = existing_user
+                else:
+                    # Если пользователь не найден, значит произошла непредвиденная ошибка
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Ошибка при создании пользователя: email уже существует, но пользователь не найден."
+                    )
+        
+        # Если это пациент, создаем профиль пациента
+        profile_created = False
+        if new_user.role == "patient":
+            # Проверяем, есть ли данные для профиля
+            has_profile_data = any([
+                pending_user.full_name,
+                pending_user.contact_phone,
+                pending_user.district,
+                pending_user.contact_address,
+                pending_user.medical_info
+            ])
+            
+            if has_profile_data:
+                # Проверяем, существует ли уже профиль для этого пользователя
+                existing_profile = db.query(PatientProfile).filter(
+                    PatientProfile.user_id == new_user.id
+                ).with_for_update().first()
+                
+                if existing_profile:
+                    print(f"Patient profile already exists for user {new_user.id}, skipping creation")
+                    profile_created = True
+                else:
+                    try:
                         print(f"Creating patient profile for user {new_user.id}")
                         patient_profile = PatientProfile(
                             user_id=new_user.id,
@@ -772,34 +765,82 @@ def verify_email(
                             medical_info=pending_user.medical_info
                         )
                         db.add(patient_profile)
+                        db.flush()  # Выполняем SQL, но не коммитим транзакцию
+                        profile_created = True
                         print(f"Patient profile created for user {new_user.id}")
-            except Exception as e:
-                # Если возникла ошибка, логируем её но продолжаем работу
-                print(f"Error creating patient profile: {str(e)}")
-                # Проверяем, был ли всё-таки создан профиль другим потоком
-                existing_profile = db.query(PatientProfile).filter(PatientProfile.user_id == new_user.id).first()
-                if existing_profile:
-                    print(f"Patient profile already exists or was created by another request for user {new_user.id}")
-                else:
-                    print(f"WARNING: Failed to create patient profile for user {new_user.id}")
-
-    # Удаляем запись из таблицы pending_users
-    db.delete(pending_user)
-    db.commit()
-
-    # Создаем WebSocket токен для нового пользователя
-    websocket_token = asyncio.run(create_websocket_token(new_user.id, db))
-    print(f"WebSocket token created for user {new_user.id}: {websocket_token[:10]}...")
-
-    # Создаем и возвращаем JWT токен для автоматического входа
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": new_user.email, "role": new_user.role},
-        expires_delta=access_token_expires
-    )
-    
-    print(f"Email verification successful for {new_user.email}")
-    return {"access_token": access_token, "token_type": "bearer"}
+                    except Exception as e:
+                        # Логируем ошибку, но продолжаем работу
+                        print(f"Error creating patient profile: {str(e)}")
+                        # Если произошла ошибка, проверяем профиль снова
+                        existing_profile = db.query(PatientProfile).filter(
+                            PatientProfile.user_id == new_user.id
+                        ).first()
+                        if existing_profile:
+                            print(f"Patient profile already exists or was created by another request for user {new_user.id}")
+                            profile_created = True
+        
+        # Удаляем запись из таблицы pending_users
+        try:
+            # Важно: убедимся, что запись все еще существует перед удалением
+            current_pending = db.query(PendingUser).filter(
+                PendingUser.verification_token == token
+            ).with_for_update().first()
+            
+            if current_pending:
+                db.delete(current_pending)
+                db.flush()  # Применяем удаление, но не коммитим
+        except Exception as e:
+            print(f"Error deleting pending user: {str(e)}")
+            # Логируем ошибку, но продолжаем работу
+        
+        # Создаем WebSocket токен для пользователя
+        websocket_token = asyncio.run(create_websocket_token(new_user.id, db))
+        print(f"WebSocket token created for user {new_user.id}: {websocket_token[:10]}...")
+        
+        # Создаем JWT токен для автоматического входа
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": new_user.email, "role": new_user.role},
+            expires_delta=access_token_expires
+        )
+        
+        # Успешно завершаем транзакцию
+        db.commit()
+        print(f"Email verification successful for {new_user.email}")
+        
+        # Возвращаем токен доступа
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except Exception as e:
+        # В случае любой ошибки откатываем транзакцию
+        db.rollback()
+        print(f"Error during email verification: {str(e)}")
+        
+        # Попробуем проверить, был ли все-таки создан пользователь
+        # Это может произойти, если ошибка возникла после успешного создания пользователя
+        try:
+            if 'email' in locals():
+                existing_user = db.query(User).filter(User.email == email).first()
+                if existing_user and existing_user.is_active:
+                    # Если пользователь существует и активен, создаем для него токен
+                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    access_token = create_access_token(
+                        data={"sub": existing_user.email, "role": existing_user.role},
+                        expires_delta=access_token_expires
+                    )
+                    print(f"Found active user after error, returning token for {existing_user.email}")
+                    return {"access_token": access_token, "token_type": "bearer"}
+        except:
+            pass
+            
+        # Если не удалось восстановиться, пробрасываем оригинальную ошибку
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Произошла ошибка при подтверждении email: {str(e)}"
+            )
 
 
 # Эндпоинт для создания или обновления профиля Пациента. Требует авторизацию и роли 'patient'.
@@ -2644,7 +2685,7 @@ async def start_consultation(
 
         # Отправляем уведомление через WebSocket
         if consultation_id in consultation_websocket_connections:
-            for connection in consultation_websocket_connections[consultation_id]:
+            for connection in consultation_websocket_connections.get(consultation_id, []):
                 try:
                     await connection.send_json({
                         "type": "status_update",  # Изменено с "status_changed" на "status_update"
@@ -2681,95 +2722,139 @@ async def complete_consultation(
     Завершает консультацию (переводит в статус completed).
     Доступно как для пациента, так и для врача.
     """
-    # Получаем консультацию
-    consultation = (
-        db.query(Consultation).filter(Consultation.id == consultation_id).first()
-    )
-
-    if not consultation:
-        raise HTTPException(status_code=404, detail="Консультация не найдена")
-
-    # Проверяем права доступа
-    if (
-        current_user.id != consultation.patient_id
-        and current_user.id != consultation.doctor_id
-    ):
-        raise HTTPException(
-            status_code=403, detail="У вас нет доступа к этой консультации"
-        )
-
-    # Проверяем, что консультация в статусе active
-    if consultation.status != "active":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Невозможно завершить консультацию в статусе {consultation.status}",
-        )
-
-    # Обновляем статус консультации
-    consultation.status = "completed"
-    consultation.completed_at = datetime.utcnow()
-
-    db.commit()
-    db.refresh(consultation)
-
-    # Отправляем уведомление о завершении консультации обоим участникам
-    try:
-        # Получаем профили участников для персонализации уведомлений
-        doctor_profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == consultation.doctor_id).first()
-        patient_profile = db.query(PatientProfile).filter(PatientProfile.user_id == consultation.patient_id).first()
-        
-        doctor_name = "Врач"
-        if doctor_profile:
-            doctor_name = doctor_profile.full_name
-        
-        patient_name = "Пациент"
-        if patient_profile:
-            patient_name = patient_profile.full_name
-        
-        # Определяем инициатора завершения для корректного формирования сообщения
-        initiator_name = doctor_name if current_user.id == consultation.doctor_id else patient_name
-        
-        # Создаем уведомление для врача (если завершил пациент)
-        if current_user.id == consultation.patient_id:
-            await create_notification(
-                db=db,
-                user_id=consultation.doctor_id,
-                title="🔴 Консультация завершена",
-                message=f"{patient_name} завершил(а) консультацию. Просмотрите историю для деталей.",
-                notification_type="consultation_completed",
-                related_id=consultation.id
+    # Максимальное количество попыток при возникновении ошибки конкурентного доступа
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            # Начинаем транзакцию
+            db.begin_nested()
+            
+            # Получаем консультацию с блокировкой для обновления
+            consultation = (
+                db.query(Consultation)
+                .filter(Consultation.id == consultation_id)
+                .with_for_update()  # Блокировка строки на время транзакции
+                .first()
             )
-        
-        # Создаем уведомление для пациента (если завершил врач)
-        if current_user.id == consultation.doctor_id:
-            await create_notification(
-                db=db,
-                user_id=consultation.patient_id,
-                title="🔴 Консультация завершена",
-                message=f"{doctor_name} завершил(а) консультацию. Вы можете оставить отзыв о консультации.",
-                notification_type="consultation_completed",
-                related_id=consultation.id
-            )
-        
-        print(f"Уведомления о завершении консультации отправлены. Инициатор: {initiator_name}")
-    except Exception as e:
-        print(f"Ошибка при отправке уведомлений о завершении консультации: {str(e)}")
 
-    # Отправляем WebSocket уведомление
-    try:
-        await broadcast_consultation_update(consultation_id, {
-            "type": "status_update",  # Изменено с "status_changed" на "status_update"
-            "consultation": {         # Изменена структура данных для соответствия клиентскому коду
-                "id": consultation_id,
-                "status": "completed",
-                "completed_at": consultation.completed_at.isoformat()
-            },
-            "initiator_id": current_user.id
-        })
-    except Exception as e:
-        print(f"Ошибка при отправке WebSocket-уведомления о завершении консультации: {str(e)}")
+            if not consultation:
+                db.rollback()
+                raise HTTPException(status_code=404, detail="Консультация не найдена")
 
-    return consultation
+            # Проверяем права доступа
+            if (
+                current_user.id != consultation.patient_id
+                and current_user.id != consultation.doctor_id
+            ):
+                db.rollback()
+                raise HTTPException(
+                    status_code=403, detail="У вас нет доступа к этой консультации"
+                )
+
+            # Проверяем, что консультация в статусе active
+            if consultation.status != "active":
+                db.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Невозможно завершить консультацию в статусе {consultation.status}",
+                )
+
+            # Обновляем статус консультации
+            consultation.status = "completed"
+            consultation.completed_at = datetime.utcnow()
+            
+            # Фиксируем изменения
+            db.commit()
+            
+            # Получаем обновленную консультацию
+            db.refresh(consultation)
+            
+            # Отправляем уведомление о завершении консультации обоим участникам
+            try:
+                # Получаем профили участников для персонализации уведомлений
+                doctor_profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == consultation.doctor_id).first()
+                patient_profile = db.query(PatientProfile).filter(PatientProfile.user_id == consultation.patient_id).first()
+                
+                doctor_name = "Врач"
+                if doctor_profile:
+                    doctor_name = doctor_profile.full_name
+                
+                patient_name = "Пациент"
+                if patient_profile:
+                    patient_name = patient_profile.full_name
+                
+                # Определяем инициатора завершения для корректного формирования сообщения
+                initiator_name = doctor_name if current_user.id == consultation.doctor_id else patient_name
+                
+                # Создаем уведомление для врача (если завершил пациент)
+                if current_user.id == consultation.patient_id:
+                    await create_notification(
+                        db=db,
+                        user_id=consultation.doctor_id,
+                        title="🔴 Консультация завершена",
+                        message=f"{patient_name} завершил(а) консультацию. Просмотрите историю для деталей.",
+                        notification_type="consultation_completed",
+                        related_id=consultation.id
+                    )
+                
+                # Создаем уведомление для пациента (если завершил врач)
+                if current_user.id == consultation.doctor_id:
+                    await create_notification(
+                        db=db,
+                        user_id=consultation.patient_id,
+                        title="🔴 Консультация завершена",
+                        message=f"{doctor_name} завершил(а) консультацию. Вы можете оставить отзыв о консультации.",
+                        notification_type="consultation_completed",
+                        related_id=consultation.id
+                    )
+                
+                print(f"Уведомления о завершении консультации отправлены. Инициатор: {initiator_name}")
+            except Exception as e:
+                print(f"Ошибка при отправке уведомлений о завершении консультации: {str(e)}")
+
+            # Отправляем WebSocket уведомление
+            try:
+                await broadcast_consultation_update(consultation_id, {
+                    "type": "status_update",  # Изменено с "status_changed" на "status_update"
+                    "consultation": {         # Изменена структура данных для соответствия клиентскому коду
+                        "id": consultation_id,
+                        "status": "completed",
+                        "completed_at": consultation.completed_at.isoformat()
+                    },
+                    "initiator_id": current_user.id
+                })
+            except Exception as e:
+                print(f"Ошибка при отправке WebSocket-уведомления о завершении консультации: {str(e)}")
+
+            return consultation
+            
+        except HTTPException as he:
+            # Пробрасываем HTTP исключения дальше
+            raise he
+        except Exception as e:
+            # Откатываем транзакцию при любых других ошибках
+            db.rollback()
+            
+            # Проверяем, является ли это ошибкой конкурентного доступа
+            if "Record has changed" in str(e):
+                retry_count += 1
+                print(f"Ошибка конкурентного доступа при завершении консультации (попытка {retry_count}/{max_retries}): {str(e)}")
+                
+                # Небольшая задержка перед повторной попыткой
+                await asyncio.sleep(0.5 * retry_count)
+                
+                if retry_count >= max_retries:
+                    print(f"Достигнуто максимальное количество попыток. Консультация не завершена.")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"Не удалось завершить консультацию из-за конфликта данных. Пожалуйста, попробуйте еще раз."
+                    )
+            else:
+                # Для других ошибок сразу возвращаем исключение
+                print(f"Ошибка при завершении консультации: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
 
 
 # Эндпоинт для отправки сообщения в чате консультации
@@ -4954,7 +5039,7 @@ async def websocket_notifications_endpoint(
         if user is None:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Пользователь не найден")
             return
-            
+        
         # Принимаем соединение
         await websocket.accept()
         print(f"WebSocket соединение принято для пользователя {user_id}")

@@ -63,6 +63,38 @@ const getAvatarSource = (doctorData) => {
   return undefined;
 };
 
+// Функция для получения названия района по идентификатору
+const getDistrictName = (districtId) => {
+  if (!districtId) return 'Не указано';
+  
+  // Статический список районов
+  const districtsList = [
+    "Алмазарский район",
+    "Бектемирский район",
+    "Мирабадский район",
+    "Мирзо-Улугбекский район",
+    "Сергелийский район",
+    "Учтепинский район",
+    "Чиланзарский район",
+    "Шайхантаурский район",
+    "Юнусабадский район",
+    "Яккасарайский район",
+    "Яшнабадский район"
+  ];
+  
+  // Если districtId - число и находится в пределах массива
+  if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
+    return districtsList[parseInt(districtId) - 1];
+  }
+  
+  // Если districtId совпадает с названием района, возвращаем его как есть
+  if (districtsList.includes(districtId)) {
+    return districtId;
+  }
+  
+  return districtId; // Если не удалось распознать, возвращаем как есть
+};
+
 // Компонент карточки врача в списке
 const DoctorCard = ({ doctor, onClick }) => {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
@@ -225,7 +257,7 @@ const DoctorCard = ({ doctor, onClick }) => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Район</p>
-                    <p className="text-sm font-medium text-gray-700">{doctor.district || 'Не указан'}</p>
+                    <p className="text-sm font-medium text-gray-700">{getDistrictName(doctor.district) || 'Не указан'}</p>
                   </div>
                 </div>
                 <div className="flex items-center">

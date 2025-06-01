@@ -550,6 +550,38 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
       }
    };
 
+   // Функция для получения названия района по идентификатору
+   const getDistrictName = (districtId) => {
+      if (!districtId) return 'Не указано';
+      
+      // Статический список районов
+      const districtsList = [
+         "Алмазарский район",
+         "Бектемирский район",
+         "Мирабадский район",
+         "Мирзо-Улугбекский район",
+         "Сергелийский район",
+         "Учтепинский район",
+         "Чиланзарский район",
+         "Шайхантаурский район",
+         "Юнусабадский район",
+         "Яккасарайский район",
+         "Яшнабадский район"
+      ];
+      
+      // Если districtId - число и находится в пределах массива
+      if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
+         return districtsList[parseInt(districtId) - 1];
+      }
+      
+      // Если districtId совпадает с названием района, возвращаем его как есть
+      if (districtsList.includes(districtId)) {
+         return districtId;
+      }
+      
+      return districtId; // Если не удалось распознать, возвращаем как есть
+   };
+
    return (
       <motion.div 
          className="w-full max-w-5xl mx-auto relative"
@@ -1021,7 +1053,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           <div className="relative group">
                                              <Input
                                                 label="Район практики"
-                                                value={district}
+                                                value={getDistrictName(district)}
                                                 readOnly
                                                 variant="bordered"
                                                 isDisabled={true}

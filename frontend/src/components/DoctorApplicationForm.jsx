@@ -1,6 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Textarea, Spinner, Select, SelectItem } from '@nextui-org/react';
+import { motion } from 'framer-motion';
 import api from '../api';
+
+// Анимационные варианты для элементов
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.4 } }
+};
+
+const slideUp = {
+  hidden: { opacity: 0, y: 15 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+};
 
 function DoctorApplicationForm({ onSuccess }) {
   // Состояние для полей формы
@@ -221,197 +243,253 @@ function DoctorApplicationForm({ onSuccess }) {
   // Если форма успешно отправлена, показываем сообщение об успехе
   if (success) {
     return (
-      <div className="bg-green-50 p-6 rounded-lg border border-green-200 text-center shadow-md transition-all">
-        <div className="flex justify-center mb-4">
-          <div className="bg-green-500 rounded-full p-2">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200 text-center shadow-md"
+      >
+        <div className="flex justify-center mb-3">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-2 shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
         </div>
-        <h3 className="text-xl font-semibold text-green-700 mb-2">Заявка успешно отправлена!</h3>
+        <h3 className="text-xl font-bold text-green-700 mb-2">Заявка успешно отправлена!</h3>
         <p className="text-green-600 mb-4">
           Ваша заявка на получение роли врача принята и будет рассмотрена администрацией в ближайшее время.
-          Мы сообщим вам о результате рассмотрения по электронной почте.
         </p>
-        <Button
-          color="primary"
-          onClick={() => setSuccess(false)}
-          className="mt-2 shadow-md hover:shadow-lg transition-shadow"
+        <motion.div
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.98 }}
         >
-          Отправить еще одну заявку
-        </Button>
-      </div>
+          <Button
+            color="primary"
+            onClick={() => setSuccess(false)}
+            className="px-6 py-2 font-medium shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-500 to-indigo-500"
+            radius="lg"
+          >
+            Отправить еще одну заявку
+          </Button>
+        </motion.div>
+      </motion.div>
     );
   }
   
   // Если загружаются опции, показываем спиннер
   if (loadingOptions) {
     return (
-      <div className="flex justify-center items-center py-10">
-        <Spinner size="lg" color="primary" label="Загрузка данных..." />
+      <div className="flex flex-col justify-center items-center py-10">
+        <Spinner size="md" color="primary" className="mb-3" />
+        <p className="text-gray-600 text-sm animate-pulse">Загрузка данных...</p>
       </div>
     );
   }
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h3 className="text-xl font-semibold mb-4 text-center text-primary">Заявка на получение роли врача</h3>
-      <p className="text-gray-600 mb-6 text-center">
-        Заполните форму ниже, чтобы подать заявку на получение роли врача на нашей платформе.
-        После рассмотрения заявки администрацией, вы получите уведомление о результате.
-      </p>
+    <motion.form 
+      onSubmit={handleSubmit} 
+      initial="hidden"
+      animate="visible"
+      variants={staggerContainer}
+      className="space-y-6"
+    >
+      <motion.div variants={fadeIn} className="text-center mb-5">
+        <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
+          Данные для заявки
+        </h3>
+        <p className="text-gray-600 text-sm">
+          Заполните форму ниже и предоставьте необходимые документы
+        </p>
+      </motion.div>
       
       {error && (
-        <div className="bg-danger-50 text-danger p-4 rounded-lg border border-danger-200 mb-6 shadow-sm">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-gradient-to-r from-red-50 to-pink-50 p-3 rounded-lg border border-red-200 mb-4 shadow-sm"
+        >
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <p className="font-medium">{error}</p>
+            <p className="font-medium text-red-700 text-sm">{error}</p>
           </div>
-        </div>
+        </motion.div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div variants={staggerContainer} className="space-y-4">
           {/* ФИО */}
-          <Input
-            type="text"
-            label="Полное имя *"
-            placeholder="Иванов Иван Иванович"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            variant="bordered"
-            fullWidth
-            classNames={{
-              inputWrapper: "shadow-sm hover:shadow transition-shadow"
-            }}
-          />
+          <motion.div variants={slideUp}>
+            <Input
+              type="text"
+              label="Полное имя *"
+              placeholder="Иванов Иван Иванович"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              classNames={{
+                inputWrapper: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary bg-white/70",
+                input: "text-base"
+              }}
+            />
+          </motion.div>
           
           {/* Специализация */}
-          <Select
-            label="Специализация *"
-            placeholder="Выберите вашу специализацию"
-            value={specialization}
-            onChange={(e) => setSpecialization(e.target.value)}
-            variant="bordered"
-            fullWidth
-            classNames={{
-              trigger: "shadow-sm hover:shadow transition-shadow"
-            }}
-          >
-            {specializations.map((spec) => (
-              <SelectItem key={spec} value={spec}>
-                {spec}
-              </SelectItem>
-            ))}
-          </Select>
+          <motion.div variants={slideUp}>
+            <Select
+              label="Специализация *"
+              placeholder="Выберите вашу специализацию"
+              value={specialization}
+              onChange={(e) => setSpecialization(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              classNames={{
+                trigger: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary h-12 bg-white/70",
+                value: "text-base"
+              }}
+            >
+              {specializations.map((spec) => (
+                <SelectItem key={spec} value={spec}>
+                  {spec}
+                </SelectItem>
+              ))}
+            </Select>
+          </motion.div>
           
           {/* Район практики */}
-          <Select
-            label="Район практики *"
-            placeholder="Выберите район вашей практики"
-            value={district}
-            onChange={(e) => setDistrict(e.target.value)}
-            variant="bordered"
-            fullWidth
-            classNames={{
-              trigger: "shadow-sm hover:shadow transition-shadow"
-            }}
-          >
-            {districts.map((dist) => (
-              <SelectItem key={dist} value={dist}>
-                {dist}
-              </SelectItem>
-            ))}
-          </Select>
+          <motion.div variants={slideUp}>
+            <Select
+              label="Район практики *"
+              placeholder="Выберите район вашей практики"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              classNames={{
+                trigger: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary h-12 bg-white/70",
+                value: "text-base"
+              }}
+            >
+              {districts.map((dist) => (
+                <SelectItem key={dist} value={dist}>
+                  {dist}
+                </SelectItem>
+              ))}
+            </Select>
+          </motion.div>
           
           {/* Опыт работы */}
-          <Input
-            type="text"
-            label="Опыт работы *"
-            placeholder="Например: 5 лет в городской клинике"
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-            variant="bordered"
-            fullWidth
-            classNames={{
-              inputWrapper: "shadow-sm hover:shadow transition-shadow"
-            }}
-          />
-        </div>
+          <motion.div variants={slideUp}>
+            <Input
+              type="text"
+              label="Опыт работы *"
+              placeholder="Например: 5 лет в городской клинике"
+              value={experience}
+              onChange={(e) => setExperience(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              classNames={{
+                inputWrapper: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary bg-white/70",
+                input: "text-base"
+              }}
+            />
+          </motion.div>
+        </motion.div>
         
-        <div className="space-y-4">
+        <motion.div variants={staggerContainer} className="space-y-4">
           {/* Образование */}
-          <Textarea
-            label="Образование *"
-            placeholder="Укажите ваше образование, ВУЗ, годы обучения"
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-            variant="bordered"
-            fullWidth
-            minRows={2}
-            classNames={{
-              inputWrapper: "shadow-sm hover:shadow transition-shadow"
-            }}
-          />
+          <motion.div variants={slideUp}>
+            <Textarea
+              label="Образование *"
+              placeholder="Укажите ваше образование, ВУЗ, годы обучения"
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              minRows={2}
+              classNames={{
+                inputWrapper: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary bg-white/70",
+                input: "text-base"
+              }}
+            />
+          </motion.div>
           
           {/* Номер лицензии */}
-          <Input
-            type="text"
-            label="Номер лицензии/сертификата *"
-            placeholder="Например: 123456789"
-            value={licenseNumber}
-            onChange={(e) => setLicenseNumber(e.target.value)}
-            variant="bordered"
-            fullWidth
-            classNames={{
-              inputWrapper: "shadow-sm hover:shadow transition-shadow"
-            }}
-          />
+          <motion.div variants={slideUp}>
+            <Input
+              type="text"
+              label="Номер лицензии/сертификата *"
+              placeholder="Например: 123456789"
+              value={licenseNumber}
+              onChange={(e) => setLicenseNumber(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              classNames={{
+                inputWrapper: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary bg-white/70",
+                input: "text-base"
+              }}
+            />
+          </motion.div>
           
           {/* Дополнительная информация */}
-          <Textarea
-            label="Дополнительная информация"
-            placeholder="Укажите дополнительную информацию, которая может быть полезна (необязательно)"
-            value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
-            variant="bordered"
-            fullWidth
-            minRows={2}
-            classNames={{
-              inputWrapper: "shadow-sm hover:shadow transition-shadow"
-            }}
-          />
-        </div>
+          <motion.div variants={slideUp}>
+            <Textarea
+              label="Дополнительная информация"
+              placeholder="Укажите дополнительную информацию (необязательно)"
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              minRows={2}
+              classNames={{
+                inputWrapper: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary bg-white/70",
+                input: "text-base"
+              }}
+            />
+          </motion.div>
+        </motion.div>
       </div>
       
       {/* Загрузка файлов */}
-      <div className="mt-8 space-y-6">
-        <h4 className="text-lg font-semibold text-primary">Загрузка документов</h4>
+      <motion.div variants={fadeIn} className="mt-6 space-y-4">
+        <h4 className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
+          Загрузка документов
+        </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Фотография */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Фотография *</label>
+          <motion.div variants={slideUp} className="space-y-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Фотография *</label>
             <div 
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 transition ${
-                photoPreview ? 'border-primary' : 'border-gray-300'
-              }`}
+              className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
+                photoPreview ? 'border-primary shadow-sm' : 'border-gray-300'
+              } bg-white/70`}
               onClick={() => photoInputRef.current?.click()}
             >
               {photoPreview ? (
                 <div className="flex flex-col items-center">
-                  <img src={photoPreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg mb-2" />
-                  <span className="text-xs text-gray-500">Нажмите, чтобы изменить</span>
+                  <img src={photoPreview} alt="Preview" className="w-28 h-28 object-cover rounded-lg mb-1 shadow-sm" />
+                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex flex-col items-center py-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="mt-2 block text-sm text-gray-600">Нажмите для загрузки</span>
+                  <span className="mt-1 block text-xs text-gray-400">Фото для профиля</span>
                 </div>
               )}
               <input
@@ -422,24 +500,30 @@ function DoctorApplicationForm({ onSuccess }) {
                 onChange={handlePhotoChange}
               />
             </div>
-          </div>
+          </motion.div>
           
           {/* Диплом */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Скан диплома *</label>
+          <motion.div variants={slideUp} className="space-y-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Скан диплома *</label>
             <div 
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 transition ${
-                diploma ? 'border-primary' : 'border-gray-300'
-              }`}
+              className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
+                diploma ? 'border-primary shadow-sm' : 'border-gray-300'
+              } bg-white/70`}
               onClick={() => diplomaInputRef.current?.click()}
             >
-              <div className="flex flex-col items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex flex-col items-center py-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="mt-2 block text-sm text-gray-600">
+                <span className="mt-2 block text-sm text-gray-600 max-w-full truncate">
                   {diplomaName || 'Нажмите для загрузки'}
                 </span>
+                {!diploma && (
+                  <span className="mt-1 block text-xs text-gray-400">PDF, JPG или PNG</span>
+                )}
+                {diploma && (
+                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
+                )}
               </div>
               <input
                 type="file"
@@ -449,24 +533,30 @@ function DoctorApplicationForm({ onSuccess }) {
                 onChange={handleDiplomaChange}
               />
             </div>
-          </div>
+          </motion.div>
           
           {/* Лицензия */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Скан лицензии *</label>
+          <motion.div variants={slideUp} className="space-y-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Скан лицензии *</label>
             <div 
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 transition ${
-                license ? 'border-primary' : 'border-gray-300'
-              }`}
+              className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
+                license ? 'border-primary shadow-sm' : 'border-gray-300'
+              } bg-white/70`}
               onClick={() => licenseInputRef.current?.click()}
             >
-              <div className="flex flex-col items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex flex-col items-center py-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="mt-2 block text-sm text-gray-600">
+                <span className="mt-2 block text-sm text-gray-600 max-w-full truncate">
                   {licenseName || 'Нажмите для загрузки'}
                 </span>
+                {!license && (
+                  <span className="mt-1 block text-xs text-gray-400">PDF, JPG или PNG</span>
+                )}
+                {license && (
+                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
+                )}
               </div>
               <input
                 type="file"
@@ -476,23 +566,28 @@ function DoctorApplicationForm({ onSuccess }) {
                 onChange={handleLicenseChange}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
       
       {/* Кнопка отправки */}
-      <div className="flex justify-center mt-10">
+      <motion.div 
+        className="flex justify-center mt-8"
+        variants={fadeIn}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
         <Button
           type="submit"
           color="primary"
-          size="lg"
           isLoading={isLoading}
-          className="w-full md:w-1/2 shadow-md hover:shadow-lg transition-shadow"
+          radius="lg"
+          className="w-full md:w-1/2 text-md font-medium shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-500 to-indigo-600"
         >
           {isLoading ? "Отправка заявки..." : "Отправить заявку"}
         </Button>
-      </div>
-    </form>
+      </motion.div>
+    </motion.form>
   );
 }
 
