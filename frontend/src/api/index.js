@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Определяем базовый URL нашего бэкенда
-// Используем переменную окружения VITE_API_URL если она есть, иначе используем продакшен домен
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://soglom.duckdns.org'; // Продакшен URL
+// Используем переменную окружения VITE_API_URL если она есть, иначе используем localhost для разработки
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Localhost для разработки
 
 // Экспортируем базовый URL для использования в других частях приложения
 export const DIRECT_API_URL = API_BASE_URL;

@@ -30,6 +30,12 @@ class UserResponse(BaseModel):
     is_active: bool
     avatar_path: Optional[str] = None
     auth_provider: Optional[str] = "email"  # Изменено на Optional для обратной совместимости
+    created_at: Optional[datetime] = None  # Дата регистрации
+    # Дополнительные поля из профилей (для админ панели)
+    full_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    district: Optional[str] = None
+    contact_address: Optional[str] = None
     
     class Config:
         from_attributes = True

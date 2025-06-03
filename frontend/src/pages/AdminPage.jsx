@@ -388,7 +388,7 @@ function AdminPage() {
               </TableCell>
               <TableCell>{user.full_name || "-"}</TableCell>
               <TableCell>{user.contact_phone || "-"}</TableCell>
-              <TableCell>{user.district || "-"}</TableCell>
+              <TableCell>{getDistrictName(user.district)}</TableCell>
               <TableCell>{formatDate(user.created_at) || "-"}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
@@ -488,6 +488,26 @@ function AdminPage() {
     } finally {
       setIsSendingNotification(false);
     }
+  };
+  
+  // Функция для преобразования номера района в название
+  const getDistrictName = (district) => {
+    const districtsMap = {
+      "1": "Алмазарский район",
+      "2": "Бектемирский район", 
+      "3": "Мирабадский район",
+      "4": "Мирзо-Улугбекский район",
+      "5": "Сергелийский район",
+      "6": "Учтепинский район",
+      "7": "Чиланзарский район",
+      "8": "Шайхантаурский район",
+      "9": "Юнусабадский район",
+      "10": "Яккасарайский район",
+      "11": "Яшнабадский район"
+    };
+    
+    if (!district) return "-";
+    return districtsMap[district.toString()] || district;
   };
   
   return (
@@ -1171,7 +1191,7 @@ function AdminPage() {
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Дата регистрации</p>
-                            <p>{formatDate(selectedUser?.created_at)}</p>
+                            <p className="font-medium">{formatDate(selectedUser?.created_at) || "-"}</p>
                           </div>
                         </div>
                       </CardBody>
@@ -1195,12 +1215,8 @@ function AdminPage() {
                               <p className="font-medium">{userProfile.contact_phone || "-"}</p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500">Дата регистрации</p>
-                              <p className="font-medium">{formatDate(userProfile.created_at) || "-"}</p>
-                            </div>
-                            <div>
                               <p className="text-sm text-gray-500">Район</p>
-                              <p>{userProfile.district || "-"}</p>
+                              <p>{getDistrictName(userProfile.district)}</p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-500">Адрес</p>
@@ -1209,10 +1225,10 @@ function AdminPage() {
                             <div>
                               <p className="text-sm text-gray-500">Способ входа</p>
                               <Chip
-                                color={userProfile.auth_provider === "google" ? "primary" : "default"}
+                                color={selectedUser?.auth_provider === "google" ? "primary" : "default"}
                                 variant="flat"
                               >
-                                {userProfile.auth_provider === "google" ? "Google" : "Email/Пароль"}
+                                {selectedUser?.auth_provider === "google" ? "Google" : "Email/Пароль"}
                               </Chip>
                             </div>
                             
@@ -1295,7 +1311,7 @@ function AdminPage() {
                           </Button>
                           
                           {/* Кнопка сброса пароля только для пользователей не из Google */}
-                          {userProfile && userProfile.auth_provider !== "google" && (
+                          {selectedUser && selectedUser.auth_provider !== "google" && (
                             <Button
                               color="warning"
                               variant="flat"

@@ -1911,21 +1911,52 @@ async def get_all_users(
     size: int = Query(10, description="Размер страницы", ge=1, le=100),
 ):
     """
-    Получает список всех пользователей (для администраторов).
-
-    Args:
-        page: Номер страницы для пагинации
-        size: Размер страницы для пагинации
-        db: Сессия базы данных
-        current_user: Текущий пользователь (администратор)
-
-    Returns:
-        List[UserResponse]: Список пользователей
+    Получает список всех пользователей с данными профилей (для администраторов).
     """
     # Получаем всех пользователей с пагинацией
     users = db.query(User).order_by(User.id).offset((page - 1) * size).limit(size).all()
+    
+    # Карта районов для преобразования номеров в названия
+    districts_map = {
+        "1": "Алмазарский район", "2": "Бектемирский район", "3": "Мирабадский район",
+        "4": "Мирзо-Улугбекский район", "5": "Сергелийский район", "6": "Учтепинский район", 
+        "7": "Чиланзарский район", "8": "Шайхантаурский район", "9": "Юнусабадский район",
+        "10": "Яккасарайский район", "11": "Яшнабадский район"
+    }
+    
+    # Обогащаем пользователей данными из профилей
+    enriched_users = []
+    for user in users:
+        user_data = {
+            "id": user.id, "email": user.email, "role": user.role, "is_active": user.is_active,
+            "created_at": user.created_at, "auth_provider": user.auth_provider, "avatar_path": user.avatar_path,
+            "full_name": None, "contact_phone": None, "district": None
+        }
+        
+        # Получаем данные профилей
+        patient_profile = db.query(PatientProfile).filter(PatientProfile.user_id == user.id).first()
+        doctor_profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == user.id).first() if user.role == "doctor" else None
+        
+        # Заполняем данные: врач > пациент > пусто
+        if doctor_profile:
+            user_data["full_name"] = doctor_profile.full_name or (patient_profile.full_name if patient_profile else None)
+            user_data["contact_phone"] = (getattr(doctor_profile, 'contact_phone', None) or 
+                                         (patient_profile.contact_phone if patient_profile else None))
+            district = doctor_profile.district or (patient_profile.district if patient_profile else None)
+        elif patient_profile:
+            user_data["full_name"] = patient_profile.full_name
+            user_data["contact_phone"] = patient_profile.contact_phone
+            district = patient_profile.district
+        else:
+            district = None
+            
+        # Преобразуем номер района в название
+        if district:
+            user_data["district"] = districts_map.get(str(district), str(district))
+        
+        enriched_users.append(user_data)
 
-    return users
+    return enriched_users
 
 
 # Эндпоинт для получения профиля пользователя по ID (для админов)
@@ -1939,15 +1970,7 @@ async def get_user_profile_by_id(
     current_user: User = Depends(require_role("admin")),
 ):
     """
-    Получает профиль любого пользователя по ID (для администраторов).
-
-    Args:
-        user_id: ID пользователя
-        db: Сессия базы данных
-        current_user: Текущий пользователь (администратор)
-
-    Returns:
-        Union[PatientProfileResponse, DoctorProfileResponse, dict]: Профиль пользователя
+    Получает профиль пользователя с объединенными данными из профилей пациента и врача.
     """
     # Проверяем, существует ли пользователь
     user = db.query(User).filter(User.id == user_id).first()
@@ -1956,37 +1979,103 @@ async def get_user_profile_by_id(
             status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
         )
 
-    # В зависимости от роли пользователя, получаем соответствующий профиль
+    # Карта районов для преобразования номеров в названия
+    districts_map = {
+        "1": "Алмазарский район", "2": "Бектемирский район", "3": "Мирабадский район",
+        "4": "Мирзо-Улугбекский район", "5": "Сергелийский район", "6": "Учтепинский район", 
+        "7": "Чиланзарский район", "8": "Шайхантаурский район", "9": "Юнусабадский район",
+        "10": "Яккасарайский район", "11": "Яшнабадский район"
+    }
+
+    # Получаем профили пациента и врача
+    patient_profile = db.query(PatientProfile).filter(PatientProfile.user_id == user.id).first()
+    doctor_profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == user.id).first() if user.role == "doctor" else None
+
+    # В зависимости от роли пользователя, возвращаем соответствующий профиль с дополненными данными
     if user.role == "patient":
-        profile = (
-            db.query(PatientProfile).filter(PatientProfile.user_id == user.id).first()
-        )
-        if not profile:
+        if not patient_profile:
             return {
                 "message": "Профиль пациента не найден",
                 "user_role": "patient",
                 "user_email": user.email,
+                "created_at": user.created_at,
             }
-        return profile
+        
+        # Преобразуем район в название
+        if patient_profile.district:
+            patient_profile.district = districts_map.get(str(patient_profile.district), str(patient_profile.district))
+            
+        # Добавляем данные пользователя
+        patient_profile.user = user
+        patient_profile.created_at = user.created_at
+        patient_profile.auth_provider = user.auth_provider
+        return patient_profile
 
     elif user.role == "doctor":
-        profile = (
-            db.query(DoctorProfile).filter(DoctorProfile.user_id == user.id).first()
-        )
-        if not profile:
+        if not doctor_profile and not patient_profile:
             return {
                 "message": "Профиль врача не найден",
-                "user_role": "doctor",
+                "user_role": "doctor", 
                 "user_email": user.email,
+                "created_at": user.created_at,
             }
-        return profile
-
-    else:
-        return {
-            "message": "У данного пользователя нет профиля",
-            "user_role": user.role,
-            "user_email": user.email,
-        }
+        
+        # Если есть профиль врача, дополняем его данными из профиля пациента
+        if doctor_profile:
+            # Дополняем недостающие данные из профиля пациента
+            if patient_profile:
+                if not doctor_profile.full_name and patient_profile.full_name:
+                    doctor_profile.full_name = patient_profile.full_name
+                if not hasattr(doctor_profile, 'contact_phone') or not doctor_profile.contact_phone:
+                    if patient_profile.contact_phone:
+                        doctor_profile.contact_phone = patient_profile.contact_phone
+                if not doctor_profile.district and patient_profile.district:
+                    doctor_profile.district = patient_profile.district
+                # Дополняем адрес из профиля пациента
+                if patient_profile.contact_address:
+                    doctor_profile.contact_address = patient_profile.contact_address
+            
+            # Преобразуем район в название
+            if doctor_profile.district:
+                doctor_profile.district = districts_map.get(str(doctor_profile.district), str(doctor_profile.district))
+                
+            # Добавляем данные пользователя
+            doctor_profile.user = user
+            doctor_profile.created_at = user.created_at
+            doctor_profile.auth_provider = user.auth_provider
+            return doctor_profile
+        else:
+            # Если профиля врача нет, возвращаем данные из профиля пациента в формате врача
+            if patient_profile:
+                # Преобразуем район в название
+                if patient_profile.district:
+                    patient_profile.district = districts_map.get(str(patient_profile.district), str(patient_profile.district))
+                    
+                return {
+                    "id": patient_profile.id,
+                    "user_id": patient_profile.user_id,
+                    "full_name": patient_profile.full_name,
+                    "contact_phone": patient_profile.contact_phone,
+                    "contact_address": patient_profile.contact_address,
+                    "district": patient_profile.district,
+                    "specialization": "Общая практика",
+                    "experience": "",
+                    "education": "",
+                    "cost_per_consultation": 1000,
+                    "practice_areas": patient_profile.district or "",
+                    "is_verified": False,
+                    "is_active": False,
+                    "created_at": user.created_at,
+                    "auth_provider": user.auth_provider,
+                    "user": user
+                }
+    
+    return {
+        "message": "У данного пользователя нет профиля",
+        "user_role": user.role,
+        "user_email": user.email,
+        "created_at": user.created_at,
+    }
 
 
 # Модель для изменения роли пользователя
