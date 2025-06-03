@@ -8,6 +8,7 @@ import {
 } from '@nextui-org/react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@nextui-org/react';
 import useAuthStore from '../stores/authStore';
+import notificationService from '../services/notificationService';
 
 // Импортируем API_BASE_URL для использования в путях к файлам
 const API_BASE_URL = 'http://127.0.0.1:8000';
@@ -71,6 +72,9 @@ function AdminPage() {
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [notificationResult, setNotificationResult] = useState(null);
   
+  // Состояние для статуса браузерных уведомлений
+  const [notificationStatus, setNotificationStatus] = useState(null);
+  
   // Загружаем пользователей при первом переключении на вкладку
   useEffect(() => {
     if (activeTab === 'users') {
@@ -84,6 +88,59 @@ function AdminPage() {
       fetchApplications();
     }
   }, [page, selectedStatus, activeTab]);
+  
+  // Проверяем статус браузерных уведомлений при загрузке
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      const status = notificationService.getStatus();
+      setNotificationStatus(status);
+    }
+  }, [activeTab]);
+  
+  // Функция для тестирования браузерных уведомлений
+  const testBrowserNotification = async () => {
+    const success = await notificationService.send(
+      "Тестовое уведомление",
+      {
+        body: "Это тестовое браузерное уведомление из админ панели",
+        icon: '/favicon.ico',
+        tag: 'admin-test',
+        requireInteraction: false,
+        duration: 5000
+      }
+    );
+    
+    if (success) {
+      setNotificationResult({
+        success: true,
+        message: "Тестовое браузерное уведомление отправлено успешно!"
+      });
+    } else {
+      setNotificationResult({
+        success: false,
+        message: "Не удалось отправить браузерное уведомление. Проверьте разрешения."
+      });
+    }
+  };
+  
+  // Функция для запроса разрешений на уведомления
+  const requestNotificationPermission = async () => {
+    const permission = await notificationService.requestPermission();
+    const status = notificationService.getStatus();
+    setNotificationStatus(status);
+    
+    if (permission === 'granted') {
+      setNotificationResult({
+        success: true,
+        message: "Разрешение на браузерные уведомления получено!"
+      });
+    } else {
+      setNotificationResult({
+        success: false,
+        message: "Разрешение на браузерные уведомления не предоставлено."
+      });
+    }
+  };
   
   // Функция для загрузки заявок
   const fetchApplications = async () => {
@@ -599,11 +656,87 @@ function AdminPage() {
                 </div>
               </Tab>
               
-              <Tab key="notifications" title="Push-уведомления">
+              <Tab key="notifications" title="Уведомления">
                 <div className="p-6 border-t">
-                  <h3 className="text-lg font-semibold mb-4">Отправка push-уведомлений пользователям</h3>
+                  <h3 className="text-lg font-semibold mb-4">Управление уведомлениями</h3>
+                  
+                  {/* Статус браузерных уведомлений */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h4 className="font-semibold text-blue-600 mb-3">Статус браузерных push-уведомлений</h4>
+                    {notificationStatus && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Поддержка браузера:</span>
+                          <Chip 
+                            color={notificationStatus.supported ? "success" : "danger"} 
+                            size="sm"
+                            variant="flat"
+                          >
+                            {notificationStatus.supported ? "Поддерживается" : "Не поддерживается"}
+                          </Chip>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Разрешение:</span>
+                          <Chip 
+                            color={
+                              notificationStatus.permission === 'granted' ? "success" : 
+                              notificationStatus.permission === 'denied' ? "danger" : "warning"
+                            } 
+                            size="sm"
+                            variant="flat"
+                          >
+                            {
+                              notificationStatus.permission === 'granted' ? "Разрешено" :
+                              notificationStatus.permission === 'denied' ? "Заблокировано" :
+                              notificationStatus.permission === 'default' ? "Не определено" :
+                              notificationStatus.permission
+                            }
+                          </Chip>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          {notificationStatus.permission !== 'granted' && (
+                            <Button
+                              size="sm"
+                              color="primary"
+                              variant="flat"
+                              onPress={requestNotificationPermission}
+                            >
+                              Запросить разрешение
+                            </Button>
+                          )}
+                          {notificationStatus.permission === 'granted' && (
+                            <Button
+                              size="sm"
+                              color="secondary"
+                              variant="flat"
+                              onPress={testBrowserNotification}
+                            >
+                              Тестировать браузерные уведомления
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div className="text-sm text-amber-700">
+                        <p className="font-medium mb-1">Типы уведомлений в системе:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li><strong>WebSocket уведомления:</strong> Отправляются через WebSocket в реальном времени (только при открытом сайте)</li>
+                          <li><strong>Браузерные push-уведомления:</strong> Отображаются в системе уведомлений браузера (работают даже когда сайт закрыт)</li>
+                          <li><strong>Toast уведомления:</strong> Всплывающие уведомления в интерфейсе</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                    <h4 className="font-semibold mb-4">Отправка WebSocket уведомлений</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <Input
@@ -690,7 +823,7 @@ function AdminPage() {
                             onPress={sendPushNotification}
                             isLoading={isSendingNotification}
                           >
-                            Отправить уведомление
+                            Отправить WebSocket уведомление
                           </Button>
                         </div>
                       </div>

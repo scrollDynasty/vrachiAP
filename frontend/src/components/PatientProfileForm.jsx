@@ -1459,8 +1459,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                      >
                         <div>
-                           <h3 className="text-medium font-medium text-blue-800">Push-уведомления</h3>
-                           <p className="text-small text-blue-600">Получать уведомления в браузере</p>
+                           <h3 className="text-medium font-medium text-blue-800">Браузерные уведомления</h3>
+                           <p className="text-small text-blue-600">Получать уведомления в браузере когда сайт открыт</p>
                         </div>
                         <Switch 
                            isSelected={pushNotifications}

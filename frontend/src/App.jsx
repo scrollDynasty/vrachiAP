@@ -36,6 +36,7 @@ import PageTransitionLoader from './components/PageTransitionLoader'
 
 // Импортируем основные стили
 import './index.scss'
+import soundService from './services/soundService' // Импортируем soundService
 
 // Главный компонент приложения, который настраивает роутинг и общую структуру
 function App() {
@@ -52,10 +53,10 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Эффект для инициализации стора аутентификации при монтировании компонента App
+  // При первом монтировании компонента инициализируем авторизацию
   useEffect(() => {
-    console.log("App mounted, initializing auth store...")
-    initializeAuth()
+    console.log("App mounted, initializing auth store...");
+    initializeAuth();
   }, [initializeAuth])
   
   // Отслеживаем изменения в состоянии аутентификации

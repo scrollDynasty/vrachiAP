@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Navbar, 
@@ -20,10 +20,13 @@ import {
 import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import api from '../api';
-import webSocketService from '../services/webSocketService';
 import AvatarWithFallback from './AvatarWithFallback';
 import '../styles/AppIcon.css'; // Импортируем наши стили
 import { motion } from 'framer-motion';
+import { PulseLoader } from 'react-spinners';
+import { useTheme } from 'next-themes';
+import soundService from '../services/soundService'; // Импортируем soundService
+import NotificationIcon from './NotificationIcon'; // Импортируем новый компонент для иконки уведомления
 
 function Header() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -35,21 +38,11 @@ function Header() {
   const [profileImage, setProfileImage] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  
-  // Используем useRef для отслеживания установленного соединения
-  const wsInitializedRef = useRef(false);
+  const [localNotifications, setLocalNotifications] = useState([]);
+  const [notificationBell, setNotificationBell] = useState(false);
   
   // Состояние для отслеживания развернутых уведомлений
   const [expandedNotifications, setExpandedNotifications] = useState({});
-  
-  // Функция для переключения состояния развернутости уведомления
-  const toggleNotificationExpand = (notificationId) => {
-    setExpandedNotifications(prev => ({
-      ...prev,
-      [notificationId]: !prev[notificationId]
-    }));
-  };
   
   // Загружаем фото профиля из localStorage при монтировании компонента
   useEffect(() => {
@@ -80,38 +73,7 @@ function Header() {
     };
   }, [user]); // Добавляем зависимость от user
   
-  // Обработчик сообщений от WebSocket
-  const handleWebSocketMessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'new_notification') {
-        console.log('Получено новое уведомление через WebSocket:', data.notification);
-        
-        // Проверяем, нет ли уже такого уведомления в списке
-        setNotifications(prev => {
-          // Проверяем, есть ли уже уведомление с таким ID
-          const exists = prev.some(n => n.id === data.notification.id);
-          if (exists) {
-            // Если уведомление уже есть, возвращаем текущий список
-            return prev;
-          }
-          // Иначе добавляем новое уведомление в начало списка
-          return [data.notification, ...prev];
-        });
-        
-        // Увеличиваем счетчик непрочитанных
-        setUnreadCount(prev => prev + 1);
-      } else if (data.type === 'pong') {
-        // Получен ответ на пинг - соединение активно
-        console.debug('WebSocket пинг успешен');
-      }
-    } catch (error) {
-      console.error('Ошибка при обработке WebSocket сообщения:', error);
-    }
-  };
-  
-  // При изменении пользователя или каждую минуту проверяем уведомления и непрочитанные сообщения
+  // При изменении пользователя загружаем уведомления и непрочитанные сообщения
   useEffect(() => {
     // Если пользователь не авторизован или нет ID, не делаем ничего
     if (!user || !user.id) {
@@ -121,30 +83,67 @@ function Header() {
     let notificationInterval;
     let chatInterval;
     
-    // Инициализируем WebSocket соединение для уведомлений только один раз
-    const initWs = async () => {
-      // Проверяем, инициализировано ли соединение
-      if (!wsInitializedRef.current) {
-        console.log('[Header] Инициализация WebSocket соединения для уведомлений');
-        await webSocketService.getNotificationConnection(
-          user.id, 
-          handleWebSocketMessage,
-          setConnectionStatus
-        );
-        wsInitializedRef.current = true;
+    // Загружаем начальные данные
+    const initData = async () => {
+      await fetchNotifications();
+      await fetchUnreadCounts();
+      
+      // Проверяем разрешения на браузерные уведомления
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          console.log('[Header] Запрашиваем разрешения на браузерные уведомления');
+          try {
+            const permission = await Notification.requestPermission();
+            console.log('[Header] Результат запроса разрешений:', permission);
+          } catch (error) {
+            console.error('[Header] Ошибка при запросе разрешений:', error);
+          }
+        } else {
+          console.log('[Header] Статус разрешений на уведомления:', Notification.permission);
+        }
       } else {
-        console.log('[Header] WebSocket соединение для уведомлений уже инициализировано');
+        console.log('[Header] Браузер не поддерживает уведомления');
       }
     };
     
-    // Загружаем начальные данные и запускаем инициализацию WebSocket
-    const initData = async () => {
-      await initWs();
-      await fetchNotifications();
-      await fetchUnreadCounts();
-    };
-    
     initData();
+    
+    // Слушаем кастомные события от NotificationWebSocket для добавления уведомлений
+    const handleNewNotification = (event) => {
+      const notification = event.detail;
+      console.log('[Header] Получено новое уведомление через событие:', notification);
+      
+      // Добавляем уведомление в локальный список, если его еще нет
+      setNotifications(prev => {
+        // Проверяем, нет ли уже такого уведомления
+        const exists = prev.some(n => n.id === notification.id);
+        if (exists) {
+          console.log('[Header] Уведомление уже существует в списке');
+          return prev;
+        }
+        
+        // Добавляем новое уведомление в начало списка
+        return [notification, ...prev];
+      });
+      
+      // Проигрываем звук (дублируется с NotificationWebSocket, но это нормально для надежности)
+      try {
+        soundService.playNotification();
+        console.log('[Header] Звук уведомления проигран');
+      } catch (error) {
+        console.error('[Header] Ошибка воспроизведения звука:', error);
+      }
+      
+      // НЕ отправляем браузерное уведомление отсюда - это делается в NotificationWebSocket
+      // Это предотвращает дублирование push-уведомлений
+      console.log('[Header] Браузерное уведомление будет отправлено из NotificationWebSocket');
+      
+      // Обновляем счетчик непрочитанных уведомлений
+      setUnreadCount(prev => prev + 1);
+    };
+
+    // Добавляем слушатель кастомного события
+    window.addEventListener('newNotificationReceived', handleNewNotification);
     
     // Периодическая проверка уведомлений и сообщений (как резервный вариант)
     notificationInterval = setInterval(fetchNotifications, 120000); // 2 минуты
@@ -152,8 +151,13 @@ function Header() {
     
     // Очищаем интервалы при размонтировании
     return () => {
+      console.log('[Header] Очистка при размонтировании или изменении пользователя');
+      
       if (notificationInterval) clearInterval(notificationInterval);
       if (chatInterval) clearInterval(chatInterval);
+      
+      // Убираем слушатель кастомного события
+      window.removeEventListener('newNotificationReceived', handleNewNotification);
     };
   }, [user?.id]); // Зависимость только от user.id, а не от всего объекта user
   
@@ -224,6 +228,29 @@ function Header() {
   const handleHistoryClick = () => navigate('/history');
   const handleSearchDoctorsClick = () => navigate('/search-doctors');
   const handleLogout = () => logout();
+  
+  // Использование темной/светлой темы
+  const { theme, setTheme } = useTheme();
+  
+  // Загружаем локальные уведомления из localStorage при монтировании
+  useEffect(() => {
+    try {
+      const savedNotifications = localStorage.getItem('local_notifications');
+      if (savedNotifications) {
+        setLocalNotifications(JSON.parse(savedNotifications));
+      }
+    } catch (e) {
+      console.error('Ошибка при загрузке локальных уведомлений:', e);
+    }
+  }, []);
+  
+  // Функция для переключения состояния развернутости уведомления
+  const toggleNotificationExpand = (notificationId) => {
+    setExpandedNotifications(prev => ({
+      ...prev,
+      [notificationId]: !prev[notificationId]
+    }));
+  };
   
   return (
     <Navbar 
@@ -308,83 +335,23 @@ function Header() {
             {/* Dropdown для уведомлений */}
             <Dropdown placement="bottom-end">
               <DropdownTrigger>
-                <Button
-                  isIconOnly
-                  variant="light"
-                  className="rounded-full relative overflow-hidden group hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 transition-all duration-300"
+                <Button 
+                  variant="light" 
+                  isIconOnly 
+                  aria-label="Уведомления"
+                  className="relative flex items-center justify-center"
+                  style={{ width: '40px', height: '40px', minWidth: '40px', padding: '0' }}
                 >
-                  <Badge 
-                    content={unreadCount || null} 
-                    color="danger" 
-                    shape="circle" 
-                    size="sm"
-                    className={`${unreadCount ? 'animate-pulse' : 'group-hover:animate-pulse'}`}
-                    classNames={{
-                      badge: unreadCount ? "bg-gradient-to-r from-red-500 to-rose-500 shadow-md scale-125" : ""
-                    }}
-                  >
-                    <div className="relative w-7 h-7 flex items-center justify-center">
-                      {/* Фоновое свечение при наведении */}
-                      <motion.div 
-                        className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-0 group-hover:opacity-70 blur-md"
-                        animate={{ scale: [0.85, 1, 0.85], opacity: [0, 0.4, 0] }}
-                        transition={{ 
-                          duration: 3, 
-                          repeat: Infinity,
-                          repeatType: "loop" 
-                        }}
-                      />
-                      
-                      {/* Основной фон кнопки */}
-                      <div className="absolute inset-0 bg-white rounded-full group-hover:bg-gradient-to-r group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300"></div>
-                      
-                      {/* Иконка колокольчика */}
-                      <motion.div
-                        className="relative z-10"
-                        animate={unreadCount ? {
-                          rotate: [-2, 2, -2, 0],
-                          y: [0, -1, 0]
-                        } : {}}
-                        transition={unreadCount ? {
-                          duration: 0.5,
-                          repeat: unreadCount ? 3 : 0,
-                          repeatType: "loop",
-                          repeatDelay: 4
-                        } : {}}
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          strokeWidth={1.8} 
-                          className="w-5 h-5 relative transition-all duration-300 group-hover:scale-110 
-                            group-hover:stroke-indigo-600 stroke-gray-700"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" 
-                          />
-                        </svg>
-                      </motion.div>
-                      
-                      {/* Дополнительная анимация при наличии уведомлений */}
-                      {unreadCount > 0 && (
-                        <motion.div 
-                          className="absolute inset-0 rounded-full border-2 border-transparent"
-                          animate={{ 
-                            scale: [1, 1.2, 1],
-                            borderColor: ['rgba(99, 102, 241, 0)', 'rgba(99, 102, 241, 0.5)', 'rgba(99, 102, 241, 0)']
-                          }}
-                          transition={{ 
-                            duration: 2.5, 
-                            repeat: Infinity,
-                            repeatDelay: 1
-                          }}
-                        />
-                      )}
-                    </div>
-                  </Badge>
+                  <NotificationIcon isAnimated={notificationBell} />
+                  
+                  {unreadCount > 0 && (
+                    <Badge 
+                      color="danger" 
+                      content={unreadCount > 99 ? '99+' : unreadCount} 
+                      placement="top-right"
+                      className="animate-pulse"
+                    />
+                  )}
                 </Button>
               </DropdownTrigger>
               <DropdownMenu 
@@ -396,7 +363,7 @@ function Header() {
                   </div>
                 }
               >
-                <DropdownItem isReadOnly className="py-2 sticky top-0 bg-white z-10 shadow-sm">
+                <DropdownItem isReadOnly className="py-2 sticky top-0 bg-white z-10 shadow-sm" textValue="Заголовок уведомлений">
                   <div className="flex justify-between items-center">
                     <p className="font-medium">Уведомления</p>
                     {notifications.length > 0 && (
@@ -418,7 +385,7 @@ function Header() {
                     )}
                   </div>
                 </DropdownItem>
-                <DropdownItem isReadOnly className="h-px bg-gray-200 my-1" />
+                <DropdownItem isReadOnly className="h-px bg-gray-200 my-1" textValue="Разделитель" />
                 
                 {notifications.length > 0 ? (
                   notifications.map((notification) => {
@@ -427,7 +394,8 @@ function Header() {
                     
                     return (
                       <DropdownItem
-                        key={notification.id}
+                        key={`notification-${notification.id}-${notification.created_at}`}
+                        textValue={`${notification.title}: ${notification.message}`}
                         className={`py-3 ${!notification.is_viewed ? 'bg-blue-50' : ''}`}
                         onClick={(e) => {
                           // Предотвращаем стандартное поведение клика для кнопки "Подробнее"
@@ -489,9 +457,6 @@ function Header() {
                     className="cursor-pointer user-avatar"
                     color="primary"
                   />
-                  {connectionStatus === 'connected' && (
-                    <span className="hidden sm:block text-xs text-default-500 opacity-70 -mr-1">●</span>
-                  )}
                 </div>
               </DropdownTrigger>
               
@@ -516,10 +481,10 @@ function Header() {
                    user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
                 </DropdownItem>
                 
-                <DropdownItem key="divider" textValue="Divider" className="h-px bg-gray-200 my-1" isReadOnly/>
+                <DropdownItem key="divider" textValue="Разделитель" className="h-px bg-gray-200 my-1" isReadOnly/>
                 
                 {user?.role !== 'admin' && (
-                  <DropdownItem key="profile-settings" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="profile-settings" textValue="Настройки профиля" className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -531,7 +496,7 @@ function Header() {
                 )}
                 
                 {user?.role === 'admin' && (
-                  <DropdownItem key="admin-panel" className="py-2.5 hover:bg-purple-50">
+                  <DropdownItem key="admin-panel" textValue="Админ-панель" className="py-2.5 hover:bg-purple-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -542,7 +507,7 @@ function Header() {
                 )}
                 
                 {user?.role !== 'admin' && (
-                  <DropdownItem key="history" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="history" textValue="История" className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -553,7 +518,7 @@ function Header() {
                 )}
                 
                 {user?.role === 'patient' && (
-                  <DropdownItem key="search" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="search" textValue="Найти врача" className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -563,7 +528,7 @@ function Header() {
                   </DropdownItem>
                 )}
                 
-                <DropdownItem key="logout" color="danger" className="py-2.5">
+                <DropdownItem key="logout" textValue="Выйти" color="danger" className="py-2.5">
                   <div className="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

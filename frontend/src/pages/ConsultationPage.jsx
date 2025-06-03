@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardBody, Spinner, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea } from '@nextui-org/react';
 import { toast } from 'react-hot-toast';
@@ -102,15 +102,22 @@ function ConsultationPage() {
       if (localStorage.getItem(reviewKey) === 'true') {
         console.log('Отзыв уже был добавлен ранее (из localStorage в ConsultationPage)');
         setHasReview(true);
+        setIsReviewModalOpen(false); // Принудительно закрываем модальное окно
         return;
       }
       
       const response = await api.get(`/api/consultations/${consultationId}/review`);
       
       // Если пришел 200 статус, значит отзыв есть
-      setHasReview(true);
-      // Сохраняем в localStorage для будущих проверок
-      localStorage.setItem(reviewKey, 'true');
+      if (response.data && response.data.id) {
+        setHasReview(true);
+        setIsReviewModalOpen(false); // Принудительно закрываем модальное окно
+        
+        // Сохраняем в localStorage для будущих проверок
+        localStorage.setItem(reviewKey, 'true');
+        sessionStorage.setItem(reviewKey, 'true');
+        console.log('Отзыв найден в БД, сохранено в localStorage');
+      }
       
     } catch (error) {
       // Если 404, то отзыва нет, что нормально - не выводим ошибку в консоль
@@ -296,6 +303,49 @@ function ConsultationPage() {
     loadData();
   }, [consultationId]);
   
+  // Функция обработки обновления консультации
+  const handleConsultationUpdated = useCallback(async () => {
+    console.log('ConsultationPage: Получен запрос на обновление консультации');
+    
+    try {
+      // Загружаем свежие данные консультации
+      const refreshedConsultation = await fetchConsultation();
+      
+      // Если консультация стала завершенной, делаем дополнительную проверку отзыва
+      if (refreshedConsultation && refreshedConsultation.status === 'completed') {
+        await checkReview();
+      }
+      
+    } catch (error) {
+      console.error('Ошибка при обновлении консультации:', error);
+    }
+  }, [consultationId]);
+
+  // Функция обработки успешной отправки отзыва  
+  const handleReviewSubmitted = useCallback(() => {
+    console.log('ConsultationPage: Отзыв успешно отправлен, обновляем состояние');
+    
+    // Сразу обновляем состояние
+    setHasReview(true);
+    setIsReviewModalOpen(false);
+    
+    // Сохраняем в localStorage для будущих проверок
+    const reviewKey = `review_added_${consultationId}`;
+    localStorage.setItem(reviewKey, 'true');
+    sessionStorage.setItem(reviewKey, 'true');
+    
+    // Принудительно перезагружаем данные консультации
+    setTimeout(async () => {
+      try {
+        await fetchConsultation();
+        await checkReview(); // Дополнительная проверка
+      } catch (error) {
+        console.error('Ошибка при обновлении данных после отзыва:', error);
+      }
+    }, 500);
+    
+  }, [consultationId]);
+
   // Автоматически открываем отзыв после завершения консультации (только если пациент, нет отзыва и нет записи в localStorage)
   useEffect(() => {
     // Проверяем localStorage перед открытием модального окна
@@ -310,8 +360,16 @@ function ConsultationPage() {
       hasReviewInLocalStorage,
       reviewShownRecently,
       isPatient,
-      status: consultation?.status
+      status: consultation?.status,
+      isModalOpen: isReviewModalOpen
     });
+    
+    // Если консультация завершена, но отзыв уже есть - убеждаемся что модальное окно закрыто
+    if (consultation?.status === 'completed' && (hasReview || hasReviewInLocalStorage)) {
+      console.log('Консультация завершена и отзыв существует - закрываем модальное окно');
+      setIsReviewModalOpen(false);
+      return;
+    }
     
     if (
       consultation && 
@@ -328,12 +386,22 @@ function ConsultationPage() {
       setTimeout(() => setIsReviewModalOpen(true), 500);
     }
   }, [consultation, isPatient, hasReview, isReviewModalOpen, consultationId]);
-  
-  // Функция обработки обновления консультации
-  const handleConsultationUpdated = () => {
-    // Перезагружаем данные консультации
-    fetchConsultation();
-  };
+
+  // Дополнительная защита от повторного открытия модального окна
+  useEffect(() => {
+    const reviewKey = `review_added_${consultationId}`;
+    
+    // Проверяем каждые 2 секунды, не появился ли отзыв
+    const interval = setInterval(() => {
+      if (localStorage.getItem(reviewKey) === 'true' && isReviewModalOpen) {
+        console.log('Отзыв найден в localStorage, принудительно закрываем модальное окно');
+        setIsReviewModalOpen(false);
+        setHasReview(true);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [consultationId, isReviewModalOpen]);
 
   if (loading) {
     return (
@@ -439,7 +507,8 @@ function ConsultationPage() {
               consultationId={consultationId}
               consultation={consultation}
               onConsultationUpdated={handleConsultationUpdated}
-              canSendMessages={consultation.status === 'active'}
+              hasReview={hasReview}
+              canSendMessages={true}
               isDoctor={isDoctor}
               isPatient={isPatient}
               patientName={patientName}
@@ -462,8 +531,8 @@ function ConsultationPage() {
             </Card>
           )}
           
-          {/* Форма отзыва */}
-          {isPatient && consultation.status === 'completed' && !hasReview && (
+          {/* Форма отзыва - показываем кнопку только если отзыва точно нет */}
+          {isPatient && consultation.status === 'completed' && !hasReview && !localStorage.getItem(`review_added_${consultationId}`) && (
             <Card className="bg-gradient-to-r from-warning-50 to-warning-100 border-none shadow-sm animate-pulse">
               <CardBody className="flex flex-row justify-between items-center">
                 <div>
@@ -491,12 +560,12 @@ function ConsultationPage() {
       {/* Модальное окно для отзыва */}
       <ReviewForm 
         isOpen={isReviewModalOpen} 
-        onClose={() => setIsReviewModalOpen(false)} 
+        onClose={() => {
+          console.log('Закрытие модального окна отзыва');
+          setIsReviewModalOpen(false);
+        }} 
         consultationId={consultationId}
-        onReviewSubmitted={() => {
-          setHasReview(true);
-          localStorage.setItem(`review_added_${consultationId}`, 'true');
-        }}
+        onReviewSubmitted={handleReviewSubmitted}
         doctorName={doctorName}
         doctorAvatar={doctorAvatar}
       />

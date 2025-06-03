@@ -214,29 +214,45 @@ const SafeStyles = () => {
 };
 
 // Основной компонент чата
-function ConsultationChat({ consultationId, consultation, onConsultationUpdated, canSendMessages, isDoctor, isPatient, patientName, doctorName }) {
+function ConsultationChat({ 
+  consultationId, 
+  consultation, 
+  onConsultationUpdated,
+  hasReview = false, // Получаем состояние отзыва от родительского компонента
+  onMessageCountUpdated,
+  onNewMessage,
+  canSendMessages,
+  isDoctor,
+  isPatient,
+  patientName,
+  doctorName
+}) {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { markAsRead } = useChatStore();
   
-  // Состояния компонента
+  // Основные состояния для управления сообщениями
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [inputValue, setInputValue] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [socketConnection, setSocketConnection] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
-  const [hasReview, setHasReview] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [patientAvatar, setPatientAvatar] = useState(null);
   const [doctorAvatar, setDoctorAvatar] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState(null);
-  const [accessToken, setAccessToken] = useState('');
-  const [statusMessage, setStatusMessage] = useState(null);
+  
+  // Добавляем состояние для отслеживания обработанных сообщений
+  const [processedMessageIds, setProcessedMessageIds] = useState(new Set());
   
   // Дополнительное состояние для отслеживания попыток переподключения
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  
-  // Константы
-  const maxReconnectAttempts = 10; // Максимальное число попыток переподключения
+  const [maxReconnectAttempts, setMaxReconnectAttempts] = useState(10);
   
   // Refs
   const messagesEndRef = useRef(null);
@@ -355,13 +371,13 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     }
     
     // Очищаем поле ввода
-    setNewMessage('');
+    setInputValue('');
   };
 
   // Инициализация чата - оставляем только WebSocket логику
   const initializeChat = async () => {
     try {
-      setLoading(true);
+      setIsSending(true);
       
       // Пробуем загрузить историю сообщений через REST API сразу
       try {
@@ -419,7 +435,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       console.error('[Chat] Ошибка при инициализации чата:', error);
       toast.error('Ошибка при загрузке чата. Попробуйте обновить страницу.');
     } finally {
-      setLoading(false);
+      setIsSending(false);
     }
   };
 
@@ -437,13 +453,15 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
     disableReconnect.current = false;
     
     // Сбрасываем статусное сообщение перед инициализацией
-    setStatusMessage(null);
+    setErrorMessage(null);
     
     // Запускаем инициализацию
     initializeChat();
 
     // При размонтировании компонента закрываем WebSocket и очищаем интервалы
     return () => {
+      console.log(`[Chat] Размонтирование компонента чата для консультации ${consultationId}`);
+      
       // Устанавливаем флаг размонтирования
       isUnmounting.current = true;
       // Отключаем переподключения
@@ -451,9 +469,15 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       wsInitializedRef.current = false;
       
       // Явно закрываем соединение консультации
-      if (consultationId) {
-        const connectionKey = `consultation_${consultationId}`;
-        webSocketService.closeConnection(connectionKey);
+      if (consultationId && webSocketService) {
+        console.log(`[Chat] Закрываем WebSocket соединение для консультации ${consultationId}`);
+        webSocketService.closeConsultationConnection(consultationId);
+      }
+      
+      // Очищаем таймеры переподключения, если они есть
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
   }, [consultationId]); // Зависимость только от consultationId, а не от объекта consultation
@@ -471,13 +495,11 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       // Если пришло сообщение о добавлении отзыва, сразу обновляем состояние
       if (data.type === 'review_added') {
         console.log('[WebSocket] Получено уведомление о добавлении отзыва');
-        setHasReview(true);
-        localStorage.setItem(`review_added_${consultationId}`, 'true');
-        
-        // Показываем уведомление только для пациента
-        if (isPatient) {
-          toast.success('Ваш отзыв сохранен');
+        // Уведомляем родительский компонент
+        if (onConsultationUpdated) {
+          onConsultationUpdated();
         }
+        return;
       }
       
       messageHandler(data);
@@ -564,31 +586,24 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
 
   // Функция для проверки статуса соединения и обновления UI
   const updateConnectionStatus = (status, message = null) => {
+    console.log(`[WebSocket] Статус соединения изменился: ${status}`);
     setConnectionStatus(status);
     
-    if (status === 'disconnected' || status === 'error') {
-      if (message) {
-        // Показываем toast только при первоначальной ошибке подключения и только один раз
-        const toastId = 'connection-error';
-        if (messages.length === 0) {
-          toast.error(message, { id: toastId, duration: 3000 });
-        }
-      }
-      
+    if (status === 'error' || status === 'disconnected') {
       // Если есть сообщения, показываем уведомление о кеше, но не об ошибке соединения
       if (messages.length > 0) {
-        setStatusMessage(`Сообщения загружены из кэша`);
+        setErrorMessage(`Сообщения загружены из кэша`);
       } else {
         // Устанавливаем статусное сообщение только если оно еще не установлено,
         // чтобы избежать дублирования
-        if (!statusMessage) {
-          setStatusMessage('Не удалось подключиться к серверу');
+        if (!errorMessage) {
+          setErrorMessage('Не удалось подключиться к серверу');
         }
       }
     } else if (status === 'connected') {
-      setStatusMessage(null);
-    } else if (status === 'connecting' && !statusMessage) {
-      setStatusMessage('Подключение к серверу...');
+      setErrorMessage(null);
+    } else if (status === 'connecting' && !errorMessage) {
+      setErrorMessage('Подключение к серверу...');
     }
   };
 
@@ -878,6 +893,15 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
           const newMessage = data.message;
           console.log('[WebSocket] Получено новое сообщение');
           
+          // Строгая проверка дублирования
+          if (processedMessageIds.has(newMessage.id)) {
+            console.log('[WebSocket] Сообщение уже обработано, пропускаем:', newMessage.id);
+            return;
+          }
+          
+          // Отмечаем сообщение как обработанное
+          setProcessedMessageIds(prev => new Set([...prev, newMessage.id]));
+          
           // Проверяем, не заменяет ли это сообщение временное
           if (data.temp_id) {
             setMessages(prevMessages => 
@@ -893,6 +917,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
               if (!exists) {
                 return [...prevMessages, newMessage];
               }
+              console.log('[WebSocket] Сообщение уже существует в списке:', newMessage.id);
               return prevMessages;
             });
           }
@@ -977,30 +1002,22 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
               });
             }
             
-            // Если консультация завершена, показываем уведомление
+            // Обрабатываем статус "completed" - консультация завершена
             if (data.consultation.status === 'completed') {
-              toast.success('Консультация успешно завершена', {id: 'complete-consultation'});
+              console.log('[Chat] Консультация завершена через WebSocket');
               
-              // Если это пациент, показываем модальное окно отзыва через 1 секунду
-              if (isPatient) {
-                setTimeout(() => {
-                  // Проверяем, существует ли функция showReviewModal
-                  if (window.showReviewModal) {
-                    console.log('[Chat] Показываем модальное окно отзыва после завершения консультации');
-                    window.showReviewModal((success) => {
-                      console.log('[Chat] Результат отправки отзыва:', success ? 'успешно' : 'неудачно');
-                      // Если отзыв успешно отправлен, обновляем статус
-                      if (success) {
-                        setHasReview(true);
-                        // Сохраняем информацию об отправке отзыва в localStorage
-                        localStorage.setItem(`review_added_${consultationId}`, 'true');
-                      }
-                    });
-                  } else {
-                    console.warn('[Chat] Функция showReviewModal не найдена');
-                  }
-                }, 1000);
+              // Уведомляем родительский компонент об изменении
+              if (onConsultationUpdated) {
+                onConsultationUpdated({
+                  ...consultation,
+                  status: 'completed',
+                  completed_at: data.consultation.completed_at
+                });
               }
+              
+              // НЕ показываем модальное окно отзыва здесь - это делает ConsultationPage
+              // Просто уведомляем о завершении
+              console.log('[Chat] Консультация завершена, родительский компонент должен обработать показ отзыва');
             }
           }
           break;
@@ -1010,10 +1027,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
           console.log('[WebSocket] Получено уведомление о добавлении отзыва для консультации:', data.consultation_id || consultationId);
           
           // Обновляем статус отзыва (данный код дублирует логику в handleWebSocketMessage, но оставляем для надежности)
-          setHasReview(true);
-          
-          // Сохраняем информацию в localStorage для сохранения между сессиями
-          localStorage.setItem(`review_added_${consultationId}`, 'true');
+          setIsCompleteModalOpen(true);
           break;
           
         case 'consultation_data':
@@ -1166,11 +1180,11 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
 
   // Обработка отправки сообщения
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!inputValue.trim()) return;
     
     // Очищаем поле ввода
-    const messageText = newMessage;
-    setNewMessage('');
+    const messageText = inputValue;
+    setInputValue('');
     
     // Фокусируемся на текстовом поле для продолжения ввода
     textareaRef.current?.focus();
@@ -1192,52 +1206,12 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       toast.error('Не удалось отправить сообщение');
       
       // Возвращаем текст в поле ввода при ошибке
-      setNewMessage(messageText);
+      setInputValue(messageText);
     }
   };
 
   // Обработка ошибок рендеринга
   const [renderError, setRenderError] = useState(null);
-  
-  // Проверяем наличие отзыва в localStorage при монтировании компонента
-  useEffect(() => {
-    const checkReviewInStorage = () => {
-      try {
-        // Проверяем общий список отзывов
-        const reviewsFromStorage = localStorage.getItem('consultation_reviews');
-        if (reviewsFromStorage) {
-          const reviews = JSON.parse(reviewsFromStorage);
-          // Если есть отзыв для текущей консультации
-          if (reviews && reviews[consultationId]) {
-            console.log('[Chat] Найден отзыв в localStorage для консультации', consultationId);
-            setHasReview(true);
-            return;
-          }
-        }
-        
-        // Проверяем ключ review_added в localStorage (новый формат)
-        const reviewAddedKey = `review_added_${consultationId}`;
-        if (localStorage.getItem(reviewAddedKey) === 'true') {
-          console.log('[Chat] Найден отзыв в localStorage (новый формат) для консультации', consultationId);
-          setHasReview(true);
-          return;
-        }
-        
-        // Проверяем также отдельный ключ для текущей консультации (для обратной совместимости)
-        const reviewKey = `consultation_${consultationId}_review`;
-        const reviewData = localStorage.getItem(reviewKey);
-        if (reviewData) {
-          console.log('[Chat] Найден отзыв в localStorage (старый формат) для консультации', consultationId);
-          setHasReview(true);
-        }
-      } catch (e) {
-        console.error('[Chat] Ошибка при проверке наличия отзыва:', e);
-      }
-    };
-    
-    // Проверяем наличие отзыва при монтировании
-    checkReviewInStorage();
-  }, [consultationId]);
   
   try {
     if (renderError) {
@@ -1258,7 +1232,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
       );
     }
     
-    if (loading || !consultation) {
+    if (isSending || !consultation) {
       return (
         <div className="h-full flex flex-col justify-center items-center bg-white rounded-lg p-6">
           <Spinner size="lg" color="primary" />
@@ -1325,22 +1299,32 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
             </div>
             
             {/* Индикатор статуса соединения */}
-            {statusMessage && connectionStatus !== 'connected' && (
+            {errorMessage && connectionStatus !== 'connected' && (
               <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-sm animate-fade-in">
                 <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
-                <span className="text-gray-600">{statusMessage}</span>
+                <span className="text-gray-600">{errorMessage}</span>
               </div>
             )}
             
             <div className="flex items-center gap-2">
               {/* Кнопка отзыва - показываем только если консультация завершена, пользователь - пациент и отзыв еще НЕ оставлен */}
-              {isPatient && consultation?.status === 'completed' && !hasReview && (
+              {isPatient && 
+               consultation?.status === 'completed' && 
+               !hasReview && 
+               !localStorage.getItem(`review_added_${consultationId}`) && (
                 <Button 
                   size="sm" 
                   color="warning" 
                   variant="flat"
                   className="animate-pulse hover:animate-none transition-all duration-300"
                   onPress={() => {
+                    // Дополнительная проверка перед открытием
+                    const reviewKey = `review_added_${consultationId}`;
+                    if (localStorage.getItem(reviewKey) === 'true') {
+                      console.log('[Chat] Отзыв уже существует, не открываем модальное окно');
+                      return;
+                    }
+                    
                     if (window.showReviewModal) {
                       window.showReviewModal();
                     } else {
@@ -1402,7 +1386,7 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
               </div>
             )}
             
-            {loading ? (
+            {isSending ? (
               <div className="flex-grow flex items-center justify-center p-4">
                 <Spinner label="Загрузка сообщений..." color="primary" labelColor="primary" />
               </div>
@@ -1438,9 +1422,9 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                 </div>
                 
                 <div className="p-4 border-t border-gray-100 bg-white relative">
-                  {statusMessage && connectionStatus !== 'connected' && (
+                  {errorMessage && connectionStatus !== 'connected' && (
                     <div className="absolute -top-8 left-0 right-0 mx-auto w-max px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs animate-fade-in shadow-sm">
-                      {statusMessage}
+                      {errorMessage}
                     </div>
                   )}
                   
@@ -1453,8 +1437,8 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                         isMessageLimitReached ? "Достигнут лимит сообщений" :
                         "Введите сообщение..."
                       }
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
                       onKeyDown={handleKeyDown}
                       disabled={!canSendMessages || isMessageLimitReached}
                       minRows={1}
@@ -1466,10 +1450,10 @@ function ConsultationChat({ consultationId, consultation, onConsultationUpdated,
                       isIconOnly
                       size="lg"
                       className={`min-w-12 h-12 shadow-md hover:shadow-lg transition-all duration-300 ${
-                        !canSendMessages || !newMessage.trim() ? 'opacity-50' : 'animate-subtle-pulse'
+                        !canSendMessages || !inputValue.trim() ? 'opacity-50' : 'animate-subtle-pulse'
                       }`}
                       onPress={handleSendMessage}
-                      disabled={!canSendMessages || !newMessage.trim() || isMessageLimitReached}
+                      disabled={!canSendMessages || !inputValue.trim() || isMessageLimitReached}
                     >
                       <i className="fas fa-paper-plane"></i>
                     </Button>

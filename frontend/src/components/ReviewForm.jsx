@@ -62,17 +62,36 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
     try {
       setIsSubmitting(true);
       
+      // Дополнительная проверка - не отправлен ли отзыв уже
+      const reviewKey = `review_added_${consultationId}`;
+      if (localStorage.getItem(reviewKey) === 'true') {
+        console.log('Отзыв уже был отправлен ранее');
+        toast.success('Отзыв уже был отправлен');
+        
+        if (onReviewSubmitted) {
+          onReviewSubmitted();
+        }
+        onClose();
+        return;
+      }
+      
       await api.post(`/api/consultations/${consultationId}/review`, {
         rating,
         comment: comment.trim() || null
       });
       
+      // Сразу сохраняем информацию в localStorage
+      localStorage.setItem(reviewKey, 'true');
+      sessionStorage.setItem(reviewKey, 'true');
+      
       toast.success('Отзыв успешно отправлен');
       
+      // Сначала вызываем колбэк
       if (onReviewSubmitted) {
         onReviewSubmitted();
       }
       
+      // Затем закрываем модальное окно
       onClose();
       
     } catch (error) {

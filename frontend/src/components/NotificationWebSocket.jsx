@@ -1,258 +1,372 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import api from '../api';
-import { WS_BASE_URL } from '../api';
+import React, { useEffect, useRef, useCallback } from 'react';
 import useAuthStore from '../stores/authStore';
 import { toast } from 'react-hot-toast';
-
-// Функция для отправки браузерного уведомления
-function sendBrowserNotification(title, options = {}) {
-  try {
-    // Проверяем поддержку API
-    if (typeof window === 'undefined' || !window.Notification) return false;
-    
-    // Проверяем разрешение
-    if (!Notification || Notification.permission !== 'granted') return false;
-    
-    // Создаем новое уведомление
-    const notification = new Notification(title || 'Уведомление от Soglom', {
-      icon: '/soglom.jpg', // Используем иконку Soglom
-      ...(options || {})
-    });
-    
-    // Обработчики событий
-    if (notification) {
-      notification.onclick = function() {
-        // При клике на уведомление фокусируем окно браузера
-        if (window) window.focus();
-        if (options && typeof options.onClick === 'function') options.onClick();
-        this.close();
-      };
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Ошибка при отправке браузерного уведомления:', error);
-    return false;
-  }
-}
+import { useNavigate } from 'react-router-dom';
+import notificationService from '../services/notificationService';
+import soundService from '../services/soundService';
 
 const NotificationWebSocket = () => {
-  const { user, isAuthenticated } = useAuthStore();
-  const [socket, setSocket] = useState(null);
+  const { user, isAuthenticated, token } = useAuthStore();
+  const navigate = useNavigate();
+  const wsRef = useRef(null);
+  const connectionAttemptRef = useRef(0);
   
-  // Используем Map вместо Set для хранения времени показа уведомлений
-  const shownNotificationsRef = useRef(new Map());
-  
-  // Флаг, указывающий, что компонент монтирован
-  const mountedRef = useRef(true);
-  
-  // Флаг активного соединения для предотвращения циклов переподключения
-  const isConnectingRef = useRef(false);
-  
-  // Счетчик неудачных попыток подключения для увеличения времени между попытками
-  const reconnectAttemptsRef = useRef(0);
-  
-  // ID таймера переподключения
-  const reconnectTimerRef = useRef(null);
-  
-  // Флаг закрытия соединения с сервера (не клиентом)
-  const serverClosedRef = useRef(false);
-  
-  // Храним WebSocketService instance
-  const webSocketServiceRef = useRef(null);
-  
-  // Импортируем WebSocketService если он еще не был импортирован
-  useEffect(() => {
-    // Импортируем WebSocketService динамически, если он еще не был импортирован
-    if (!webSocketServiceRef.current) {
-      import('../services/webSocketService').then(module => {
-        webSocketServiceRef.current = module.default;
-      }).catch(error => {
-        console.error('Ошибка при импорте WebSocketService:', error);
-      });
-    }
-    
-    return () => {
-      // Очистка при размонтировании
-      mountedRef.current = false;
-    };
+  // Строгое отслеживание показанных уведомлений
+  const shownNotificationsRef = useRef(new Set());
+  const lastProcessedNotificationRef = useRef(null);
+
+  // Функция для проверки, показывали ли мы уже это уведомление
+  const isNotificationShown = useCallback((notificationId) => {
+    return shownNotificationsRef.current.has(notificationId);
   }, []);
-  
-  // Функция для проверки, было ли уже показано уведомление
-  const isNotificationShown = (notificationId) => {
-    if (!shownNotificationsRef.current.has(notificationId)) {
-      return false;
-    }
+
+  // Функция для отметки уведомления как показанного
+  const markNotificationShown = useCallback((notificationId) => {
+    shownNotificationsRef.current.add(notificationId);
     
-    // Проверяем, что уведомление было показано недавно (в течение 5 минут)
-    const shownTime = shownNotificationsRef.current.get(notificationId);
-    const timeDiff = Date.now() - shownTime;
-    const timeThreshold = 5 * 60 * 1000; // 5 минут
-    
-    return timeDiff < timeThreshold;
-  };
-  
-  // Отметка, что нотификация показана
-  const markNotificationShown = (notificationId) => {
-    shownNotificationsRef.current.set(notificationId, Date.now());
-    
-    // Сохраняем ID показанных уведомлений в localStorage, чтобы предотвратить
-    // повторный показ после перезагрузки страницы
-    try {
-      const shownNotificationsStr = localStorage.getItem('shownNotifications');
-      let shownNotifications = {};
-      
-      if (shownNotificationsStr) {
-        shownNotifications = JSON.parse(shownNotificationsStr);
-      }
-      
-      shownNotifications[notificationId] = Date.now();
-      
-      // Очищаем старые записи (старше 5 минут)
-      const now = Date.now();
-      const timeThreshold = 5 * 60 * 1000; // 5 минут
-      
-      Object.keys(shownNotifications).forEach(id => {
-        if (now - shownNotifications[id] > timeThreshold) {
-          delete shownNotifications[id];
-        }
-      });
-      
-      localStorage.setItem('shownNotifications', JSON.stringify(shownNotifications));
-    } catch (e) {
-      console.error('Ошибка при сохранении показанных уведомлений в localStorage:', e);
-    }
-    
-    // Очищаем старые ID через 5 минут, чтобы не накапливать их бесконечно
-    setTimeout(() => {
-      if (mountedRef.current) {
-        shownNotificationsRef.current.delete(notificationId);
-      }
-    }, 5 * 60 * 1000); // 5 минут
-  };
-  
-  // Загружаем показанные уведомления из localStorage при монтировании
-  useEffect(() => {
-    try {
-      const shownNotificationsStr = localStorage.getItem('shownNotifications');
-      
-      if (shownNotificationsStr) {
-        const shownNotifications = JSON.parse(shownNotificationsStr);
-        const now = Date.now();
-        const timeThreshold = 5 * 60 * 1000; // 5 минут
-        
-        Object.entries(shownNotifications).forEach(([id, timestamp]) => {
-          if (now - timestamp < timeThreshold) {
-            shownNotificationsRef.current.set(id, timestamp);
-          }
-        });
-      }
-    } catch (e) {
-      console.error('Ошибка при загрузке показанных уведомлений из localStorage:', e);
+    // Очистка старых записей каждые 100 уведомлений
+    if (shownNotificationsRef.current.size > 100) {
+      const oldEntries = Array.from(shownNotificationsRef.current).slice(0, 50);
+      oldEntries.forEach(id => shownNotificationsRef.current.delete(id));
     }
   }, []);
-  
-  // Периодическая очистка старых уведомлений
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      if (mountedRef.current) {
-        const now = Date.now();
-        const timeThreshold = 5 * 60 * 1000; // 5 минут
-        
-        // Удаляем все уведомления старше 5 минут
-        shownNotificationsRef.current.forEach((timestamp, id) => {
-          if (now - timestamp > timeThreshold) {
-            shownNotificationsRef.current.delete(id);
-          }
-        });
-      }
-    }, 60 * 1000); // Каждую минуту
-    
-    return () => {
-      clearInterval(cleanupInterval);
-    };
-  }, []);
-  
+
   // Обработчик сообщений WebSocket
   const handleWebSocketMessage = useCallback((data) => {
     try {
-      console.log('NotificationWebSocket: Получено сообщение', data);
+      console.log('NotificationWebSocket: Получено сообщение WebSocket', data);
       
-      // Обрабатываем новое уведомление
-      if (data.type === 'new_notification' && data.notification && mountedRef.current) {
-        const notification = data.notification;
-        console.log('NotificationWebSocket: Получено новое уведомление', notification);
+      let notification = null;
+      
+      // Обрабатываем разные типы сообщений от сервера
+      if (data.type === 'new_notification' && data.notification) {
+        notification = data.notification;
+        console.log('NotificationWebSocket: Получено новое уведомление (new_notification)', notification);
+      } else if (data.type === 'notification') {
+        // Сервер может отправлять уведомления в другом формате
+        notification = {
+          id: data.id || Date.now(),
+          title: data.title || 'Новое уведомление',
+          message: data.message,
+          type: data.notification_type || 'general',
+          related_id: data.related_id,
+          created_at: data.created_at || new Date().toISOString(),
+          is_viewed: false
+        };
+        console.log('NotificationWebSocket: Получено уведомление (notification)', notification);
+      } else if ((data.title || data.message)) {
+        // Если приходит уведомление в простом формате
+        notification = {
+          id: data.id || Date.now(),
+          title: data.title || 'Новое уведомление',
+          message: data.message,
+          type: data.type || 'general',
+          related_id: data.related_id,
+          created_at: data.created_at || new Date().toISOString(),
+          is_viewed: false
+        };
+        console.log('NotificationWebSocket: Получено уведомление (простой формат)', notification);
+      }
+      
+      // Обрабатываем уведомление, если оно найдено
+      if (notification) {
+        // Убеждаемся, что у уведомления есть ID
+        if (!notification.id) {
+          notification.id = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          console.warn('NotificationWebSocket: У уведомления отсутствует ID, генерируем временный:', notification.id);
+        }
         
-        // Проверяем, не показывали ли мы уже это уведомление
-        if (!isNotificationShown(notification.id)) {
-          console.log('NotificationWebSocket: Показываем уведомление', notification.id);
-          // Показываем уведомление в интерфейсе
-          toast(notification.title, {
-            description: notification.message,
-            duration: 5000,
+        // Строгая проверка дублирования
+        const notificationKey = `${notification.id}_${notification.created_at}`;
+        
+        // Проверяем, не обрабатываем ли мы то же самое уведомление
+        if (lastProcessedNotificationRef.current === notificationKey) {
+          console.log('NotificationWebSocket: Пропускаем дублированное уведомление', notificationKey);
+          return;
+        }
+        
+        if (isNotificationShown(notification.id)) {
+          console.log('NotificationWebSocket: Уведомление уже показывалось', notification.id);
+          return;
+        }
+        
+        // Отмечаем уведомление как обработанное
+        lastProcessedNotificationRef.current = notificationKey;
+        markNotificationShown(notification.id);
+        
+        console.log('NotificationWebSocket: 🔥 Обрабатываем уведомление', notification.id, 'с содержимым:', notification.title);
+        
+        // Отправляем кастомное событие для Header
+        try {
+          const notificationEvent = new CustomEvent('newNotificationReceived', {
+            detail: notification
           });
-          
-          // Отправляем браузерное уведомление
-          sendBrowserNotification(notification.title, {
+          window.dispatchEvent(notificationEvent);
+          console.log('NotificationWebSocket: Отправлено событие newNotificationReceived для Header');
+        } catch (error) {
+          console.error('NotificationWebSocket: Ошибка отправки события для Header:', error);
+        }
+        
+        // Показываем Toast уведомление в интерфейсе
+        const toastId = toast(notification.message, {
+          duration: 6000,
+          position: 'top-right',
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        });
+
+        // Проигрываем звук
+        try {
+          soundService.playNotification();
+          console.log('NotificationWebSocket: 🔊 Звук уведомления проигран');
+        } catch (error) {
+          console.error('NotificationWebSocket: Ошибка воспроизведения звука:', error);
+        }
+
+        // Отправляем браузерное уведомление НАПРЯМУЮ здесь
+        console.log('NotificationWebSocket: 📢 Отправляем браузерное уведомление напрямую');
+        
+        // Определяем настройки уведомления
+        const requireInteraction = ['new_message', 'consultation_started', 'new_consultation'].includes(notification.type);
+        
+        notificationService.send(
+          notification.title || 'Новое уведомление',
+          {
             body: notification.message,
-            tag: `notification-${notification.id}`
-          });
-          
-          // Отмечаем, что уведомление показано
-          markNotificationShown(notification.id);
-        } else {
-          console.log('NotificationWebSocket: Уведомление уже было показано', notification.id);
-        }
-      } else if (data.type === 'login_success' && mountedRef.current) {
-        // Для уведомлений о входе используем уникальный ключ
-        const loginKey = `login_${Date.now()}`;
-        
-        // Проверяем, показывали ли мы уже уведомление о входе недавно
-        const lastLoginTime = localStorage.getItem('lastLoginNotificationTime');
-        const now = Date.now();
-        
-        if (!lastLoginTime || (now - parseInt(lastLoginTime)) > 5000) {
-          toast.success('Вы успешно авторизованы', {
-            duration: 3000,
-          });
-          
-          // Запоминаем время показа уведомления о входе
-          localStorage.setItem('lastLoginNotificationTime', now.toString());
-        }
+            icon: '/favicon.ico',
+            tag: `ws_notification_${notification.type}_${notification.id}`,
+            requireInteraction: requireInteraction,
+            renotify: true,
+            data: {
+              notificationId: notification.id,
+              type: notification.type,
+              relatedId: notification.related_id
+            },
+            onclick: () => {
+              // Обработчик клика по браузерному уведомлению
+              console.log('NotificationWebSocket: Клик по браузерному уведомлению');
+              
+              // Закрываем Toast, если он еще открыт
+              toast.dismiss(toastId);
+              
+              // Фокусируем окно браузера сначала
+              if (window.focus) {
+                window.focus();
+              }
+              
+              // Небольшая задержка для корректной фокусировки
+              setTimeout(() => {
+                // Навигация в зависимости от типа уведомления
+                try {
+                  if (notification.type === 'new_message' && notification.related_id) {
+                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
+                    navigate(`/consultations/${notification.related_id}`);
+                  } else if (notification.type === 'consultation_started' && notification.related_id) {
+                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
+                    navigate(`/consultations/${notification.related_id}`);
+                  } else if (notification.type === 'new_consultation' && notification.related_id) {
+                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
+                    navigate(`/consultations/${notification.related_id}`);
+                  } else if (notification.type === 'application_processed') {
+                    console.log('NotificationWebSocket: Навигация к заявкам врача');
+                    navigate('/doctor-applications');
+                  } else {
+                    console.log('NotificationWebSocket: Навигация к уведомлениям');
+                    navigate('/notifications');
+                  }
+                } catch (error) {
+                  console.error('NotificationWebSocket: Ошибка навигации:', error);
+                  // Запасной вариант - переход на главную
+                  navigate('/');
+                }
+              }, 100);
+            }
+          }
+        ).then(result => {
+          console.log('NotificationWebSocket: ✅ Результат отправки браузерного уведомления:', result);
+        }).catch(error => {
+          console.error('NotificationWebSocket: ❌ Ошибка отправки браузерного уведомления:', error);
+        });
+      } else {
+        // Логируем другие типы сообщений
+        console.log('NotificationWebSocket: ℹ️ Получено сообщение другого типа:', {
+          type: data.type,
+          hasData: !!data
+        });
       }
     } catch (error) {
-      console.error('Ошибка при обработке WebSocket сообщения:', error);
+      console.error('NotificationWebSocket: Ошибка обработки WebSocket сообщения:', error);
     }
-  }, []);
-  
-  // Эффект для соединения с WebSocket при монтировании компонента
+  }, [navigate, isNotificationShown, markNotificationShown]);
+
+  // Подключение к WebSocket для уведомлений
   useEffect(() => {
-    if (isAuthenticated && user && user.id && webSocketServiceRef.current && !socket) {
-      // Используем WebSocketService для установки соединения
-      webSocketServiceRef.current.getNotificationConnection(
-        user.id,
-        handleWebSocketMessage,
-        (status, message) => {
-          console.log(`NotificationWebSocket: Статус соединения изменился на ${status}`, message || '');
-        }
-      ).then(newSocket => {
-        if (newSocket && mountedRef.current) {
-          setSocket(newSocket);
-        }
-      }).catch(error => {
-        console.error('Ошибка при получении соединения WebSocket:', error);
-      });
+    if (!isAuthenticated || !user || !token) {
+      console.log('NotificationWebSocket: Пропускаем подключение - не авторизован');
+      return;
+    }
+
+    // Предотвращаем множественные подключения
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('NotificationWebSocket: WebSocket уже подключен, пропускаем');
+      return;
     }
     
-    return () => {
-      // Очистка при размонтировании или изменении зависимостей
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
+    // Увеличиваем счетчик попыток подключения
+    connectionAttemptRef.current++;
+    const currentAttempt = connectionAttemptRef.current;
+    
+    console.log(`NotificationWebSocket: Попытка подключения #${currentAttempt} для пользователя ${user.id}`);
+
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const baseReconnectDelay = 1000;
+    
+    // Очистка при изменении пользователя
+    shownNotificationsRef.current.clear();
+    lastProcessedNotificationRef.current = null;
+
+    const connectWebSocket = async () => {
+      try {
+        // Проверяем, что это все еще актуальная попытка подключения
+        if (currentAttempt !== connectionAttemptRef.current) {
+          console.log('NotificationWebSocket: Отменяем устаревшую попытку подключения');
+          return;
+        }
+        
+        // Получаем WebSocket токен через API
+        console.log('NotificationWebSocket: Запрашиваем WebSocket токен для уведомлений');
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ws-token`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка получения WebSocket токена: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const wsToken = data.token;
+        
+        if (!wsToken) {
+          throw new Error('WebSocket токен не получен');
+        }
+
+        console.log('NotificationWebSocket: WebSocket токен получен');
+        
+        const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
+        console.log('NotificationWebSocket: Подключение к WebSocket:', wsUrl);
+        
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          console.log('NotificationWebSocket: ✅ WebSocket подключен');
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('NotificationWebSocket: RAW WebSocket сообщение:', event.data);
+            console.log('NotificationWebSocket: Parsed данные:', data);
+            handleWebSocketMessage(data);
+          } catch (error) {
+            console.error('NotificationWebSocket: Ошибка парсинга WebSocket сообщения:', error, 'Raw data:', event.data);
+          }
+        };
+
+        ws.onclose = (event) => {
+          console.log('NotificationWebSocket: WebSocket соединение закрыто', event.code, event.reason);
+          wsRef.current = null;
+          
+          // Переподключение при неожиданном закрытии
+          if (reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
+            reconnectAttempts++;
+            const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
+            console.log(`NotificationWebSocket: Переподключение через ${delay}ms (попытка ${reconnectAttempts}/${maxReconnectAttempts})`);
+            
+            setTimeout(() => {
+              if (currentAttempt === connectionAttemptRef.current) {
+                connectWebSocket();
+              }
+            }, delay);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('NotificationWebSocket: Ошибка WebSocket:', error);
+        };
+
+      } catch (error) {
+        console.error('NotificationWebSocket: Ошибка создания WebSocket соединения:', error);
+        
+        // Переподключение при ошибке получения токена
+        if (reconnectAttempts < maxReconnectAttempts && currentAttempt === connectionAttemptRef.current) {
+          reconnectAttempts++;
+          const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
+          console.log(`NotificationWebSocket: Переподключение после ошибки через ${delay}ms (попытка ${reconnectAttempts}/${maxReconnectAttempts})`);
+          
+          setTimeout(() => {
+            if (currentAttempt === connectionAttemptRef.current) {
+              connectWebSocket();
+            }
+          }, delay);
+        }
       }
     };
-  }, [isAuthenticated, user, handleWebSocketMessage, socket]);
-  
-  // Ничего не отображаем, этот компонент только для логики
+
+    connectWebSocket();
+
+    return () => {
+      console.log('NotificationWebSocket: 🧹 Закрытие WebSocket соединения');
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmounting');
+        wsRef.current = null;
+      }
+    };
+  }, [isAuthenticated, user?.id, token, handleWebSocketMessage]); // Изменил зависимости
+
+  // Запрос разрешений на браузерные уведомления
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const timer = setTimeout(async () => {
+        try {
+          const status = notificationService.getStatus();
+          console.log('NotificationWebSocket: Текущий статус разрешений:', status);
+          
+          if (status.permission === 'default') {
+            console.log('NotificationWebSocket: Запрашиваем разрешения на уведомления');
+            const result = await notificationService.requestPermission();
+            console.log('NotificationWebSocket: Результат запроса разрешений:', result);
+            
+            if (result.success) {
+              console.log('NotificationWebSocket: ✅ Разрешения получены!');
+              toast.success('Push-уведомления включены!', {
+                duration: 3000,
+                position: 'top-right',
+              });
+            } else {
+              console.log('NotificationWebSocket: ❌ Разрешения не получены:', result.message);
+            }
+          } else if (status.permission === 'granted') {
+            console.log('NotificationWebSocket: ✅ Разрешения уже получены');
+          }
+        } catch (error) {
+          console.error('NotificationWebSocket: Ошибка при запросе разрешений:', error);
+        }
+      }, 2000); // Увеличил задержку до 2 секунд
+
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user?.id]); // Изменил зависимости
+
   return null;
 };
 
