@@ -1258,25 +1258,18 @@ fun AuthScreen(
                                     value = registerMedicalInfo,
                                     onValueChange = { registerMedicalInfo = it },
                                     label = { Text("Мед. информация", fontSize = 11.sp) },
-                                    placeholder = { Text("Информация о заболеваниях, аллергиях (необязательно)", fontSize = 10.sp) },
+                                    placeholder = { Text("Информация о заболеваниях (необязательно)", fontSize = 10.sp) },
                                     leadingIcon = {
-                                        Box(
-                                            modifier = Modifier
-                                                .padding(top = 8.dp) // добавляю отступ сверху для выравнивания с первой строкой
-                                                .fillMaxHeight(),
-                                            contentAlignment = Alignment.TopCenter // выравниваю по верху но с отступом
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.LocalHospital,
-                                                contentDescription = null,
-                                                tint = Color(0xFF9CA3AF),
-                                                modifier = Modifier.size(16.dp) // уменьшаю размер иконки
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.LocalHospital,
+                                            contentDescription = null,
+                                            tint = Color(0xFF9CA3AF),
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    minLines = 2, // уменьшаю с 3 до 2 строк
-                                    maxLines = 4, // уменьшаю с 5 до 4 строк
+                                    minLines = 1, // уменьшаю до 1 строки
+                                    maxLines = 2, // уменьшаю до 2 строк максимум
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Primary,
                                         unfocusedBorderColor = Color(0xFFD1D5DB),
