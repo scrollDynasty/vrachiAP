@@ -95,7 +95,7 @@ from auth import (
 )
 
 # URL фронтенда для редиректов
-FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL = "https://soglom.com"
 
 # Импортируем pydantic модели для валидации данных запросов и ответов
 from schemas import (
@@ -204,7 +204,8 @@ origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://fa06-84-54-122-64.ngrok-free.app",  # Для разработки на стандартном порту React через IP
-    "https://soglom.duckdns.org",  # Продакшен домен
+    "https://soglom.duckdns.org",
+    "https://soglom.com",  # Продакшен домен
     # TODO: Добавить другие источники, если фронтенд будет доступен по другому адресу или порту
     # TODO: В продакшене здесь должен быть домен твоего сайта!
 ]
@@ -4971,7 +4972,7 @@ async def google_auth_callback(
     try:
         # Используем ту же функцию, что и в основном методе аутентификации,
         # но с переопределением redirect_uri на бэкенд-URL
-        backend_redirect_uri = "http://localhost:8000/auth/google/callback"
+        backend_redirect_uri = "https://soglom.com:8000/auth/google/callback"
         
         # Получаем данные пользователя от Google API с использованием пользовательского redirect_uri
         token_url = "https://oauth2.googleapis.com/token"
