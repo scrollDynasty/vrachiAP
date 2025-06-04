@@ -550,7 +550,7 @@ fun AuthScreen(
                                 }
                                 
                                 Text(
-                                    text = "Забыли пароль?",
+                                    text = "Забыли?",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = Primary,
                                         fontWeight = FontWeight.Medium,
@@ -1260,15 +1260,23 @@ fun AuthScreen(
                                     label = { Text("Мед. информация", fontSize = 11.sp) },
                                     placeholder = { Text("Информация о заболеваниях, аллергиях (необязательно)", fontSize = 10.sp) },
                                     leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.LocalHospital,
-                                            contentDescription = null,
-                                            tint = Color(0xFF9CA3AF)
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 8.dp) // добавляю отступ сверху для выравнивания с первой строкой
+                                                .fillMaxHeight(),
+                                            contentAlignment = Alignment.TopCenter // выравниваю по верху но с отступом
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LocalHospital,
+                                                contentDescription = null,
+                                                tint = Color(0xFF9CA3AF),
+                                                modifier = Modifier.size(16.dp) // уменьшаю размер иконки
+                                            )
+                                        }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    minLines = 3,
-                                    maxLines = 5,
+                                    minLines = 2, // уменьшаю с 3 до 2 строк
+                                    maxLines = 4, // уменьшаю с 5 до 4 строк
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Primary,
                                         unfocusedBorderColor = Color(0xFFD1D5DB),
@@ -1393,7 +1401,7 @@ fun AuthScreen(
                                         )
                                     } else {
                                         Text(
-                                            text = "Зарегистрироваться",
+                                            text = "Регистрация",
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
                                                 fontSize = 11.sp
@@ -1409,16 +1417,16 @@ fun AuthScreen(
                     // Ссылка на другую форму
                     Text(
                         text = if (currentTab == "login") 
-                            "Нет аккаунта? Зарегистрироваться" 
+                            "Нет аккаунта? Регистрация" 
                         else 
-                            "Уже есть аккаунт? Войти",
+                            "Есть аккаунт? Войти",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp
+                            fontSize = 11.sp // уменьшено с 12sp
                         ),
                         color = Color(0xFF6B7280), // gray-500
                         textAlign = TextAlign.Center,
                         modifier = Modifier
-                            .padding(top = 12.dp) // уменьшено с 16.dp
+                            .padding(top = 12.dp)
                             .clickable {
                                 currentTab = if (currentTab == "login") "register" else "login"
                             }
