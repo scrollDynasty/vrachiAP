@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Navbar, 
   NavbarBrand, 
@@ -21,6 +21,8 @@ import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import api from '../api';
 import AvatarWithFallback from './AvatarWithFallback';
+import Logo from './Logo'; // Импортируем новый логотип
+import LanguageSelector, { useTranslation } from './LanguageSelector'; // Импортируем селектор языка
 import '../styles/AppIcon.css'; // Импортируем наши стили
 import { motion } from 'framer-motion';
 import { PulseLoader } from 'react-spinners';
@@ -33,7 +35,9 @@ function Header() {
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
   const { totalUnread, fetchUnreadCounts } = useChatStore();
+  const { t } = useTranslation(); // Добавляем хук для переводов
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -223,11 +227,34 @@ function Header() {
   // Получаем аватар пользователя или используем первую букву email
   const userAvatar = user?.avatar_path ? user.avatar_path : null;
   
-  // Обработчики навигации
-  const handleProfileClick = () => navigate('/profile');
-  const handleHistoryClick = () => navigate('/history');
-  const handleSearchDoctorsClick = () => navigate('/search-doctors');
-  const handleLogout = () => logout();
+  // Обработчики навигации с закрытием мобильного меню
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsMenuOpen(false);
+  };
+  const handleHistoryClick = () => {
+    navigate('/history');
+    setIsMenuOpen(false);
+  };
+  const handleSearchDoctorsClick = () => {
+    navigate('/search-doctors');
+    setIsMenuOpen(false);
+  };
+  const handleLogout = () => {
+    logout();
+    setIsMenuOpen(false);
+  };
+  
+  // Общий обработчик навигации для мобильного меню
+  const handleMobileNavigation = (path) => {
+    navigate(path);
+    setIsMenuOpen(false);
+  };
+
+  // Автоматически закрываем мобильное меню при изменении маршрута
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
   
   // Использование темной/светлой темы
   const { theme, setTheme } = useTheme();
@@ -261,14 +288,14 @@ function Header() {
     >
       {/* Логотип и меню-гамбургер для мобильных устройств */}
       <NavbarContent className="sm:hidden">
-        <NavbarMenuToggle
-          aria-label={isMenuOpen ? "Закрыть меню" : "Открыть меню"}
-          className="sm:hidden"
+        <NavbarMenuToggle 
+          aria-label={isMenuOpen ? "Закрыть меню" : "Открыть меню"} 
+          className="sm:hidden" 
         />
         <NavbarBrand>
           <Link to="/" className="flex items-center">
-            <div className="flex items-center gap-2 transition-all hover:scale-105">
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Soglom</span>
+            <div className="transition-all hover:scale-105">
+              <Logo size="small" variant="full" />
             </div>
           </Link>
         </NavbarBrand>
@@ -278,8 +305,8 @@ function Header() {
       <NavbarContent className="hidden sm:flex">
         <NavbarBrand>
           <Link to="/" className="flex items-center">
-            <div className="flex items-center gap-2 transition-all hover:scale-105">
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Soglom</span>
+            <div className="transition-all hover:scale-105">
+              <Logo size="medium" variant="full" />
             </div>
           </Link>
         </NavbarBrand>
@@ -332,6 +359,11 @@ function Header() {
       <NavbarContent justify="end">
         {isAuthenticated ? (
           <>
+            {/* Селектор языка для авторизованных */}
+            <NavbarItem className="hidden md:flex">
+              <LanguageSelector variant="button" />
+            </NavbarItem>
+            
             {/* Dropdown для уведомлений */}
             <Dropdown placement="bottom-end">
               <DropdownTrigger>
@@ -365,7 +397,7 @@ function Header() {
               >
                 <DropdownItem isReadOnly className="py-2 sticky top-0 bg-white z-10 shadow-sm" textValue="Заголовок уведомлений">
                   <div className="flex justify-between items-center">
-                    <p className="font-medium">Уведомления</p>
+                    <p className="font-medium">{t('notifications')}</p>
                     {notifications.length > 0 && (
                       <Button
                         size="sm"
@@ -380,7 +412,7 @@ function Header() {
                           }
                         }}
                       >
-                        Отметить все как прочитанные
+                        {t('markAllRead')}
                       </Button>
                     )}
                   </div>
@@ -398,7 +430,7 @@ function Header() {
                         textValue={`${notification.title}: ${notification.message}`}
                         className={`py-3 ${!notification.is_viewed ? 'bg-blue-50' : ''}`}
                         onClick={(e) => {
-                          // Предотвращаем стандартное поведение клика для кнопки "Подробнее"
+                          // Предотвращаем стандартное поведение клика для кнопки {t(1)}
                           if (e.target.closest('.expand-button')) {
                             e.stopPropagation();
                             e.preventDefault();
@@ -411,7 +443,7 @@ function Header() {
                           <div className="flex justify-between">
                             <p className="font-medium">{notification.title}</p>
                             {!notification.is_viewed && (
-                              <Badge color="primary" variant="flat" size="sm">Новое</Badge>
+                              <Badge color="primary" variant="flat" size="sm">{t('newNotification')}</Badge>
                             )}
                           </div>
                           <div>
@@ -426,7 +458,7 @@ function Header() {
                                 color="primary"
                                 onClick={() => toggleNotificationExpand(notification.id)}
                               >
-                                {isExpanded ? 'Свернуть' : 'Подробнее'}
+                                {isExpanded ? t('collapse') : t('expand')}
                               </Button>
                             )}
                           </div>
@@ -468,7 +500,7 @@ function Header() {
                 if (key === 'admin-panel') navigate('/admin');
                 if (key === 'logout') handleLogout();
               }}>
-                <DropdownItem key="profile" textValue="Профиль" className="py-3">
+                <DropdownItem key="profile" textValue={t('profile')} className="py-3">
                   <div className="flex flex-col">
                     <span className="font-semibold">{user?.profile?.firstName || user?.email}</span>
                     <span className="text-xs text-gray-500">{user?.email}</span>
@@ -476,9 +508,9 @@ function Header() {
                 </DropdownItem>
                 
                 <DropdownItem key="role" textValue="Роль" className="text-gray-500 text-xs py-2" isReadOnly>
-                  {user?.role === 'patient' ? 'Пациент' : 
-                   user?.role === 'doctor' ? 'Врач' : 
-                   user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                  {user?.role === 'patient' ? t('patient') : 
+                   user?.role === 'doctor' ? t('doctor') : 
+                   user?.role === 'admin' ? t('admin') : t('user')}
                 </DropdownItem>
                 
                 <DropdownItem key="divider" textValue="Разделитель" className="h-px bg-gray-200 my-1" isReadOnly/>
@@ -542,16 +574,19 @@ function Header() {
         ) : (
           <>
             <NavbarItem className="hidden lg:flex">
+              <LanguageSelector variant="button" className="mr-2" />
+            </NavbarItem>
+            <NavbarItem className="hidden lg:flex">
               <Link to="/login">
                 <Button color="primary" variant="flat">
-                  Войти
+                  {t('login')}
                 </Button>
               </Link>
             </NavbarItem>
             <NavbarItem>
               <Link to="/register">
                 <Button color="primary" variant="solid">
-                  Регистрация
+                  {t('register')}
                 </Button>
               </Link>
             </NavbarItem>
@@ -564,83 +599,165 @@ function Header() {
         {isAuthenticated ? (
           <>
             <NavbarMenuItem>
-              <Link to="/" className="w-full py-2 text-gray-700 hover:text-primary transition-colors">
-                <div className="flex items-center gap-2">
+              <button 
+                onClick={() => handleMobileNavigation('/')} 
+                className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+              >
+                <div className="flex items-center gap-3">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-                  Главная
+                                      <span className="font-medium">{t('home')}</span>
                 </div>
-              </Link>
+              </button>
             </NavbarMenuItem>
             
             {user?.role === 'admin' && (
               <NavbarMenuItem>
-                <Link to="/admin" className="w-full py-2 text-gray-700 hover:text-purple-600 transition-colors">
-                  <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleMobileNavigation('/admin')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-purple-600 transition-colors rounded-lg hover:bg-purple-50 px-3"
+                >
+                  <div className="flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Админ-панель
+                    <span className="font-medium">{t('adminPanel')}</span>
                   </div>
-                </Link>
+                </button>
               </NavbarMenuItem>
             )}
             
             {user?.role === 'patient' && (
               <NavbarMenuItem>
-                <Link to="/search-doctors" className="w-full py-2 text-gray-700 hover:text-primary transition-colors">
-                  <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleMobileNavigation('/search-doctors')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+                >
+                  <div className="flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    Найти врача
+                    <span className="font-medium">{t('findDoctor')}</span>
                   </div>
-                </Link>
+                </button>
               </NavbarMenuItem>
             )}
             
             {user?.role !== 'admin' && (
               <NavbarMenuItem>
-                <div className="flex items-center gap-2">
-                  <Link to="/history" className="w-full text-gray-700 hover:text-primary text-lg font-medium">
-                    История
-                  </Link>
-                  {totalUnread > 0 && (
-                    <span className="px-2 py-1 bg-red-500 text-white text-xs rounded-full">
-                      {totalUnread}
-                    </span>
-                  )}
-                </div>
+                <button 
+                  onClick={() => handleMobileNavigation('/history')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+                >
+                  <div className="flex items-center gap-3 justify-between">
+                    <div className="flex items-center gap-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium">{t('history')}</span>
+                    </div>
+                    {totalUnread > 0 && (
+                      <span className="px-2 py-1 bg-red-500 text-white text-xs rounded-full">
+                        {totalUnread}
+                      </span>
+                    )}
+                  </div>
+                </button>
               </NavbarMenuItem>
             )}
             
             {user?.role !== 'admin' && (
               <NavbarMenuItem>
-                <Link to="/profile" className="w-full py-2 text-gray-700 hover:text-primary transition-colors">
-                  <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleMobileNavigation('/profile')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+                >
+                  <div className="flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    Настройки профиля
+                    <span className="font-medium">{t('profileSettings')}</span>
                   </div>
-                </Link>
+                </button>
               </NavbarMenuItem>
             )}
             
             <NavbarMenuItem>
-              <div className="w-full py-2 cursor-pointer text-red-600 hover:text-red-700 transition-colors" onClick={handleLogout}>
-                <div className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <div className="w-full py-3 px-3">
+                <div className="flex items-center gap-3 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                   </svg>
-                  Выйти
+                  <span className="text-gray-700 font-medium">{t('language')}</span>
+                </div>
+                <div className="ml-8">
+                  <LanguageSelector variant="dropdown" className="w-full" />
                 </div>
               </div>
             </NavbarMenuItem>
+            
+            <NavbarMenuItem>
+              <button 
+                onClick={handleLogout} 
+                className="w-full py-3 text-left text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 px-3"
+              >
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="font-medium">{t('logout')}</span>
+                </div>
+              </button>
+            </NavbarMenuItem>
           </>
-        ) : null}
+        ) : (
+          // Меню для неавторизованных пользователей
+          <>
+            <NavbarMenuItem>
+              <button 
+                onClick={() => handleMobileNavigation('/login')} 
+                className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+              >
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="font-medium">{t('login')}</span>
+                </div>
+              </button>
+            </NavbarMenuItem>
+            
+            <NavbarMenuItem>
+              <button 
+                onClick={() => handleMobileNavigation('/register')} 
+                className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+              >
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  <span className="font-medium">{t('register')}</span>
+                </div>
+              </button>
+            </NavbarMenuItem>
+            
+            <NavbarMenuItem>
+              <div className="w-full py-3 px-3">
+                <div className="flex items-center gap-3 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                  <span className="text-gray-700 font-medium">{t('language')}</span>
+                </div>
+                <div className="ml-8">
+                  <LanguageSelector variant="dropdown" className="w-full" />
+                </div>
+              </div>
+            </NavbarMenuItem>
+                     </>
+         )}
       </NavbarMenu>
     </Navbar>
   );

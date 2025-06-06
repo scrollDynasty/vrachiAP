@@ -5,7 +5,9 @@ import { toast } from 'react-toastify';
 import { notificationsApi } from '../api'; // Импортируем API для уведомлений
 import api, { getCsrfToken } from '../api'; // Импортируем основной API и функцию для получения CSRF токена
 import { uploadAvatar } from '../api'; // Импортируем функцию для загрузки аватара
-import AvatarWithFallback from './AvatarWithFallback'; // Импортируем наш компонент для аватара
+import AvatarWithFallback from './AvatarWithFallback';
+import { useTranslation } from './LanguageSelector'; // Импортируем наш компонент для аватара
+import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions'; // Импортируем систему регионов
 
 // Анимационные варианты для элементов
 const fadeIn = {
@@ -29,10 +31,12 @@ const staggerFormContainer = {
 };
 
 const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
+   const { t } = useTranslation();
    // Состояния для полей формы
    const [full_name, setFullName] = useState('');
    const [contact_phone, setContactPhone] = useState('');
    const [contact_address, setContactAddress] = useState('');
+   const [city, setCity] = useState('');
    const [district, setDistrict] = useState('');
    const [medicalInfo, setMedicalInfo] = useState('');
 
@@ -69,6 +73,10 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
    // Добавим состояние для хранения способа аутентификации
    const [authProvider, setAuthProvider] = useState('email');
 
+   // Состояния для системы регионов
+   const [availableRegions, setAvailableRegions] = useState([]);
+   const [availableDistricts, setAvailableDistricts] = useState([]);
+
    // При монтировании компонента получаем данные пользователя, включая аватар
    useEffect(() => {
       if (profile) {
@@ -77,6 +85,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setFullName(profile.full_name || '');
          setContactPhone(profile.contact_phone || '');
          setContactAddress(profile.contact_address || '');
+         setCity(profile.city || '');
          setDistrict(profile.district || '');
          setMedicalInfo(profile.medical_info || '');
          
@@ -138,6 +147,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setFullName(profile.full_name || '');
          setContactPhone(profile.contact_phone || '');
          setContactAddress(profile.contact_address || '');
+         setCity(profile.city || '');
          setDistrict(profile.district || '');
          setMedicalInfo(profile.medical_info || '');
          
@@ -220,6 +230,22 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
       fetchCsrfToken();
    }, []);
 
+   // Загружаем список регионов при монтировании
+   useEffect(() => {
+      const regions = getRegions();
+      setAvailableRegions(regions);
+   }, []);
+
+   // Обновляем районы при изменении города
+   useEffect(() => {
+      if (city) {
+         const districts = getDistrictsByRegion(city);
+         setAvailableDistricts(districts);
+      } else {
+         setAvailableDistricts([]);
+      }
+   }, [city]);
+
    // Обработчик отправки формы
    const handleSubmit = (event) => {
       event.preventDefault();
@@ -234,6 +260,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          full_name: full_name || null,
          contact_phone: contact_phone || null,
          contact_address: contact_address || null,
+         city: city || null,
          district: district || null,
          medical_info: medicalInfo || null
       };
@@ -258,11 +285,24 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setFullName(profile.full_name || '');
          setContactPhone(profile.contact_phone || '');
          setContactAddress(profile.contact_address || '');
+         setCity(profile.city || '');
          setDistrict(profile.district || '');
          setMedicalInfo(profile.medical_info || '');
       }
       setIsEditing(false);
       setFormLocalError(null);
+   };
+
+   // Обработчик изменения города/региона
+   const handleCityChange = (e) => {
+      const newCity = e.target.value;
+      setCity(newCity);
+      setDistrict(''); // Сбрасываем район при смене города
+   };
+
+   // Обработчик изменения района
+   const handleDistrictChange = (e) => {
+      setDistrict(e.target.value);
    };
    
    // Обработчик изменения пароля
@@ -336,7 +376,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             console.log('Ответ от сервера:', changePasswordResponse);
             
             // Показываем уведомление об успешной смене пароля
-            toast.success('Пароль успешно изменен', {
+            toast.success(t('passwordChanged'), {
                position: 'top-right',
                autoClose: 3000,
                hideProgressBar: false,
@@ -436,7 +476,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             setProfileImage(avatarPath);
             
             // Показываем уведомление об успешной загрузке
-            toast.success('Фото профиля успешно обновлено', {
+            toast.success(t('profilePhotoUpdated'), {
                position: 'top-right',
                autoClose: 3000,
                hideProgressBar: false,
@@ -493,7 +533,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          await notificationsApi.updateNotificationSettings(notificationSettings);
          
          // Показываем уведомление об успешном сохранении
-         toast.success('Настройки уведомлений сохранены', {
+         toast.success(t('notificationSettingsSaved'), {
             position: 'top-right',
             autoClose: 3000,
             hideProgressBar: false,
@@ -551,7 +591,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          });
          
          // Показываем уведомление об успешном удалении
-         toast.success('Аккаунт успешно удален', {
+         toast.success(t('accountDeleted'), {
             position: 'top-right',
             autoClose: 3000,
             hideProgressBar: false,
@@ -592,36 +632,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
    };
 
    // Функция для преобразования ID района в его название
-   const getDistrictName = (districtId) => {
-      if (!districtId) return 'Не указано';
-      
-      // Статический список районов
-      const districtsList = [
-         "Алмазарский район",
-         "Бектемирский район",
-         "Мирабадский район",
-         "Мирзо-Улугбекский район",
-         "Сергелийский район",
-         "Учтепинский район",
-         "Чиланзарский район",
-         "Шайхантаурский район",
-         "Юнусабадский район",
-         "Яккасарайский район",
-         "Яшнабадский район"
-      ];
-      
-      // Если districtId - число и находится в пределах массива
-      if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
-         return districtsList[parseInt(districtId) - 1];
-      }
-      
-      // Если districtId совпадает с названием района, возвращаем его как есть
-      if (districtsList.includes(districtId)) {
-         return districtId;
-      }
-      
-      return districtId; // Если не удалось распознать, возвращаем как есть
-   };
+
 
    return (
       <motion.div 
@@ -768,17 +779,17 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             )}
          </motion.div>
       
-         {/* Заголовок секции и кнопка редактирования */}
-         <div className="flex justify-between items-center mb-6">
+         {/* Заголовок секции */}
+         <div className="mb-6 text-center">
             <motion.div
                variants={slideUp}
-               className="relative"
+               className="relative mb-4 inline-block"
             >
-               <h3 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {isEditing ? "Редактирование профиля" : "Информация профиля"}
+               <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  {isEditing ? t('editProfile') : t('profileInfo')}
                </h3>
                <motion.div 
-                  className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                  className="absolute -bottom-1 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full w-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ delay: 0.2, duration: 0.8 }}
@@ -787,24 +798,30 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             
             {!isEditing && profile && (
                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="flex justify-center"
                >
-                  <Button 
-                     color="primary" 
-                     variant="light"
-                     size="sm"
-                     className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300"
-                     startContent={
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                     }
-                     onClick={handleEditClick}
+                  <motion.div
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
                   >
-                     Редактировать
-                  </Button>
+                     <Button 
+                        color="primary" 
+                        variant="flat"
+                        size="lg"
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3 font-medium rounded-xl sm:px-8 sm:py-3 md:px-4 md:py-2 md:text-sm lg:px-6 lg:py-2"
+                        startContent={
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                           </svg>
+                        }
+                        onClick={handleEditClick}
+                     >
+                        Редактировать профиль
+                     </Button>
+                  </motion.div>
                </motion.div>
             )}
          </div>
@@ -886,6 +903,18 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                     </div>
                                     <p className="text-medium pl-11 font-medium">{contact_phone || 'Не указано'}</p>
                                  </div>
+
+                                 <div className="space-y-2">
+                                    <div className="flex items-center">
+                                       <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-md">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                          </svg>
+                                       </div>
+                                       <h4 className="text-sm font-semibold text-blue-600">Район</h4>
+                                    </div>
+                                    <p className="text-medium pl-11 font-medium">{district || 'Не указано'}</p>
+                                 </div>
                               </motion.div>
                               
                               <motion.div 
@@ -911,12 +940,13 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                     <div className="flex items-center">
                                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-md">
                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Район</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">Город/Регион</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{getDistrictName(district) || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{city || 'Не указано'}</p>
                                  </div>
                               </motion.div>
                            </div>
@@ -974,13 +1004,13 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   </motion.div>
                )}
                
-               <div className="grid gap-6 md:grid-cols-2">
+               <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                   <motion.div
                      variants={slideUp}
                      className="relative group"
                   >
                      <Input
-                        label="Полное имя"
+                        label={t('fullName')}
                         placeholder="Введите ваше ФИО"
                         value={full_name}
                         onChange={(e) => setFullName(e.target.value)}
@@ -1012,7 +1042,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      className="relative group"
                   >
                      <Input
-                        label="Контактный телефон"
+                        label={t('contactPhone')}
                         placeholder="Введите ваш телефон"
                         value={contact_phone}
                         onChange={(e) => setContactPhone(e.target.value)}
@@ -1029,6 +1059,82 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            </svg>
                         }
                      />
+                     <motion.div
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded opacity-0 group-hover:opacity-100"
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                     />
+                  </motion.div>
+               </div>
+               
+               <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+                  <motion.div
+                     variants={slideUp}
+                     className="relative group"
+                  >
+                     <Select
+                        label="Город/Регион"
+                        placeholder="Выберите город или регион"
+                        selectedKeys={city ? [city] : []}
+                        onChange={handleCityChange}
+                        variant="bordered"
+                        radius="sm"
+                        className="max-w-full"
+                        classNames={{
+                           trigger: "group-hover:border-blue-500 transition-colors duration-300",
+                           label: "text-blue-600 group-hover:text-blue-700 transition-colors duration-300"
+                        }}
+                        startContent={
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                           </svg>
+                        }
+                     >
+                        {availableRegions.map((region) => (
+                           <SelectItem key={region} value={region}>
+                              {region}
+                           </SelectItem>
+                        ))}
+                     </Select>
+                     <motion.div
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded opacity-0 group-hover:opacity-100"
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                     />
+                  </motion.div>
+
+                  <motion.div
+                     variants={slideUp}
+                     className="relative group"
+                  >
+                     <Select
+                        label={t('district')}
+                        placeholder={city ? "Выберите район" : "Сначала выберите город"}
+                        selectedKeys={district ? [district] : []}
+                        onChange={handleDistrictChange}
+                        variant="bordered"
+                        radius="sm"
+                        className="max-w-full"
+                        isDisabled={!city || availableDistricts.length === 0}
+                        classNames={{
+                           trigger: "group-hover:border-blue-500 transition-colors duration-300",
+                           label: "text-blue-600 group-hover:text-blue-700 transition-colors duration-300"
+                        }}
+                        startContent={
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                           </svg>
+                        }
+                     >
+                        {availableDistricts.map((district) => (
+                           <SelectItem key={district} value={district}>
+                              {district}
+                           </SelectItem>
+                        ))}
+                     </Select>
                      <motion.div
                         className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded opacity-0 group-hover:opacity-100"
                         initial={{ scaleX: 0 }}
@@ -1069,54 +1175,13 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   />
                </motion.div>
                
-               <motion.div
-                  variants={slideUp}
-                  className="relative group"
-               >
-                  <Select
-                     label="Район"
-                     placeholder="Выберите район"
-                     selectedKeys={district ? [district.toString()] : []}
-                     onChange={(e) => setDistrict(e.target.value)}
-                     variant="bordered"
-                     radius="sm"
-                     className="max-w-full"
-                     classNames={{
-                        trigger: "group-hover:border-blue-500 transition-colors duration-300",
-                        label: "text-blue-600 group-hover:text-blue-700 transition-colors duration-300"
-                     }}
-                     startContent={
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
-                     }
-                  >
-                     <SelectItem key="1" value="1" textValue="Алмазарский район">Алмазарский район</SelectItem>
-                     <SelectItem key="2" value="2" textValue="Бектемирский район">Бектемирский район</SelectItem>
-                     <SelectItem key="3" value="3" textValue="Мирабадский район">Мирабадский район</SelectItem>
-                     <SelectItem key="4" value="4" textValue="Мирзо-Улугбекский район">Мирзо-Улугбекский район</SelectItem>
-                     <SelectItem key="5" value="5" textValue="Сергелийский район">Сергелийский район</SelectItem>
-                     <SelectItem key="6" value="6" textValue="Учтепинский район">Учтепинский район</SelectItem>
-                     <SelectItem key="7" value="7" textValue="Чиланзарский район">Чиланзарский район</SelectItem>
-                     <SelectItem key="8" value="8" textValue="Шайхантаурский район">Шайхантаурский район</SelectItem>
-                     <SelectItem key="9" value="9" textValue="Юнусабадский район">Юнусабадский район</SelectItem>
-                     <SelectItem key="10" value="10" textValue="Яккасарайский район">Яккасарайский район</SelectItem>
-                     <SelectItem key="11" value="11" textValue="Яшнабадский район">Яшнабадский район</SelectItem>
-                  </Select>
-                  <motion.div
-                     className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded opacity-0 group-hover:opacity-100"
-                     initial={{ scaleX: 0 }}
-                     whileHover={{ scaleX: 1 }}
-                     transition={{ duration: 0.3 }}
-                  />
-               </motion.div>
                
                <motion.div
                   variants={slideUp}
                   className="relative group"
                >
                   <Textarea
-                     label="Медицинская информация"
+                     label={t('medicalInfo')}
                      placeholder="Укажите важную медицинскую информацию (аллергии, хронические заболевания и т.д.)"
                      value={medicalInfo}
                      onChange={(e) => setMedicalInfo(e.target.value)}
@@ -1144,20 +1209,39 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                </motion.div>
                
                <motion.div 
-                  className="flex justify-end space-x-3 pt-5"
+                  className="flex flex-col space-y-3 pt-5"
                   variants={slideUp}
                >
+                  <motion.div
+                     whileHover={{ scale: 1.02 }}
+                     whileTap={{ scale: 0.98 }}
+                  >
+                     <Button
+                        type="submit"
+                        color="primary"
+                        isLoading={isLoading}
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg px-5 font-medium w-full py-6 sm:py-4 text-base sm:text-sm min-h-[56px] sm:min-h-[48px] rounded-xl"
+                        startContent={!isLoading && (
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                           </svg>
+                        )}
+                     >
+                        {isLoading ? 'Сохранение...' : 'Сохранить профиль'}
+                     </Button>
+                  </motion.div>
+                  
                   {profile && (
                      <motion.div
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                      >
                         <Button
                            type="button"
                            color="default"
                            variant="light"
                            onClick={handleCancelEdit}
-                           className="px-5 font-medium"
+                           className="px-5 font-medium w-full py-4 sm:py-3 min-h-[48px] sm:min-h-[44px] rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
                            startContent={
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1168,46 +1252,48 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         </Button>
                      </motion.div>
                   )}
-                  <motion.div
-                     whileHover={{ scale: 1.03 }}
-                     whileTap={{ scale: 0.97 }}
-                  >
-                     <Button
-                        type="submit"
-                        color="primary"
-                        isLoading={isLoading}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg px-5 font-medium"
-                        startContent={!isLoading && (
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                           </svg>
-                        )}
-                     >
-                        {isLoading ? 'Сохранение...' : 'Сохранить профиль'}
-                     </Button>
-                  </motion.div>
                </motion.div>
             </motion.form>
          )}
          
-         {/* Футер с настройками аккаунта */}
+         {/* Настройки аккаунта */}
          {profile && (
             <motion.div 
-               className="mt-12"
+               className="mt-8 sm:mt-12"
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.5, duration: 0.5 }}
             >
-               <div className="relative">
-                  <Divider className="my-5" />
-                  <div className="absolute inset-x-0 top-1/2 transform -translate-y-1/2 flex justify-center">
-                     <span className="bg-white dark:bg-gray-900 px-4 text-gray-500 text-sm">Дополнительные настройки</span>
+               {/* Красивый разделитель */}
+               <div className="relative mb-6 sm:mb-8">
+                  <div className="absolute inset-0 flex items-center">
+                     <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                  </div>
+                  <div className="relative flex justify-center">
+                     <div className="bg-white px-4 sm:px-6">
+                        <motion.div 
+                           className="flex items-center gap-2 text-gray-500"
+                           whileHover={{ scale: 1.05 }}
+                           transition={{ type: "spring", stiffness: 300 }}
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                           </svg>
+                           <span className="text-sm sm:text-base font-medium">Настройки аккаунта</span>
+                        </motion.div>
+                     </div>
                   </div>
                </div>
                
-               <h3 className="text-lg font-semibold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Настройки аккаунта</h3>
-               
-               <div className="grid gap-3">
+               {/* Карточка с настройками */}
+               <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.4 }}
+                  className="bg-gradient-to-br from-white to-gray-50/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
+               >
+                  <div className="grid gap-2 sm:gap-3">
                   {/* Кнопка смены пароля только для пользователей не из Google */}
                   {authProvider !== "google" && (
                      <motion.div
@@ -1218,18 +1304,18 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            color="primary"
                            variant="light"
                            startContent={
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
-                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
+                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                  </svg>
                               </div>
                            }
                            onClick={() => setPasswordModalOpen(true)}
-                           className="justify-start hover:bg-blue-50 transition-colors w-full py-3"
+                           className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                         >
-                           <div>
-                              <span className="font-medium">Сменить пароль</span>
-                              <p className="text-tiny text-default-500 text-left">Обновите пароль для обеспечения безопасности аккаунта</p>
+                           <div className="text-left">
+                              <span className="font-medium text-sm sm:text-base block mb-1">Сменить пароль</span>
+                              <p className="text-xs sm:text-tiny text-default-500">Обновите пароль для безопасности</p>
                            </div>
                         </Button>
                      </motion.div>
@@ -1251,11 +1337,10 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            </div>
                         }
                         onClick={() => setNotificationsModalOpen(true)}
-                        className="justify-start hover:bg-blue-50 transition-colors w-full py-3"
+                        className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                      >
                         <div>
                            <span className="font-medium">Настройка уведомлений</span>
-                           <p className="text-tiny text-default-500 text-left">Управление типами получаемых уведомлений</p>
                         </div>
                      </Button>
                   </motion.div>
@@ -1276,15 +1361,15 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            </div>
                         }
                         onClick={() => setDeleteAccountModalOpen(true)}
-                        className="justify-start hover:bg-danger-50 transition-colors w-full py-3"
+                        className="justify-start hover:bg-danger-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                      >
                         <div>
                            <span className="font-medium">Удалить аккаунт</span>
-                           <p className="text-tiny text-default-500 text-left">Полное удаление данных аккаунта (необратимое действие)</p>
                         </div>
                      </Button>
                   </motion.div>
-               </div>
+                  </div>
+               </motion.div>
             </motion.div>
          )}
          
@@ -1551,7 +1636,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                               <p className="text-sm text-danger-700">При удалении аккаунта:</p>
                               <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-danger-700">
                                  <li>Вся информация вашего профиля будет удалена</li>
-                                 <li>История консультаций будет недоступна</li>
+                                 <li>{t('consultationHistoryWillBeUnavailable')}</li>
                                  <li>Восстановление аккаунта будет невозможно</li>
                               </ul>
                            </div>

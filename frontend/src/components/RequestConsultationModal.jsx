@@ -4,9 +4,11 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { motion } from 'framer-motion';
+import { useTranslation } from './LanguageSelector';
 
 // Компонент модального окна для запроса консультации
 function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
+  const { t } = useTranslation();
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingConsultation, setExistingConsultation] = useState(false);
@@ -32,7 +34,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
       const response = await api.post('/api/consultations', consultationData);
       console.log('Ответ сервера:', response.data);
       
-      toast.success('Заявка на консультацию успешно отправлена!');
+      toast.success(t('consultationRequestSent'));
       onClose();
       
       // Перенаправляем пользователя в историю консультаций, чтобы увидеть новую заявку
@@ -44,11 +46,11 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
       console.error('Ошибка при отправке заявки на консультацию:', error);
       
       const errorMessage = error.response?.data?.detail || 
-        'Не удалось отправить заявку на консультацию. Пожалуйста, попробуйте позже.';
+        t('consultationRequestError');
       
       // Проверяем, связана ли ошибка с существующей консультацией
       if (errorMessage.includes('уже есть активная консультация')) {
-        toast.error('У вас уже есть активная консультация с этим врачом');
+        toast.error(t('consultationAlreadyActive'));
         setExistingConsultation(true);
       } else {
         toast.error(errorMessage);
@@ -100,7 +102,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
         {existingConsultation ? (
           <>
             <ModalHeader className="flex justify-center text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              У вас уже есть консультация
+              {t('youAlreadyHaveConsultation')}
             </ModalHeader>
             <Divider className="h-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
             <ModalBody className="py-8">
@@ -116,10 +118,10 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                   </svg>
                 </div>
                 <p className="text-lg font-medium mb-4">
-                  У вас уже существует активная консультация с врачом <span className="font-semibold text-indigo-600">{doctorName}</span>.
+                  {t('existingConsultationMessage')} <span className="font-semibold text-indigo-600">{doctorName}</span>.
                 </p>
                 <p className="text-gray-600">
-                  Вы можете перейти к истории консультаций, чтобы продолжить общение в существующей консультации.
+                  {t('goToHistoryToContact')}
                 </p>
               </motion.div>
             </ModalBody>
@@ -131,7 +133,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                 className="px-6"
                 radius="full"
               >
-                Закрыть
+                {t('close')}
               </Button>
               <Button 
                 color="primary" 
@@ -139,14 +141,14 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                 className="px-6 bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md"
                 radius="full"
               >
-                Перейти к консультациям
+                {t('goToConsultations')}
               </Button>
             </ModalFooter>
           </>
         ) : (
           <>
             <ModalHeader className="flex justify-center text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Заявка на консультацию
+              {t('consultationApplication')}
             </ModalHeader>
             <Divider className="h-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
             
@@ -164,7 +166,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Врач</h3>
+                      <h3 className="font-semibold text-gray-800">{t('doctor')}</h3>
                       <p className="text-indigo-600 font-medium">{doctorName || `#${doctorId}`}</p>
                     </div>
                   </div>
@@ -176,8 +178,8 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Формат</h3>
-                      <p className="text-gray-600">Консультация в чате</p>
+                      <h3 className="font-semibold text-gray-800">{t('format')}</h3>
+                      <p className="text-gray-600">{t('chatConsultation')}</p>
                     </div>
                   </div>
                   
@@ -188,18 +190,18 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Лимит сообщений</h3>
-                      <p className="text-gray-600">30 сообщений (с возможностью продления)</p>
+                      <h3 className="font-semibold text-gray-800">{t('messageLimit')}</h3>
+                      <p className="text-gray-600">{t('messageCountInfo')}</p>
                     </div>
                   </div>
                 </div>
               
                 <div className="mt-6">
                   <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Сопроводительное письмо (необязательно)
+                    {t('noteToDoctor')}
                   </label>
                   <Textarea
-                    placeholder="Опишите кратко причину обращения к врачу, симптомы или вопросы, которые вы хотели бы обсудить..."
+                    placeholder={t('notePlaceholder')}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     minRows={4}
@@ -224,7 +226,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                 className="px-6"
                 radius="full"
               >
-                Отмена
+                {t('cancel')}
               </Button>
               <Button 
                 color="primary" 
@@ -233,7 +235,7 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
                 className="px-8 bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md"
                 radius="full"
               >
-                Отправить заявку
+                {t('send')}
               </Button>
             </ModalFooter>
           </>

@@ -14,14 +14,15 @@ import {
   Avatar
 } from '@nextui-org/react';
 import api from '../api';
+import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions';
 import useAuthStore from '../stores/authStore';
 import AvatarWithFallback from './AvatarWithFallback';
 
 const GoogleProfileForm = ({ onCompleted }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
-  const [isLoadingDistricts, setIsLoadingDistricts] = useState(true);
   
   // Получаем текущего пользователя из стора
   const user = useAuthStore(state => state.user);
@@ -32,36 +33,25 @@ const GoogleProfileForm = ({ onCompleted }) => {
     full_name: '',
     contact_phone: '',
     contact_address: '',
-    district: ''
+    city: '', // регион/город
+    district: '' // район внутри региона
   });
 
-  // Загружаем список районов
+  // Загружаем список регионов при монтировании
   useEffect(() => {
-    const fetchDistricts = async () => {
-      console.log('GoogleProfileForm: Начинаю загрузку списка районов');
-      
-      try {
-        console.log('GoogleProfileForm: Отправляю запрос на /api/districts');
-        const response = await api.get('/api/districts');
-        console.log('GoogleProfileForm: Получен ответ для районов:', response.data);
-        setDistricts(response.data);
-      } catch (error) {
-        console.error('GoogleProfileForm: Ошибка при загрузке районов:', error);
-        
-        if (error.response) {
-          console.error('GoogleProfileForm: Статус ошибки районов:', error.response.status);
-          console.error('GoogleProfileForm: Данные ошибки районов:', error.response.data);
-        }
-        
-        // Установим пустой массив районов, чтобы форма все равно работала
-        setDistricts([]);
-      } finally {
-        setIsLoadingDistricts(false);
-      }
-    };
-    
-    fetchDistricts();
+    const regions = getRegions();
+    setRegions(regions);
   }, []);
+
+  // Обновляем районы при изменении города/региона
+  useEffect(() => {
+    if (formData.city) {
+      const districts = getDistrictsByRegion(formData.city);
+      setDistricts(districts);
+    } else {
+      setDistricts([]);
+    }
+  }, [formData.city]);
 
   // Обработчик изменения полей формы
   const handleChange = (e) => {
@@ -77,6 +67,16 @@ const GoogleProfileForm = ({ onCompleted }) => {
     setFormData(prev => ({
       ...prev,
       role: value
+    }));
+  };
+
+  // Обработчик изменения города/региона
+  const handleCityChange = (e) => {
+    const newCity = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      city: newCity,
+      district: '' // Сбрасываем район при смене региона
     }));
   };
 
@@ -315,32 +315,60 @@ const GoogleProfileForm = ({ onCompleted }) => {
                 />
               </div>
               
+              <div className="relative">
+                                  <Input
+                  label="Номер телефона"
+                  placeholder="+998 __ ___ __ __"
+                  name="contact_phone"
+                  value={formData.contact_phone}
+                  onChange={handleChange}
+                  size="lg"
+                  className="w-full"
+                  classNames={{
+                    label: "text-base font-medium",
+                    input: "text-base",
+                    inputWrapper: "shadow-sm bg-default-50 hover:bg-default-100 transition-all"
+                  }}
+                  startContent={
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  }
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="relative">
-                  <Input
-                    label="Телефон"
-                    placeholder="+998 __ ___ __ __"
-                    name="contact_phone"
-                    value={formData.contact_phone}
-                    onChange={handleChange}
+                  <Select
+                    label={t('city')}
+                    placeholder="Выберите город"
+                    value={formData.city}
+                    onChange={handleCityChange}
                     size="lg"
                     className="w-full"
+                    isLoading={isLoadingCities}
                     classNames={{
                       label: "text-base font-medium",
-                      input: "text-base",
-                      inputWrapper: "shadow-sm bg-default-50 hover:bg-default-100 transition-all"
+                      value: "text-base",
+                      trigger: "shadow-sm bg-default-50 hover:bg-default-100 transition-all"
                     }}
                     startContent={
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     }
-                  />
+                  >
+                    {cities.map((cityItem) => (
+                      <SelectItem key={cityItem.value} value={cityItem.value} textValue={cityItem.label}>
+                        {cityItem.label}
+                      </SelectItem>
+                    ))}
+                  </Select>
                 </div>
                 
                 <div className="relative">
                   <Select
-                    label="Район"
+                    label={t('district')}
                     placeholder="Выберите район"
                     value={formData.district}
                     onChange={handleDistrictChange}
@@ -370,7 +398,7 @@ const GoogleProfileForm = ({ onCompleted }) => {
               
               <div className="relative">
                 <Input
-                  label="Адрес"
+                  label={t('address')}
                   placeholder="Введите ваш адрес"
                   name="contact_address"
                   value={formData.contact_address}

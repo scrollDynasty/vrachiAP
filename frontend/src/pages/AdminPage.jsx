@@ -9,11 +9,13 @@ import {
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@nextui-org/react';
 import useAuthStore from '../stores/authStore';
 import notificationService from '../services/notificationService';
+import { useTranslation } from '../components/LanguageSelector.jsx';
 
 // Импортируем API_BASE_URL для использования в путях к файлам
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://soglom.com';
 
 function AdminPage() {
+  const { t } = useTranslation();
   // Состояние для заявок докторов
   const [applications, setApplications] = useState([]);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -398,7 +400,7 @@ function AdminPage() {
                     variant="flat"
                     onPress={() => viewUserProfile(user)}
                   >
-                    Подробнее
+                    {t('moreDetails')}
                   </Button>
                 </div>
               </TableCell>
@@ -488,8 +490,8 @@ function AdminPage() {
     } finally {
       setIsSendingNotification(false);
     }
-  };
-  
+      };
+    
   // Функция для преобразования номера района в название
   const getDistrictName = (district) => {
     const districtsMap = {
@@ -509,15 +511,15 @@ function AdminPage() {
     if (!district) return "-";
     return districtsMap[district.toString()] || district;
   };
-  
-  return (
+    
+    return (
     <div className="py-12 px-6 sm:px-8 lg:px-10 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-[calc(100vh-100px)]">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
-            Панель администратора
+            {t('adminPanelTitle')}
           </h1>
-          <p className="text-gray-600">Управление системой и пользователями</p>
+          <p className="text-gray-600">{t('systemUserManagement')}</p>
         </div>
         
         <Card className="shadow-lg border-none overflow-hidden mb-10">
@@ -525,14 +527,14 @@ function AdminPage() {
           
           <CardHeader className="flex justify-between items-center gap-3 p-6 bg-gradient-to-b from-indigo-50 to-transparent">
             <div>
-              <h2 className="text-xl font-semibold">Административная панель</h2>
+              <h2 className="text-xl font-semibold">{t('administrativePanel')}</h2>
               <p className="text-sm text-gray-500">
-                Аккаунт: {user?.email} | <span className="text-purple-600 font-semibold">Роль: Администратор</span>
+                {t('account')} {user?.email} | <span className="text-purple-600 font-semibold">Роль: Администратор</span>
               </p>
             </div>
             <div>
               <Chip color="secondary" variant="flat" className="font-semibold">
-                Панель администратора
+                {t('adminPanelTitle')}
               </Chip>
             </div>
           </CardHeader>
@@ -543,10 +545,10 @@ function AdminPage() {
               onSelectionChange={setActiveTab}
               className="p-4"
             >
-              <Tab key="applications" title="Заявки врачей">
+              <Tab key="applications" title="{t('doctorApplications')}">
                 <div className="px-6 py-4 border-t">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Заявки на получение роли врача</h3>
+                    <h3 className="text-lg font-semibold">{t('doctorRoleApplications')}</h3>
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
@@ -621,7 +623,7 @@ function AdminPage() {
                                   variant="flat"
                                   onClick={() => viewApplicationDetails(app)}
                                 >
-                                  Подробнее
+                                  {t('moreDetails')}
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -644,14 +646,14 @@ function AdminPage() {
               <Tab key="users" title="Пользователи">
                 <div className="px-6 py-4 border-t">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Управление пользователями</h3>
+                    <h3 className="text-lg font-semibold">{t('userManagement')}</h3>
                     <Button 
                       size="sm" 
                       color="primary" 
                       onClick={fetchUsers}
                       isDisabled={usersLoading}
                     >
-                      Обновить список
+                      {t('refreshList')}
                     </Button>
                   </div>
                 
@@ -678,7 +680,7 @@ function AdminPage() {
               
               <Tab key="notifications" title="Уведомления">
                 <div className="p-6 border-t">
-                  <h3 className="text-lg font-semibold mb-4">Управление уведомлениями</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t('notificationManagement')}</h3>
                   
                   {/* Статус браузерных уведомлений */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -788,7 +790,7 @@ function AdminPage() {
                           variant="bordered"
                         >
                           <SelectItem key="system" value="system" textValue="Системное">Системное</SelectItem>
-                          <SelectItem key="consultation" value="consultation" textValue="Консультация">Консультация</SelectItem>
+                          <SelectItem key="consultation" value="consultation" textValue={t('consultation')}>Консультация</SelectItem>
                           <SelectItem key="appointment" value="appointment" textValue="Запись">Запись</SelectItem>
                           <SelectItem key="message" value="message" textValue="Сообщение">Сообщение</SelectItem>
                           <SelectItem key="update" value="update" textValue="Обновление">Обновление</SelectItem>
@@ -869,7 +871,7 @@ function AdminPage() {
                 </div>
               </Tab>
               
-              <Tab key="settings" title="Настройки">
+              <Tab key="settings" title={t('settings')}>
                 <div className="p-6 border-t">
                   <h3 className="text-lg font-semibold mb-4">Настройки системы</h3>
                   <p className="text-gray-500">
@@ -919,6 +921,18 @@ function AdminPage() {
                     <div>
                       <span className="text-small text-gray-500">Номер лицензии:</span>
                       <p>{selectedApplication.license_number}</p>
+                    </div>
+                    <div>
+                      <span className="text-small text-gray-500">Город/Регион:</span>
+                      <p>{selectedApplication.city || "-"}</p>
+                    </div>
+                    <div>
+                      <span className="text-small text-gray-500">Район:</span>
+                      <p>{selectedApplication.district || "-"}</p>
+                    </div>
+                    <div>
+                      <span className="text-small text-gray-500">Языки консультаций:</span>
+                      <p>{selectedApplication.languages ? selectedApplication.languages.join(", ") : "-"}</p>
                     </div>
                     {selectedApplication.additional_info && (
                       <div>

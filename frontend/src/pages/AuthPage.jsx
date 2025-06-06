@@ -19,11 +19,14 @@ import GoogleButton from 'react-google-button';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import MedicalLoader from '../components/MedicalLoader';
+import { useTranslation, LanguageSelector } from '../components/LanguageSelector';
 
 import { DIRECT_API_URL } from '../api';
 
 // Страница для Входа и Регистрации пользователя. Отображается на маршрутах /login, /register и корневом / (для неавторизованных).
 function AuthPage() {
+  const { t } = useTranslation();
+  
   // Состояние для активной вкладки ('login' - Вход, 'register' - Регистрация)
   const [currentTab, setCurrentTab] = useState('login'); // Изначально активна вкладка Входа
   const [animateCard, setAnimateCard] = useState(false);
@@ -279,6 +282,10 @@ function AuthPage() {
   // Основной UI страницы AuthPage
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden auth-page-container">
+      {/* Селектор языка в правом верхнем углу */}
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSelector variant="button" />
+      </div>
       {/* Динамический градиентный фон */}
       <motion.div 
         className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-0"
@@ -423,7 +430,7 @@ function AuthPage() {
           className="text-lg text-gray-600 max-w-md mx-auto relative"
         >
           <span className="bg-gradient-to-r from-gray-700 to-gray-500 bg-clip-text text-transparent font-medium">
-            Медицинская платформа для онлайн-консультаций с лучшими специалистами
+            {t("platformDescription")}
           </span>
         </motion.p>
       </motion.div>
@@ -486,7 +493,7 @@ function AuthPage() {
                 transition={{ delay: 0.4, duration: 0.5 }}
                 className="text-2xl font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
               >
-                {currentTab === 'login' ? 'Добро пожаловать!' : 'Создайте аккаунт'}
+{currentTab === 'login' ? t('welcome') : t('createNewAccount')}
               </motion.h1>
               
               <motion.p 
@@ -496,8 +503,8 @@ function AuthPage() {
                 className="text-center text-gray-500 mt-1 mb-4 max-w-xs"
               >
                 {currentTab === 'login' 
-                  ? 'Войдите в систему для доступа к медицинским консультациям' 
-                  : 'Зарегистрируйтесь для получения консультаций от специалистов'}
+                  ? t('loginSystemAccess')
+                  : t('registerForConsultations')}
               </motion.p>
               
               {/* Переключатель вкладок */}
@@ -529,7 +536,7 @@ function AuthPage() {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                     </motion.svg>
-                    Вход
+{t('loginTab')}
                   </div>
                   {currentTab === 'login' && (
                     <motion.div 
@@ -566,7 +573,7 @@ function AuthPage() {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                     </motion.svg>
-                    Регистрация
+{t('registerTab')}
                   </div>
                   {currentTab === 'register' && (
                     <motion.div 
@@ -614,9 +621,9 @@ function AuthPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="font-medium">Вход через Google</p>
+                      <p className="font-medium">{t('googleLogin')}</p>
                     </div>
-                    <p className="text-sm pl-7">Если вы зарегистрировались через Google, пожалуйста, используйте кнопку "Войти через Google" ниже.</p>
+                    <p className="text-sm pl-7">{t('googleLoginHint')} {t("loginWithGoogle")} {t('belowText')}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -642,7 +649,7 @@ function AuthPage() {
                       <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
                       <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
                     </svg>
-                    <span className="font-medium text-gray-700">Войти через Google</span>
+                    <span className="font-medium text-gray-700">{t('googleLogin')}</span>
                   </div>
                   
                   <motion.div 
@@ -661,7 +668,7 @@ function AuthPage() {
                 className="flex items-center mb-6"
               >
                 <Divider className="flex-1" />
-                <span className="px-4 text-gray-500 text-sm">или</span>
+                <span className="px-4 text-gray-500 text-sm">{t('or')}</span>
                 <Divider className="flex-1" />
               </motion.div>
 
@@ -672,7 +679,7 @@ function AuthPage() {
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
                 <Tooltip 
-                  content="Если вы зарегистрировались через Google, используйте кнопку 'Войти через Google' выше"
+                  content={t('googleLoginTooltip')}
                   placement="bottom"
                   color="primary"
                   className="mb-4"
@@ -682,7 +689,7 @@ function AuthPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      Уже зарегистрированы через Google?
+                      {t("alreadyGoogleRegistered")}
                     </span>
                   </div>
                 </Tooltip>
@@ -738,7 +745,7 @@ function AuthPage() {
                 transition={{ delay: 0.6, duration: 0.5 }}
                 className="mt-8 text-gray-600 border-t border-gray-100 pt-6"
               >
-                <p className="mb-3 font-medium text-center">Преимущества нашей платформы:</p>
+                <p className="mb-3 font-medium text-center">{t("platformAdvantages")}</p>
                 <div className="space-y-2">
                   <motion.div 
                     className="flex items-center gap-2 text-sm group"
@@ -756,7 +763,7 @@ function AuthPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </motion.div>
-                    <span className="group-hover:text-gray-800 transition-colors">Удобный поиск врачей по специализации</span>
+                    <span className="group-hover:text-gray-800 transition-colors">{t("convenientDoctorSearch")}</span>
                   </motion.div>
                   <motion.div 
                     className="flex items-center gap-2 text-sm group"
@@ -774,7 +781,7 @@ function AuthPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </motion.div>
-                    <span className="group-hover:text-gray-800 transition-colors">Онлайн-консультации из любой точки мира</span>
+                    <span className="group-hover:text-gray-800 transition-colors">{t("onlineConsultationsAnywhere")}</span>
                   </motion.div>
                   <motion.div 
                     className="flex items-center gap-2 text-sm group"
@@ -792,7 +799,7 @@ function AuthPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </motion.div>
-                    <span className="group-hover:text-gray-800 transition-colors">Защищенный обмен медицинскими данными</span>
+                    <span className="group-hover:text-gray-800 transition-colors">{t("secureDataExchange")}</span>
                   </motion.div>
                 </div>
               </motion.div>
@@ -811,13 +818,13 @@ function AuthPage() {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Нужна помощь? <motion.a 
+{t('needHelp')} <motion.a 
               href="#" 
               className="text-primary hover:text-primary-dark hover:underline font-medium transition-colors relative inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="relative z-10">Свяжитесь с нами</span>
+              <span className="relative z-10">{t('contactUs')}</span>
               <motion.span 
                 className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                 initial={{ scaleX: 0 }}

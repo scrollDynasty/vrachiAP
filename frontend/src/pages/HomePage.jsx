@@ -7,8 +7,10 @@ import GoogleProfileForm from '../components/GoogleProfileForm';
 import { ApplicationStatusTracker } from '../components/Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import AvatarWithFallback from '../components/AvatarWithFallback';
+import { useTranslation } from '../components/LanguageSelector';
 
 function HomePage() {
+  const { t } = useTranslation();
   const user = useAuthStore(state => state.user);
   const needsProfileUpdate = useAuthStore(state => state.needsProfileUpdate);
   const token = useAuthStore(state => state.token);
@@ -114,10 +116,10 @@ function HomePage() {
           {/* Приветствие для администратора */}
           <div className="text-center mb-12">
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 mb-2">
-              Панель администратора
+              {t('adminPanel')}
             </h1>
             <p className="text-gray-600">
-              Управление системой и пользователями
+              {t('systemManagement')}
             </p>
           </div>
           
@@ -126,14 +128,14 @@ function HomePage() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardBody className="p-6 flex flex-col items-center text-center">
                 <div className="text-4xl mb-4">⚙️</div>
-                <h3 className="text-xl font-semibold mb-2 text-purple-600">Административная панель</h3>
-                <p className="text-gray-600 mb-4">Управление пользователями и заявками врачей</p>
+                <h3 className="text-xl font-semibold mb-2 text-purple-600">{t('adminPanel')}</h3>
+                <p className="text-gray-600 mb-4">{t('adminPanelDescription')}</p>
                 <Button 
                   color="secondary" 
                   className="mt-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
                   onPress={() => navigate('/admin')}
                 >
-                  Перейти в админ-панель
+                  {t('goToAdminPanel')}
                 </Button>
               </CardBody>
             </Card>
@@ -141,14 +143,14 @@ function HomePage() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardBody className="p-6 flex flex-col items-center text-center">
                 <div className="text-4xl mb-4">📈</div>
-                <h3 className="text-xl font-semibold mb-2 text-purple-600">Аналитика системы</h3>
-                <p className="text-gray-600 mb-4">Статистика использования платформы</p>
+                <h3 className="text-xl font-semibold mb-2 text-purple-600">{t('systemAnalytics')}</h3>
+                <p className="text-gray-600 mb-4">{t('platformUsageStats')}</p>
                 <Button 
                   color="secondary" 
                   className="mt-auto"
-                  onPress={() => alert('Функционал в разработке')}
+                  onPress={() => alert(t('featureInDevelopment'))}
                 >
-                  В разработке
+                                      {t('inDevelopment')}
                 </Button>
               </CardBody>
             </Card>
@@ -160,26 +162,26 @@ function HomePage() {
   
   // Определяем приветствие в зависимости от роли
   const welcomeText = user?.role === 'doctor' 
-    ? 'Добро пожаловать в ваш личный кабинет врача!' 
-    : 'Добро пожаловать в ваш личный кабинет!';
+    ? t('welcome') + ' врач!' 
+    : t('welcome');
   
   // Карточки для пациента
   const patientCards = [
     {
-      title: 'Найти врача',
-      description: 'Поиск врачей по специализации и записаться на консультацию',
+      title: t('findDoctor'),
+      description: t('findDoctorDescription'),
       icon: '🔍',
       action: () => navigate('/search-doctors')
     },
     {
-      title: 'История консультаций',
-      description: 'Просмотр истории ваших консультаций и платежей',
+      title: t('history'),
+      description: t('historyDescription'),
       icon: '📋',
       action: () => navigate('/history')
     },
     {
-      title: 'Настройки профиля',
-      description: 'Обновление личной информации и настройки аккаунта',
+      title: t('profileSettings'),
+      description: t('profileSettingsDescription'),
       icon: '⚙️',
       action: () => navigate('/profile')
     }
@@ -188,22 +190,22 @@ function HomePage() {
   // Карточки для врача
   const doctorCards = [
     {
-      title: 'Мои консультации',
-      description: 'Управление текущими и предстоящими консультациями',
+      title: t('myConsultations'),
+      description: t('myConsultationsDescription'),
       icon: '📅',
       action: () => navigate('/history')
     },
     {
-      title: 'Настройки профиля',
-      description: 'Обновление профессиональной информации и расписания',
+      title: t('profileSettings'),
+      description: t('doctorProfileDescription'),
       icon: '⚙️',
       action: () => navigate('/profile')
     },
     {
-      title: 'Аналитика',
-      description: 'Статистика консультаций и отзывы пациентов',
+      title: t('analytics'),
+      description: t('analyticsDescription'),
       icon: '📊',
-      action: () => alert('Функционал в разработке')
+              action: () => alert(t('featureInDevelopment'))
     }
   ];
   
@@ -356,25 +358,25 @@ function HomePage() {
         />
       </div>
       
-      <div className="max-w-screen-xl mx-auto px-4 py-12 relative z-10">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 relative z-10">
         {/* Компонент уведомлений о статусе заявок */}
         <ApplicationStatusTracker />
 
         {/* Приветствие */}
         <motion.div 
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-10 lg:mb-12"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-5 flex justify-center">
+          <div className="mb-4 sm:mb-5 flex justify-center">
             <motion.div
               className="relative inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <motion.h1 
-                className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
               >
                 Soglom
               </motion.h1>
@@ -403,7 +405,7 @@ function HomePage() {
               {/* Получаем правильный URL аватарки */}
               {(() => {
                 // Базовый URL API, если требуется
-                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://soglom.com';
                 
                 // Получаем URL аватарки из объекта пользователя
                 let avatarUrl = user?.avatar_path || user?.avatar || user?.avatarUrl || user?.photo || user?.photoUrl || user?.profileImage || user?.image;
@@ -442,14 +444,14 @@ function HomePage() {
                     name={userName} // Используем имя для отображения инициалов
                     size="xl" // Увеличенный размер
                     color="primary" // Используем основной цвет для фона инициалов
-                    className="w-24 h-24 shadow-xl border-4 border-white"
+                    className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 shadow-xl border-2 sm:border-3 lg:border-4 border-white"
                     isBordered={true} // Добавляем рамку
                   />
                 );
               })()}
               
               <motion.div 
-                className="absolute -inset-3 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20"
+                className="absolute -inset-2 sm:-inset-3 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20"
                 animate={{ 
                   scale: [1, 1.1, 1],
                   opacity: [0.6, 0.3, 0.6]
@@ -464,7 +466,7 @@ function HomePage() {
           </motion.div>
           
           <motion.h2 
-            className="text-3xl font-bold text-gray-800 mb-2"
+            className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-2 px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
@@ -473,15 +475,15 @@ function HomePage() {
           </motion.h2>
           
           <motion.p 
-            className="text-lg text-gray-600 max-w-md mx-auto"
+            className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-md mx-auto px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
           >
             <span className="bg-gradient-to-r from-gray-700 to-gray-500 bg-clip-text text-transparent font-medium">
               {user?.role === 'doctor' 
-                ? 'Здесь вы можете управлять консультациями и настраивать ваш профиль.'
-                : 'Здесь вы можете искать врачей, управлять консультациями и просматривать историю.'
+                ? t('doctorWelcomeMessage')
+                : t('patientWelcomeMessage')
               }
             </span>
           </motion.p>
@@ -524,10 +526,9 @@ function HomePage() {
                     </motion.svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-warning mb-1">Требуется подтверждение Email</h3>
+                    <h3 className="text-lg font-bold text-warning mb-1">{t('emailVerificationRequired')}</h3>
                     <p className="text-gray-700 mb-2">
-                      Вы не можете использовать полный функционал платформы, пока не подтвердите свой Email.
-                      Пожалуйста, проверьте вашу почту и перейдите по ссылке в письме.
+                      {t('emailVerificationMessage')}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Button 
@@ -537,7 +538,7 @@ function HomePage() {
                         onPress={() => navigate('/verify-email')}
                         className="hover:bg-amber-200 transition-all"
                       >
-                        Подробнее
+                        {t('moreDetails')}
                       </Button>
                       <Button
                         size="sm"
@@ -546,7 +547,7 @@ function HomePage() {
                         onPress={() => window.location.href = 'mailto:support@example.com'}
                         className="hover:bg-gray-100 transition-all"
                       >
-                        Возникли проблемы?
+                        {t('havingProblems')}
                       </Button>
                     </div>
                   </div>
@@ -557,7 +558,7 @@ function HomePage() {
         )}
         
         {/* Карточки сервисов */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-10 px-4">
           {serviceCards.map((card, index) => (
             <motion.div
               key={index}
@@ -579,13 +580,13 @@ function HomePage() {
                 <div className="absolute -top-10 -left-10 w-20 h-20 rounded-full bg-pink-400/20 mix-blend-multiply opacity-50"></div>
                 <div className="absolute -bottom-10 -right-10 w-20 h-20 rounded-full bg-blue-400/20 mix-blend-multiply opacity-50"></div>
                 
-                <CardBody className="p-6 flex flex-col items-center text-center">
+                <CardBody className="p-4 sm:p-5 lg:p-6 flex flex-col items-center text-center">
                   <motion.div 
-                    className="relative w-16 h-16 flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-full mb-4"
+                    className="relative w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-full mb-3 sm:mb-4"
                     whileHover={{ scale: 1.2, rotate: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
-                    <span className="text-4xl">{card.icon}</span>
+                    <span className="text-2xl sm:text-3xl lg:text-4xl">{card.icon}</span>
                     <motion.div
                       className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30"
                       animate={{ 
@@ -600,15 +601,16 @@ function HomePage() {
                     />
                   </motion.div>
                   
-                  <h3 className="text-xl font-semibold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{card.title}</h3>
-                  <p className="text-gray-600 mb-4">{card.description}</p>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{card.title}</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{card.description}</p>
                   
                   <Button 
                     color="primary" 
-                    className="mt-auto bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-xl transition-all"
+                    size="sm"
+                    className="mt-auto bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-xl transition-all w-full sm:w-auto"
                     onPress={card.action}
                   >
-                    Перейти
+                    {t('goTo')}
                   </Button>
                 </CardBody>
               </Card>
@@ -627,14 +629,14 @@ function HomePage() {
             className="text-sm text-gray-600"
             whileHover={{ scale: 1.05 }}
           >
-            Нужна помощь? 
+            {t('needHelp')} 
             <motion.a 
               href="#" 
               className="ml-1 text-primary relative inline-block font-medium"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="relative z-10">Связаться с поддержкой</span>
+              <span className="relative z-10">{t('contactSupport')}</span>
               <motion.span 
                 className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                 initial={{ scaleX: 0 }}

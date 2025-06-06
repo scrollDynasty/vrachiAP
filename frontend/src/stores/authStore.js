@@ -551,8 +551,9 @@ const useAuthStore = create(
             }
           }
           
-          // Send Google auth request
-          const response = await axios.post(`${DIRECT_API_URL}/auth/google`, { 
+          // Send Google auth request - используем baseURL без /api
+          const baseUrl = DIRECT_API_URL.replace('/api', '');
+          const response = await axios.post(`${baseUrl}/auth/google`, { 
             code,
             // Устанавливаем длительное время жизни токена - 7 дней
             expires_in_days: 7
@@ -805,7 +806,12 @@ const useAuthStore = create(
               
               // Показываем только если прошло более 5 секунд с момента последнего уведомления
               if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
-                toast.success(`Email ${userEmail} уже подтвержден. Добро пожаловать!`, {
+                // Импортируем переводы
+                const { translations } = await import('../components/LanguageSelector');
+                const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
+                const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
+                
+                toast.success(`Email ${userEmail} ${t('emailAlreadyConfirmed')}`, {
                   position: "top-right",
                   autoClose: 3000
                 });
@@ -819,7 +825,12 @@ const useAuthStore = create(
               
               // Показываем только если прошло более 5 секунд с момента последнего уведомления
               if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
-                toast.success(`Email успешно подтвержден. Добро пожаловать!`, {
+                // Импортируем переводы
+                const { translations } = await import('../components/LanguageSelector');
+                const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
+                const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
+                
+                toast.success(t('emailSuccessfullyVerified'), {
                   position: "top-right",
                   autoClose: 3000
                 });
@@ -861,7 +872,12 @@ const useAuthStore = create(
                           set({ needsProfileUpdate: false });
                           
                           // Показываем уведомление
-                          toast.success('Профиль успешно создан с данными из регистрации!', {
+                          // Импортируем переводы
+                          const { translations } = await import('../components/LanguageSelector');
+                          const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
+                          const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
+                          
+                          toast.success(t('profileCreatedFromRegistration'), {
                             position: "top-right",
                             autoClose: 3000
                           });

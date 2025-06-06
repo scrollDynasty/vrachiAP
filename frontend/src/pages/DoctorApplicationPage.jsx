@@ -4,6 +4,7 @@ import DoctorApplicationForm from '../components/DoctorApplicationForm';
 import { Card, CardBody, CardHeader, Divider } from '@nextui-org/react';
 import { ApplicationStatusTracker } from '../components/Notification';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../components/LanguageSelector.jsx';
 
 // Анимационные варианты
 const fadeIn = {
@@ -22,6 +23,7 @@ const slideInFromBottom = {
 };
 
 function DoctorApplicationPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   
   // Функция обратного вызова при успешной отправке заявки

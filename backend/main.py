@@ -95,7 +95,7 @@ from auth import (
 )
 
 # URL фронтенда для редиректов
-FRONTEND_URL = "https://soglom.com"
+FRONTEND_URL = "http://localhost:5173"
 
 # Импортируем pydantic модели для валидации данных запросов и ответов
 from schemas import (
@@ -461,6 +461,7 @@ def register_user(
             role=user.role,
             full_name=user_data.get("full_name", None),
             contact_phone=user_data.get("contact_phone", None),
+            city=user_data.get("city", None),  # Новое поле города
             district=user_data.get("district", None),
             contact_address=user_data.get("contact_address", None),
             medical_info=user_data.get("medical_info", None),
@@ -731,6 +732,7 @@ def verify_email(
             has_profile_data = any([
                 pending_user.full_name,
                 pending_user.contact_phone,
+                pending_user.city,
                 pending_user.district,
                 pending_user.contact_address,
                 pending_user.medical_info
@@ -752,6 +754,7 @@ def verify_email(
                             user_id=new_user.id,
                             full_name=pending_user.full_name,
                             contact_phone=pending_user.contact_phone,
+                            city=pending_user.city,  # Новое поле города
                             district=pending_user.district,
                             contact_address=pending_user.contact_address,
                             medical_info=pending_user.medical_info
@@ -1046,8 +1049,13 @@ async def get_doctors(
         get_current_user
     ),  # Опционально, может быть None для публичного доступа
     specialization: Optional[str] = Query(None, description="Фильтр по специализации"),
+    # Новые параметры поиска
+    city: Optional[str] = Query(None, description="Фильтр по городу врача"),
+    country: Optional[str] = Query(None, description="Фильтр по стране врача"),
+    language: Optional[str] = Query(None, description="Фильтр по языку врача"),
+    # Старые параметры для совместимости
     district: Optional[str] = Query(
-        None, description="Фильтр по району практики врача"
+        None, description="Фильтр по району практики врача (deprecated, используйте city)"
     ),
     min_price: Optional[int] = Query(None, description="Минимальная стоимость"),
     max_price: Optional[int] = Query(None, description="Максимальная стоимость"),
@@ -1055,7 +1063,7 @@ async def get_doctors(
     size: int = Query(10, description="Размер страницы (количество элементов)"),
 ):
     """
-    Получение списка всех врачей с возможностью фильтрации по специализации, району практики и диапазону цен.
+    Получение списка всех врачей с возможностью фильтрации по специализации, городу/стране, языку и диапазону цен.
     Поддерживает пагинацию для большого количества результатов.
     """
     # Создаем базовый запрос на получение всех активных и верифицированных врачей
@@ -1068,18 +1076,34 @@ async def get_doctors(
         # Используем точное совпадение специализации
         query = query.filter(DoctorProfile.specialization == specialization)
 
-    if district:
-        # Используем точное совпадение района
+    # Новые фильтры
+    if city:
+        # Фильтр по городу (приоритет над старым районом)
+        query = query.filter(DoctorProfile.city.ilike(f"%{city}%"))
+    elif district:
+        # Старый фильтр по району для совместимости
         query = query.filter(DoctorProfile.district == district)
-    # Если пользователь авторизован как пациент и у него указан район, фильтруем по району
+    # Если пользователь авторизован как пациент, фильтруем по городу
     elif current_user and current_user.role == "patient":
         patient_profile = (
             db.query(PatientProfile)
             .filter(PatientProfile.user_id == current_user.id)
             .first()
         )
-        if patient_profile and patient_profile.district:
-            query = query.filter(DoctorProfile.district == patient_profile.district)
+        if patient_profile:
+            # Приоритет: сначала город, затем район
+            if patient_profile.city:
+                query = query.filter(DoctorProfile.city.ilike(f"%{patient_profile.city}%"))
+            elif patient_profile.district:
+                query = query.filter(DoctorProfile.district == patient_profile.district)
+
+    if country:
+        # Фильтр по стране
+        query = query.filter(DoctorProfile.country.ilike(f"%{country}%"))
+
+    if language:
+        # Фильтр по языку - проверяем JSON массив
+        query = query.filter(DoctorProfile.languages.contains([language]))
 
     if min_price is not None:
         query = query.filter(DoctorProfile.cost_per_consultation >= min_price)
@@ -1122,8 +1146,16 @@ class DoctorDetailResponse(BaseModel):
     experience: str
     education: str
     cost_per_consultation: int
-    practice_areas: str
-    district: Optional[str] = None  # Делаем поле опциональным
+    
+    # Новые поля местоположения и языков
+    city: Optional[str] = None           # Город врача
+    country: Optional[str] = None        # Страна врача
+    languages: Optional[List[str]] = None # Языки врача
+    
+    # Старые поля для совместимости
+    practice_areas: Optional[str] = None  # Сделаем опциональным
+    district: Optional[str] = None  # Район практики
+    
     is_verified: bool
     is_active: bool
     rating: float = 0.0
@@ -1217,6 +1249,58 @@ async def google_auth_login():
     # Перенаправляем клиента на страницу авторизации Google
     return RedirectResponse(url=redirect_url)
 
+
+# Добавляем GET endpoint для Google OAuth
+@app.get("/api/auth/google")
+async def google_auth_api():
+    """
+    Начало процесса аутентификации через Google OAuth.
+    Перенаправляет пользователя на страницу авторизации Google.
+    """
+    # Формируем URL для авторизации на стороне Google
+    google_auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    
+    # Обязательные параметры
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    
+    # Собираем URL
+    redirect_url = f"{google_auth_url}?{urlencode(params)}"
+    
+    # Перенаправляем клиента на страницу авторизации Google
+    return RedirectResponse(url=redirect_url)
+
+# Добавляем GET endpoint для Google OAuth без /api префикса
+@app.get("/auth/google")
+async def google_auth_direct():
+    """
+    Начало процесса аутентификации через Google OAuth.
+    Перенаправляет пользователя на страницу авторизации Google.
+    """
+    # Формируем URL для авторизации на стороне Google
+    google_auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    
+    # Обязательные параметры
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    
+    # Собираем URL
+    redirect_url = f"{google_auth_url}?{urlencode(params)}"
+    
+    # Перенаправляем клиента на страницу авторизации Google
+    return RedirectResponse(url=redirect_url)
 
 # Добавляем новый маршрут для Google OAuth авторизации
 @app.post("/auth/google", response_model=Token)
@@ -1404,6 +1488,7 @@ class UserProfileData(BaseModel):
     full_name: str
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
+    city: Optional[str] = None  # Город/регион
     district: Optional[str] = None  # Район
 
 
@@ -1434,6 +1519,8 @@ async def create_update_google_profile(
                 full_name=profile_data.full_name,
                 contact_phone=profile_data.contact_phone,
                 contact_address=profile_data.contact_address,
+                city=profile_data.city,
+                district=profile_data.district,
             )
             db.add(profile)
         else:
@@ -1443,6 +1530,10 @@ async def create_update_google_profile(
                 profile.contact_phone = profile_data.contact_phone
             if profile_data.contact_address:
                 profile.contact_address = profile_data.contact_address
+            if profile_data.city:
+                profile.city = profile_data.city
+            if profile_data.district:
+                profile.district = profile_data.district
 
         # Если роль пользователя отличается от указанной, обновляем её
         if current_user.role != "patient":
@@ -1494,10 +1585,71 @@ async def create_update_google_profile(
         )
 
 
-# Эндпоинт для получения списка районов Ташкента
+# Эндпоинты для получения данных для фильтров
+
+@app.get("/api/cities", response_model=List[str])
+async def get_cities():
+    """
+    Получение списка доступных городов для фильтрации врачей.
+    
+    Возвращает список строк с названиями городов, где ведут практику врачи.
+    """
+    return [
+        "Ташкент",
+        "Самарканд", 
+        "Бухара",
+        "Андижан",
+        "Наманган",
+        "Фергана", 
+        "Коканд",
+        "Нукус",
+        "Термез",
+        "Карши",
+        "Гулистан",
+        "Джизак",
+        "Ургенч",
+        "Алматы",  # Казахстан
+        "Астана",   # Казахстан
+        "Москва",   # Россия
+        "Санкт-Петербург"  # Россия
+    ]
+
+@app.get("/api/countries", response_model=List[str])
+async def get_countries():
+    """
+    Получение списка доступных стран для фильтрации врачей.
+    """
+    return [
+        "Узбекистан",
+        "Казахстан",
+        "Россия",
+        "Киргизия",
+        "Таджикистан",
+        "Туркменистан"
+    ]
+
+@app.get("/api/languages", response_model=List[str])
+async def get_languages():
+    """
+    Получение списка доступных языков для фильтрации врачей.
+    """
+    return [
+        "русский",
+        "узбекский",
+        "английский",
+        "казахский",
+        "киргизский",
+        "таджикский",
+        "туркменский"
+    ]
+
+# Эндпоинт для получения списка районов Ташкента (deprecated)
 @app.get("/api/districts", response_model=List[str])
 async def get_districts():
-    """Возвращает список районов Ташкента"""
+    """
+    Возвращает список районов Ташкента (deprecated).
+    Рекомендуется использовать /api/cities вместо этого эндпоинта.
+    """
     districts = [
         "Алмазарский район",
         "Бектемирский район",
@@ -1552,6 +1704,9 @@ async def create_doctor_application(
     experience: str = Form(...),
     education: str = Form(...),
     license_number: str = Form(...),
+    city: Optional[str] = Form(None),
+    district: Optional[str] = Form(None),
+    languages: Optional[str] = Form(None),  # JSON строка с массивом языков
     additional_info: Optional[str] = Form(None),
     photo: Optional[UploadFile] = File(None),
     diploma: Optional[UploadFile] = File(None),
@@ -1595,6 +1750,15 @@ async def create_doctor_application(
             detail="У вас уже есть ожидающая рассмотрения заявка",
         )
 
+    # Обрабатываем языки (парсим JSON)
+    parsed_languages = None
+    if languages:
+        try:
+            import json
+            parsed_languages = json.loads(languages)
+        except json.JSONDecodeError:
+            parsed_languages = None
+
     # Создаем новую заявку
     new_application = DoctorApplication(
         user_id=current_user.id,
@@ -1603,6 +1767,9 @@ async def create_doctor_application(
         experience=experience,
         education=education,
         license_number=license_number,
+        city=city,
+        district=district,
+        languages=parsed_languages,
         additional_info=additional_info,
     )
 
@@ -1804,17 +1971,16 @@ async def process_doctor_application(
         if user:
             user.role = "doctor"
 
-            # Получаем профиль пациента, чтобы узнать район
+            # Получаем профиль пациента, чтобы узнать город (если не указан в заявке)
             patient_profile = (
                 db.query(PatientProfile)
                 .filter(PatientProfile.user_id == user.id)
                 .first()
             )
-            district = (
-                patient_profile.district
-                if patient_profile and patient_profile.district
-                else "Яшнабадский район"
-            )  # Дефолт, если не указан
+            
+            # Используем данные из заявки, если доступны, иначе из профиля пациента
+            city = application.city or (patient_profile.city if patient_profile else "Ташкент")
+            district = application.district or (patient_profile.district if patient_profile else "Яшнабадский район")
 
             # Создаем профиль врача, если его еще нет
             doctor_profile = (
@@ -1828,8 +1994,10 @@ async def process_doctor_application(
                     experience=application.experience,
                     education=application.education,
                     cost_per_consultation=1000,  # Значение по умолчанию
-                    practice_areas=district,
-                    district=district,  # Явно устанавливаем район
+                    city=city,
+                    district=district,
+                    languages=application.languages,
+                    practice_areas=district,  # Оставляем для совместимости
                     is_verified=True,
                     is_active=True,  # Автоматически активируем профиль
                 )
@@ -1840,7 +2008,9 @@ async def process_doctor_application(
                 doctor_profile.specialization = application.specialization
                 doctor_profile.experience = application.experience
                 doctor_profile.education = application.education
+                doctor_profile.city = city
                 doctor_profile.district = district
+                doctor_profile.languages = application.languages
                 doctor_profile.practice_areas = district
                 doctor_profile.is_verified = True
                 doctor_profile.is_active = True

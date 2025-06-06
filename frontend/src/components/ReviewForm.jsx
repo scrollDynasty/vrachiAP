@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Textarea, RadioGroup, Radio, Divider, Avatar, Card, Progress } from '@nextui-org/react';
 import { toast } from 'react-hot-toast';
 import api from '../api';
+import { useTranslation } from './LanguageSelector.jsx';
 
 // Компонент модального окна для оставления отзыва о консультации
 function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctorName, doctorAvatar }) {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,11 +38,11 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
   // Получаем текст для текущего рейтинга
   const getRatingText = (value) => {
     const texts = {
-      1: 'Очень плохо',
-      2: 'Плохо',
-      3: 'Нормально',
-      4: 'Хорошо',
-      5: 'Отлично'
+      1: t('ratingVeryBad'),
+      2: t('ratingBad'),
+      3: t('ratingNormal'),
+      4: t('ratingGood'),
+      5: t('ratingExcellent')
     };
     return texts[value] || '';
   };
@@ -66,7 +68,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
       const reviewKey = `review_added_${consultationId}`;
       if (localStorage.getItem(reviewKey) === 'true') {
         console.log('Отзыв уже был отправлен ранее');
-        toast.success('Отзыв уже был отправлен');
+        toast.success(t('reviewAlreadySent'));
         
         if (onReviewSubmitted) {
           onReviewSubmitted();
@@ -84,7 +86,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
       localStorage.setItem(reviewKey, 'true');
       sessionStorage.setItem(reviewKey, 'true');
       
-      toast.success('Отзыв успешно отправлен');
+      toast.success(t('reviewSent'));
       
       // Сначала вызываем колбэк
       if (onReviewSubmitted) {
@@ -98,7 +100,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
       console.error('Ошибка при отправке отзыва:', error);
       
       const errorMessage = error.response?.data?.detail || 
-        'Не удалось отправить отзыв. Пожалуйста, попробуйте позже.';
+        t('reviewSubmitError');
       
       toast.error(errorMessage);
     } finally {
@@ -123,9 +125,9 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
             <i className="fas fa-comment-medical text-primary-500"></i>
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-medium">Оставить отзыв</h3>
+            <h3 className="text-xl font-medium">{t('leaveReview')}</h3>
             {doctorName && (
-              <p className="text-sm text-gray-500">Консультация с {doctorName}</p>
+              <p className="text-sm text-gray-500">{t('consultationWith')} {doctorName}</p>
             )}
           </div>
         </ModalHeader>
@@ -135,7 +137,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
             <Card className="mb-6 shadow-sm bg-gradient-to-b from-gray-50 to-white border-none">
               <div className="p-4 text-center">
                 <p className="text-default-700 mb-4">
-                  Ваш отзыв поможет другим пациентам выбрать подходящего врача. Спасибо за обратную связь!
+                  {t('reviewHelpMessage')}
                 </p>
                 
                 {doctorAvatar && (
@@ -149,7 +151,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
                 )}
                 
                 <div className="mb-6">
-                  <h3 className="text-medium font-semibold mb-3 text-center">Как вы оцениваете консультацию?</h3>
+                  <h3 className="text-medium font-semibold mb-3 text-center">{t('rateConsultation')}</h3>
                   
                   <div className="flex justify-center items-center mb-3">
                     <div className="text-4xl transition-all duration-300 transform hover:scale-110">
@@ -206,9 +208,9 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
                 </div>
                 
                 <div className="text-left">
-                  <h3 className="text-medium font-semibold mb-2">Ваш комментарий</h3>
+                  <h3 className="text-medium font-semibold mb-2">{t('yourComment')}</h3>
                   <Textarea
-                    placeholder="Расскажите о вашем опыте консультации..."
+                    placeholder={t('reviewCommentPlaceholder')}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     minRows={3}
@@ -221,7 +223,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
                     }}
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    Ваш комментарий поможет врачу улучшить качество консультаций
+                    {t('commentHelpText')}
                   </p>
                 </div>
               </div>
@@ -236,7 +238,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
             disabled={isSubmitting}
             className="hover:bg-gray-100"
           >
-            Отмена
+            {t('cancel')}
           </Button>
           <Button 
             color="primary" 
@@ -245,7 +247,7 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
             className="shadow-sm hover:shadow-md transition-all duration-300"
             startContent={<i className="fas fa-paper-plane"></i>}
           >
-            Отправить отзыв
+            {t('submitReview')}
           </Button>
         </ModalFooter>
       </ModalContent>

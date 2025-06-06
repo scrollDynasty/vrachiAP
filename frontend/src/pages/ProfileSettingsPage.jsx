@@ -406,7 +406,7 @@ function ProfileSettingsPage() {
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Верхний градиентный круг */}
         <motion.div 
-          className="absolute top-0 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-200/60 to-indigo-300/60 blur-[60px]"
+          className="absolute top-0 -right-20 sm:-right-40 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full bg-gradient-to-br from-blue-200/40 sm:from-blue-200/60 to-indigo-300/40 sm:to-indigo-300/60 blur-[40px] sm:blur-[60px]"
           animate={{ 
             y: [0, 15, -15, 0],
             rotate: [0, 5, 0, -5, 0],
@@ -421,7 +421,7 @@ function ProfileSettingsPage() {
         
         {/* Нижний градиентный круг */}
         <motion.div 
-          className="absolute -bottom-20 -left-20 w-[450px] h-[450px] rounded-full bg-gradient-to-br from-red-200/50 to-pink-300/50 blur-[50px]"
+          className="absolute -bottom-10 sm:-bottom-20 -left-10 sm:-left-20 w-[250px] sm:w-[450px] h-[250px] sm:h-[450px] rounded-full bg-gradient-to-br from-red-200/30 sm:from-red-200/50 to-pink-300/30 sm:to-pink-300/50 blur-[30px] sm:blur-[50px]"
           animate={{ 
             y: [0, -15, 15, 0],
             rotate: [0, -5, 0, 5, 0],
@@ -434,9 +434,9 @@ function ProfileSettingsPage() {
           }}
         />
         
-        {/* Маленькие плавающие круги */}
+        {/* Маленькие плавающие круги - скрываем на очень малых экранах */}
         <motion.div 
-          className="absolute top-1/3 left-1/4 w-[200px] h-[200px] rounded-full bg-gradient-to-br from-green-200/50 to-teal-300/50 blur-[40px]"
+          className="hidden sm:block absolute top-1/3 left-1/4 w-[200px] h-[200px] rounded-full bg-gradient-to-br from-green-200/50 to-teal-300/50 blur-[40px]"
           animate={{ 
             y: [0, 30, 0],
             x: [0, 15, 0],
@@ -451,7 +451,7 @@ function ProfileSettingsPage() {
         />
         
         <motion.div 
-          className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full bg-gradient-to-br from-purple-200/50 to-indigo-300/50 blur-[45px]"
+          className="hidden sm:block absolute bottom-1/3 right-1/4 w-[180px] sm:w-[250px] h-[180px] sm:h-[250px] rounded-full bg-gradient-to-br from-purple-200/50 to-indigo-300/50 blur-[35px] sm:blur-[45px]"
           animate={{ 
             y: [0, -20, 0],
             x: [0, -10, 0],
@@ -465,9 +465,9 @@ function ProfileSettingsPage() {
           }}
         />
         
-        {/* Дополнительные яркие шарики */}
+        {/* Дополнительные яркие шарики - скрываем на мобильных */}
         <motion.div 
-          className="absolute top-1/2 left-10 w-[150px] h-[150px] rounded-full bg-gradient-to-r from-violet-300/60 to-fuchsia-300/60 blur-[30px]"
+          className="hidden md:block absolute top-1/2 left-5 sm:left-10 w-[120px] sm:w-[150px] h-[120px] sm:h-[150px] rounded-full bg-gradient-to-r from-violet-300/40 sm:from-violet-300/60 to-fuchsia-300/40 sm:to-fuchsia-300/60 blur-[25px] sm:blur-[30px]"
           animate={{ 
             y: [0, -40, 0],
             x: [0, 20, 0],
@@ -482,7 +482,7 @@ function ProfileSettingsPage() {
         />
         
         <motion.div 
-          className="absolute bottom-1/4 right-20 w-[180px] h-[180px] rounded-full bg-gradient-to-r from-rose-200/60 to-pink-300/60 blur-[35px]"
+          className="hidden md:block absolute bottom-1/4 right-10 sm:right-20 w-[140px] sm:w-[180px] h-[140px] sm:h-[180px] rounded-full bg-gradient-to-r from-rose-200/40 sm:from-rose-200/60 to-pink-300/40 sm:to-pink-300/60 blur-[25px] sm:blur-[35px]"
           animate={{ 
             y: [0, 30, 0],
             x: [0, -25, 0],
@@ -501,21 +501,21 @@ function ProfileSettingsPage() {
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
-        className="relative z-10 py-12 px-6 sm:px-8 lg:px-10 min-h-[calc(100vh-100px)]"
+        className="relative z-10 py-6 sm:py-8 lg:py-12 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-100px)]"
       >
         <div className="max-w-4xl mx-auto">
           <motion.div 
             variants={slideUp}
-            className="text-center mb-10"
+            className="text-center mb-6 sm:mb-8 lg:mb-10"
           >
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2 sm:mb-3 px-4">
               Мой профиль
             </h1>
-            <p className="text-gray-600">Управляйте личными данными и настройками</p>
+            <p className="text-sm sm:text-base text-gray-600 px-4">Управляйте личными данными и настройками</p>
           </motion.div>
           
           <motion.div variants={slideUp}>
-            <Card className="shadow-xl border-none overflow-hidden mb-6 hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm">
+            <Card className="shadow-xl border-none overflow-hidden mb-4 sm:mb-6 hover:shadow-2xl transition-all duration-300 bg-white/90 backdrop-blur-sm mx-2 sm:mx-0">
               {/* Декоративная линия */}
               <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 relative overflow-hidden">
                 <motion.div 
@@ -532,8 +532,8 @@ function ProfileSettingsPage() {
                 />
               </div>
             
-              <CardHeader className="flex justify-between items-center gap-3 p-8 bg-gradient-to-b from-indigo-50 to-transparent">
-                <div className="flex items-center gap-4">
+              <CardHeader className="flex flex-col items-center text-center sm:flex-row sm:text-left sm:justify-between sm:items-center gap-4 p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-indigo-50 to-transparent">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -555,12 +555,14 @@ function ProfileSettingsPage() {
                       src={user?.avatar_path || undefined}
                       name={user?.name || user?.email?.charAt(0)?.toUpperCase() || "?"}
                       size="lg"
-                      className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white z-10 relative"
+                      className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white z-10 relative w-20 h-20 sm:w-16 sm:h-16"
                     />
                   </motion.div>
-                  <div>
-                    <h2 className="text-xl font-semibold">{profileData?.full_name || user?.email || "Пользователь"}</h2>
-                    <p className="text-sm text-gray-500">
+                  <div className="text-center sm:text-left">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1">
+                      {profileData?.full_name || user?.email || "Пользователь"}
+                    </h2>
+                    <p className="text-sm text-gray-500 font-medium">
                       {user?.role === 'patient' ? 'Пациент' : 
                        user?.role === 'doctor' ? 'Врач' : 
                        user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
@@ -568,64 +570,68 @@ function ProfileSettingsPage() {
                   </div>
                 </div>
                 
-                {/* Кнопка для подачи заявки на роль врача (только для пациентов) */}
-                {user?.role === 'patient' && (
-                  <motion.div
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    <Link to="/doctor-application">
-                      <Button 
-                        color="primary" 
-                        variant="shadow"
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
-                      >
-                        Подать заявку на роль врача
-                      </Button>
-                    </Link>
-                  </motion.div>
-                )}
-                
-                {/* Ссылка на админ-панель (только для админов) */}
-                {user?.role === 'admin' && (
-                  <motion.div
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    <Link to="/admin_control_panel_52x9a8">
-                      <Button 
-                        color="secondary" 
-                        variant="shadow"
-                        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                      >
-                        Перейти в админ-панель
-                      </Button>
-                    </Link>
-                  </motion.div>
-                )}
+                {/* Кнопки действий */}
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  {/* Кнопка для подачи заявки на роль врача (только для пациентов) */}
+                  {user?.role === 'patient' && (
+                    <Button 
+                      color="primary" 
+                      variant="shadow"
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md w-full sm:w-auto text-sm min-h-[44px] touch-manipulation"
+                      size="sm"
+                      onPress={() => window.location.href = '/doctor-application'}
+                      startContent={
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      }
+                    >
+                      Стать врачом
+                    </Button>
+                  )}
+                  
+                  {/* Ссылка на админ-панель (только для админов) */}
+                  {user?.role === 'admin' && (
+                    <Button 
+                      color="secondary" 
+                      variant="shadow"
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md w-full sm:w-auto text-sm min-h-[44px] touch-manipulation"
+                      size="sm"
+                      onPress={() => window.location.href = '/admin_control_panel_52x9a8'}
+                      startContent={
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      }
+                    >
+                      Админ-панель
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               
               <Divider />
               
-              <CardBody className="p-8">
+              <CardBody className="p-4 sm:p-6 lg:p-8">
                 {/* Вывод сообщений */}
                 {saveSuccess && (
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 p-5 rounded-lg border border-green-200"
+                    className="mb-4 sm:mb-6 bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 p-3 sm:p-4 lg:p-5 rounded-lg border border-green-200"
                   >
                     <div className="flex items-center">
                       <motion.div
                         animate={{ scale: [0.8, 1.2, 1] }}
                         transition={{ duration: 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </motion.div>
-                      <p className="font-medium">Профиль успешно сохранен!</p>
+                      <p className="font-medium text-sm sm:text-base">Профиль успешно сохранен!</p>
                     </div>
                   </motion.div>
                 )}
@@ -635,18 +641,19 @@ function ProfileSettingsPage() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mb-6 bg-gradient-to-r from-red-50 to-rose-50 text-danger p-5 rounded-lg border border-danger-200"
+                    className="mb-4 sm:mb-6 bg-gradient-to-r from-red-50 to-rose-50 text-danger p-3 sm:p-4 lg:p-5 rounded-lg border border-danger-200"
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-start">
                       <motion.div
                         animate={{ rotate: [0, 10, -10, 0] }}
                         transition={{ duration: 0.5 }}
+                        className="flex-shrink-0"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                       </motion.div>
-                      <p className="font-medium">{error}</p>
+                      <p className="font-medium text-sm sm:text-base">{error}</p>
                     </div>
                   </motion.div>
                 )}
@@ -656,18 +663,19 @@ function ProfileSettingsPage() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 p-5 rounded-lg border border-blue-200"
+                    className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 p-3 sm:p-4 lg:p-5 rounded-lg border border-blue-200"
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-start">
                       <motion.div
                         animate={{ scale: [1, 1.1, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
+                        className="flex-shrink-0"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </motion.div>
-                      <p className="font-medium">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
+                      <p className="font-medium text-sm sm:text-base">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
                     </div>
                   </motion.div>
                 )}
@@ -675,7 +683,7 @@ function ProfileSettingsPage() {
                 {/* Формы профиля */}
                 <motion.div 
                   variants={slideUp}
-                  className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100"
+                  className="bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100"
                 >
                   {user.role === 'patient' && (
                     <PatientProfileForm

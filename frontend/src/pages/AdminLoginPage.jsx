@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { Card, CardBody, CardHeader, Avatar, Input, Button, Spinner } from '@nextui-org/react';
 import MedicalLoader from '../components/MedicalLoader';
+import { useTranslation } from '../components/LanguageSelector.jsx';
 
 function AdminLoginPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -74,7 +76,7 @@ function AdminLoginPage() {
           </h1>
         </div>
         <p className="text-lg text-gray-600">
-          Панель администрирования медицинской платформы
+          {t('medicalPlatformAdminPanel')}
         </p>
       </div>
       
@@ -91,10 +93,10 @@ function AdminLoginPage() {
               className="w-20 h-20 text-white bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg mb-2"
             />
             <h1 className="text-2xl font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
-              Вход для администраторов
+              {t('adminLogin')}
             </h1>
             <p className="text-center text-gray-500 mt-1 mb-4 max-w-xs">
-              Доступ только для авторизованных сотрудников
+              {t('accessForAuthorizedOnly')}
             </p>
           </CardHeader>
           
@@ -133,7 +135,7 @@ function AdminLoginPage() {
               
               <Input
                 id="admin-password"
-                label="Пароль"
+                label={t('password')}
                 placeholder="Введите пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

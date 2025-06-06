@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { Card, CardBody, Spinner } from '@nextui-org/react';
 import GoogleProfileForm from '../components/GoogleProfileForm';
+import { useTranslation } from '../components/LanguageSelector';
 import axios from 'axios';
 
 // Добавляем функцию для проверки наличия конфликтующих расширений
@@ -31,6 +32,7 @@ function GoogleAuthCallback() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasConflictingExtensions, setHasConflictingExtensions] = useState(false);
+  const { t } = useTranslation();
   
   // Get auth functions and state from store
   const processGoogleAuth = useAuthStore(state => state.processGoogleAuth);
@@ -372,7 +374,7 @@ function GoogleAuthCallback() {
           error.message?.includes('invalid_grant') || 
           error.message?.includes('Code exchange failed')) {
         setStatus('error');
-        setErrorMessage('Код авторизации истек или недействителен. Пожалуйста, попробуйте войти снова.');
+        setErrorMessage(t('authErrorCodeExpired') || 'Код авторизации истек или недействителен. Пожалуйста, попробуйте войти снова.');
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 2000);
@@ -382,7 +384,7 @@ function GoogleAuthCallback() {
       // Если код уже был обработан, но пользователь не авторизован
       if (error.message?.includes('уже был')) {
         setStatus('error');
-        setErrorMessage('Этот код авторизации уже был использован. Пожалуйста, войдите снова.');
+        setErrorMessage(t('authErrorCodeUsed') || 'Этот код авторизации уже был использован. Пожалуйста, войдите снова.');
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 2000);
@@ -400,7 +402,7 @@ function GoogleAuthCallback() {
         }
       } else {
         setStatus('error');
-        setErrorMessage(error.message || 'Произошла ошибка при обработке авторизации через Google');
+        setErrorMessage(error.message || t('authErrorGeneric') || 'Произошла ошибка при обработке авторизации через Google');
       }
     };
     
@@ -476,8 +478,7 @@ function GoogleAuthCallback() {
       {hasConflictingExtensions && (
         <div className="fixed top-4 right-4 p-4 bg-yellow-100 border border-yellow-400 rounded shadow-md max-w-md">
           <p className="text-yellow-800">
-            <strong>Внимание:</strong> Обнаружены расширения браузера, которые могут мешать процессу авторизации. 
-            Если возникают проблемы, попробуйте временно отключить расширения или использовать режим инкогнито.
+            <strong>{t('attention') || 'Внимание'}:</strong> {t('extensionWarning') || 'Обнаружены расширения браузера, которые могут мешать процессу авторизации. Если возникают проблемы, попробуйте временно отключить расширения или использовать режим инкогнито.'}
           </p>
         </div>
       )}
@@ -486,8 +487,8 @@ function GoogleAuthCallback() {
         <Card className="max-w-md w-full mx-auto shadow-xl">
           <CardBody className="py-8 px-6 text-center">
             <Spinner size="lg" className="mb-4" />
-            <h2 className="text-xl font-semibold text-gray-800">Завершение авторизации...</h2>
-            <p className="mt-2 text-gray-600">Пожалуйста, подождите, мы обрабатываем вашу авторизацию через Google.</p>
+            <h2 className="text-xl font-semibold text-gray-800">{t('authProcessing')}</h2>
+            <p className="mt-2 text-gray-600">{t('authProcessingDescription')}</p>
           </CardBody>
         </Card>
       )}
@@ -500,8 +501,8 @@ function GoogleAuthCallback() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">Авторизация успешна!</h2>
-            <p className="mt-2 text-gray-600">Вы будете перенаправлены на главную страницу...</p>
+            <h2 className="text-xl font-semibold text-gray-800">{t('authSuccess')}</h2>
+            <p className="mt-2 text-gray-600">{t('authRedirectMessage')}</p>
           </CardBody>
         </Card>
       )}
@@ -520,15 +521,15 @@ function GoogleAuthCallback() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">Ошибка авторизации</h2>
+            <h2 className="text-xl font-semibold text-gray-800">{t('authErrorTitle')}</h2>
             <p className="mt-2 text-gray-600">
-              {errorMessage || error || "Произошла ошибка при обработке авторизации через Google. Пожалуйста, попробуйте еще раз."}
+              {errorMessage || error || t('authErrorGeneric') || "Произошла ошибка при обработке авторизации через Google. Пожалуйста, попробуйте еще раз."}
             </p>
             <button 
               onClick={() => navigate('/login')}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
             >
-              Вернуться на страницу входа
+              {t('returnToLogin')}
             </button>
           </CardBody>
         </Card>

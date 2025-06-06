@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Spinner, Checkbox, Card, CardBody, Input, Divider } from '@nextui-org/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from './LanguageSelector';
 import MedicalLoader from './MedicalLoader';
 
 function LoginForm({ onSubmit, isLoading, error }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -49,18 +51,18 @@ function LoginForm({ onSubmit, isLoading, error }) {
     
     // Проверка заполнения полей
     if (!email) {
-      setFormError("Пожалуйста, введите email");
+      setFormError(t('emailRequired'));
       return;
     }
     if (!password) {
-      setFormError("Пожалуйста, введите пароль");
+      setFormError(t('passwordRequired'));
       return;
     }
     
     // Проверка формата email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setFormError("Пожалуйста, введите корректный email");
+              setFormError(t('invalidEmail'));
       return;
     }
     
@@ -80,7 +82,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
       // Если ошибка возникла в этом компоненте и не была обработана выше,
       // устанавливаем ее в локальное состояние
       console.error("LoginForm Error:", err);
-      setFormError(err.message || "Произошла ошибка при входе. Попробуйте позже.");
+              setFormError(err.message || t('loginError'));
     }
   };
 
@@ -205,7 +207,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-2xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
             >
-              Добро пожаловать!
+              {t('welcome')}
             </motion.h2>
 
             <AnimatePresence>
@@ -249,7 +251,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => handleFocus('email')}
                   onBlur={handleBlur}
-                  placeholder="Введите ваш email"
+                  placeholder={t('emailPlaceholder')}
                   variant="bordered"
                   radius="lg"
                   autoComplete="email"
@@ -298,12 +300,12 @@ function LoginForm({ onSubmit, isLoading, error }) {
               >
                 <Input
                   type="password"
-                  label="Пароль"
+                  label={t('password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => handleFocus('password')}
                   onBlur={handleBlur}
-                  placeholder="Введите ваш пароль"
+                  placeholder={t('passwordPlaceholder')}
                   variant="bordered"
                   radius="lg"
                   autoComplete="current-password"
@@ -353,7 +355,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
                     wrapper: "before:border-2 before:border-gray-300 group-data-[selected=true]:before:border-primary"
                   }}
                 >
-                  <span className="text-gray-700">Запомнить меня</span>
+                  <span className="text-gray-700">{t('rememberMe')}</span>
                 </Checkbox>
                 
                 <motion.a 
@@ -362,7 +364,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span>Забыли пароль?</span>
+                  <span>{t('forgotPassword')}</span>
                   <motion.span 
                     className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                     initial={{ scaleX: 0 }}
@@ -391,7 +393,7 @@ function LoginForm({ onSubmit, isLoading, error }) {
                       </svg>
                     )}
                   >
-                    {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" /></div> : 'Войти в аккаунт'}
+                    {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" /></div> : t('login')}
                   </Button>
                   
                   <motion.div 
@@ -408,14 +410,14 @@ function LoginForm({ onSubmit, isLoading, error }) {
                 className="text-center mt-6"
               >
                 <p className="text-gray-600">
-                  Нет аккаунта?{' '}
+                  {t('noAccount')}{' '}
                   <motion.a 
                     href="/register" 
                     className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <span className="relative z-10">Зарегистрироваться</span>
+                    <span className="relative z-10">{t('register')}</span>
                     <motion.span 
                       className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                       initial={{ scaleX: 0 }}

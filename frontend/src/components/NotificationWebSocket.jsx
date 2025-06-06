@@ -239,7 +239,7 @@ const NotificationWebSocket = () => {
         // Получаем WebSocket токен через API
         console.log('NotificationWebSocket: Запрашиваем WebSocket токен для уведомлений');
         
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ws-token`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://soglom.com'}/api/ws-token`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -260,7 +260,7 @@ const NotificationWebSocket = () => {
 
         console.log('NotificationWebSocket: WebSocket токен получен');
         
-        const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
+        const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://soglom.com'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
         console.log('NotificationWebSocket: Подключение к WebSocket:', wsUrl);
         
         const ws = new WebSocket(wsUrl);

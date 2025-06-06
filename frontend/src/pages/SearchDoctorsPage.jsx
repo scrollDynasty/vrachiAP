@@ -6,7 +6,10 @@ import api from '../api';
 import useAuthStore from '../stores/authStore';
 import AvatarWithFallback from '../components/AvatarWithFallback';
 import RequestConsultationModal from '../components/RequestConsultationModal';
+import { useTranslation } from '../components/LanguageSelector';
 import { motion } from 'framer-motion';
+import { useMediaQuery } from 'react-responsive';
+import { availableLanguages } from '../constants/uzbekistanRegions';
 
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
@@ -63,43 +66,18 @@ const getAvatarSource = (doctorData) => {
   return undefined;
 };
 
-// Функция для получения названия района по идентификатору
-const getDistrictName = (districtId) => {
-  if (!districtId) return 'Не указано';
-  
-  // Статический список районов
-  const districtsList = [
-    "Алмазарский район",
-    "Бектемирский район",
-    "Мирабадский район",
-    "Мирзо-Улугбекский район",
-    "Сергелийский район",
-    "Учтепинский район",
-    "Чиланзарский район",
-    "Шайхантаурский район",
-    "Юнусабадский район",
-    "Яккасарайский район",
-    "Яшнабадский район"
-  ];
-  
-  // Если districtId - число и находится в пределах массива
-  if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
-    return districtsList[parseInt(districtId) - 1];
-  }
-  
-  // Если districtId совпадает с названием района, возвращаем его как есть
-  if (districtsList.includes(districtId)) {
-    return districtId;
-  }
-  
-  return districtId; // Если не удалось распознать, возвращаем как есть
-};
+
 
 // Компонент карточки врача в списке
-const DoctorCard = ({ doctor, onClick }) => {
+const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const isMobile = useMediaQuery({ maxWidth: 767 });
+  
+  // Определяем какой вариант использовать
+  const currentVariant = variant === 'auto' ? (isMobile ? 'mobile' : 'default') : variant;
   
   // Проверяем, может ли пользователь запрашивать консультацию
   const canRequestConsultation = () => {
@@ -160,67 +138,222 @@ const DoctorCard = ({ doctor, onClick }) => {
     // Открываем модальное окно для запроса консультации
     setIsConsultationModalOpen(true);
   };
+
+  // Мобильная/компактная версия карточки
+  if (currentVariant === 'mobile' || currentVariant === 'compact') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className={className}
+      >
+        <Card 
+          className="w-full hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30 border-1 border-blue-100/50"
+          isPressable 
+          onPress={onClick}
+        >
+          <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+          <CardBody className="p-4 sm:p-5">
+            <div className="flex items-start gap-4">
+              {/* Аватар */}
+              <div className="flex-shrink-0 relative">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <AvatarWithFallback
+                    src={getAvatarSource(doctor)}
+                    name={doctor.full_name || "?"}
+                    size="xl"
+                    className="ring-2 ring-white shadow-lg border-2 border-white w-16 h-16 sm:w-20 sm:h-20"
+                    color="primary"
+                  />
+                  {doctor.is_verified && (
+                    <motion.div 
+                      className="absolute -top-1 -right-1 w-6 h-6 bg-success-500 rounded-full flex items-center justify-center shadow-md"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </motion.div>
+                  )}
+                </motion.div>
+              </div>
+
+              {/* Информация о враче */}
+              <div className="flex-1 min-w-0">
+                <div className="mb-3">
+                  <h3 className="font-bold text-gray-900 text-base sm:text-lg bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent truncate mb-1">
+                    {doctor.full_name || 'Врач'}
+                  </h3>
+                  <p className="text-sm text-indigo-600 font-medium mb-2">
+                    {doctor.specialization}
+                  </p>
+                  
+                  {doctor.is_verified && (
+                    <Chip color="success" variant="flat" size="sm" className="text-xs mb-2">
+                      {t('verifiedDoctor')}
+                    </Chip>
+                  )}
+                </div>
+
+                {/* Цена */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-indigo-600">
+                      {doctor.cost_per_consultation} 
+                    </span>
+                    <span className="text-sm text-gray-500">UZS</span>
+                  </div>
+                </div>
+
+                {/* Локация */}
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="truncate">
+                    {doctor.city || 'Не указано'}
+                  </span>
+                </div>
+
+                {/* Языки */}
+                {doctor.languages && doctor.languages.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {doctor.languages.slice(0, 3).map((lang, idx) => (
+                      <Chip 
+                        key={idx}
+                        size="sm" 
+                        variant="flat"
+                        color="primary"
+                        className="text-xs"
+                      >
+                        {lang}
+                      </Chip>
+                    ))}
+                    {doctor.languages.length > 3 && (
+                      <span className="text-xs text-gray-500 py-1">
+                        +{doctor.languages.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Кнопки действий */}
+            <div className="flex gap-2 mt-4">
+              <Button
+                color="primary"
+                variant="light"
+                size="md"
+                className="flex-1 font-medium"
+                startContent={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+              >
+                {t('moreDetails')}
+              </Button>
+              <Button
+                color="primary"
+                size="md"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg font-medium"
+                startContent={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                }
+                onPress={(e) => {
+                  e?.stopPropagation && e.stopPropagation();
+                  handleRequestConsultation();
+                }}
+              >
+                {t('bookNow')}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Модальное окно для запроса консультации */}
+        <RequestConsultationModal 
+          isOpen={isConsultationModalOpen}
+          onClose={() => setIsConsultationModalOpen(false)}
+          doctorId={getDoctorConsultationId()}
+          doctorName={doctor.full_name || `${doctor.last_name || ""} ${doctor.first_name || ""} ${doctor.middle_name || ""}`}
+        />
+      </motion.div>
+    );
+  }
   
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      whileHover={{ y: -8 }}
+      whileHover={{ y: -8, scale: 1.02 }}
+      className="h-full"
     >
       <Card 
-        className="overflow-hidden shadow-md hover:shadow-xl transition-all duration-500"
-        isPressable 
-        onPress={onClick}
+        className="overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-blue-50/20 border-1 border-blue-100/50 h-full"
       >
-        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-        <CardBody className="p-0">
-          <div className="flex flex-col">
+        <div className="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+        <CardBody className="p-0 h-full flex flex-col cursor-pointer" onClick={onClick}>
+          <div className="flex flex-col h-full">
             {/* Верхняя часть карточки с информацией о враче */}
-            <div className="p-4 flex justify-between items-start">
-              <div className="flex items-center gap-3">
+            <div className="p-5 flex justify-between items-start">
+              <div className="flex items-center gap-4">
                 <div className="relative">
                   <motion.div 
-                    className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow-lg"
+                    className="w-18 h-18 flex-shrink-0"
                     whileHover={{ scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <AvatarWithFallback 
                       src={getAvatarSource(doctor)} 
                       name={doctor.full_name || "?"}
-                      size="lg"
-                      className="w-full h-full" 
+                      size="xl"
+                      className="w-18 h-18 border-3 border-white shadow-lg" 
                       color="primary"
-                      style={{ minWidth: "100%", minHeight: "100%" }}
                     />
                   </motion.div>
                   {doctor.is_verified && (
                     <motion.div 
-                      className="absolute -bottom-1 -right-1 bg-success-100 p-1 rounded-full border-2 border-white"
+                      className="absolute -bottom-1 -right-1 bg-success-500 p-1.5 rounded-full border-2 border-white shadow-md"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 400, damping: 10 }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-success-600" viewBox="0 0 20 20" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </motion.div>
                   )}
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{doctor.full_name || 'Имя не указано'}</h3>
-                  <div className="flex items-center flex-wrap mt-1 gap-1.5">
-                    <Chip color="primary" variant="flat" size="sm" className="text-xs">{doctor.specialization}</Chip>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 mb-2">{doctor.full_name || 'Имя не указано'}</h3>
+                  <div className="flex items-center flex-wrap gap-2">
+                    <Chip color="primary" variant="flat" size="md" className="font-medium">{doctor.specialization}</Chip>
                     {doctor.is_verified && (
-                      <Chip color="success" variant="flat" size="sm" className="text-xs">Проверенный врач</Chip>
+                      <Chip color="success" variant="flat" size="sm">{t('verifiedDoctor')}</Chip>
                     )}
                   </div>
                 </div>
               </div>
-              <div>
-                <div className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">{doctor.cost_per_consultation} UZS</div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">{doctor.cost_per_consultation} UZS</div>
                 {doctor.rating > 0 && (
-                  <div className="flex items-center mt-1 justify-end">
+                  <div className="flex items-center mt-2 justify-end">
                     <div className="flex">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <motion.svg 
@@ -228,7 +361,7 @@ const DoctorCard = ({ doctor, onClick }) => {
                           xmlns="http://www.w3.org/2000/svg" 
                           viewBox="0 0 24 24" 
                           fill={star <= doctor.rating ? "#FFB400" : "#E2E8F0"} 
-                          className="w-3.5 h-3.5"
+                          className="w-4 h-4"
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           transition={{ delay: star * 0.1, type: "spring", stiffness: 300 }}
@@ -237,7 +370,7 @@ const DoctorCard = ({ doctor, onClick }) => {
                         </motion.svg>
                       ))}
                     </div>
-                    <span className="ml-1 text-xs text-gray-600">{doctor.rating}</span>
+                    <span className="ml-2 text-sm text-gray-600 font-medium">{doctor.rating}</span>
                   </div>
                 )}
               </div>
@@ -246,7 +379,27 @@ const DoctorCard = ({ doctor, onClick }) => {
             <Divider />
             
             {/* Нижняя часть карточки с дополнительной информацией */}
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="p-5 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 flex-1">
+              {/* Языки */}
+              {doctor.languages && doctor.languages.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 font-medium mb-2">{t('languages')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {doctor.languages.map((lang, idx) => (
+                      <Chip 
+                        key={idx}
+                        size="sm" 
+                        variant="flat"
+                        color="primary"
+                        className="font-medium"
+                      >
+                        {lang}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center">
                   <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 mr-2 shadow-sm">
@@ -256,8 +409,13 @@ const DoctorCard = ({ doctor, onClick }) => {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">Район</p>
-                    <p className="text-sm font-medium text-gray-700">{getDistrictName(doctor.district) || 'Не указан'}</p>
+                    <p className="text-xs text-gray-500 font-medium">{t('location')}</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      {(doctor.city && doctor.country) 
+                        ? `${doctor.city}, ${doctor.country}` 
+                        : getDistrictName(doctor.district) || t('notSpecified')
+                      }
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center">
@@ -267,44 +425,54 @@ const DoctorCard = ({ doctor, onClick }) => {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">Опыт</p>
-                    <p className="text-sm font-medium text-gray-700">{doctor.experience || 'Не указан'}</p>
+                    <p className="text-xs text-gray-500 font-medium">{t('experience')}</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      {doctor.work_experience && doctor.work_experience.length > 0 
+                        ? `${doctor.work_experience.length} ${t('organizations')}`
+                        : doctor.experience || t('notSpecified')
+                      }
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </CardBody>
-        <CardFooter className="px-4 py-3 flex justify-between items-center bg-white border-t">
+        <CardFooter className="px-5 py-4 flex justify-between items-center bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-t border-blue-100/50 mt-auto">
           <Button 
             color="primary" 
             variant="light" 
-            size="sm" 
-            radius="full" 
-            className="font-medium"
-            endContent={
+            size="md" 
+            radius="lg" 
+            className="font-medium hover:bg-blue-100/50 transition-colors"
+            startContent={
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
-            onClick={(e) => {
-              e.stopPropagation();
+            onPress={(e) => {
+              e?.stopPropagation && e.stopPropagation();
               onClick();
             }}
           >
-            Подробнее
+            {t('moreDetails')}
           </Button>
           <Button 
             color="primary" 
-            size="sm" 
-            radius="full" 
-            className="font-medium bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md hover:shadow-lg"
+            size="md" 
+            radius="lg" 
+            className="font-medium bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg hover:shadow-xl transition-all duration-300 px-6"
+            startContent={
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
             onClick={(e) => {
               e.stopPropagation();
               handleRequestConsultation();
             }}
           >
-            Записаться
+                                            {t('bookNow')}
           </Button>
         </CardFooter>
         
@@ -323,10 +491,14 @@ const DoctorCard = ({ doctor, onClick }) => {
 // Компонент страницы поиска врачей
 function SearchDoctorsPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   
   // Состояния для фильтров
   const [specialization, setSpecialization] = useState('');
   const [specializations, setSpecializations] = useState([]);
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [patientCity, setPatientCity] = useState(''); // Город пациента для автоматической фильтрации
+  const { t } = useTranslation();
   
   // Состояния для данных
   const [doctors, setDoctors] = useState([]);
@@ -338,7 +510,7 @@ function SearchDoctorsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   
-  // Загружаем список специализаций
+  // Загружаем список специализаций и город пациента
   useEffect(() => {
     const loadSpecializations = async () => {
       try {
@@ -349,8 +521,23 @@ function SearchDoctorsPage() {
       }
     };
     
+    const loadPatientCity = async () => {
+      if (user && user.role === 'patient') {
+        try {
+          const response = await api.get('/patients/me/profile');
+          if (response.data && response.data.city) {
+            setPatientCity(response.data.city);
+            console.log('Город пациента для автофильтрации:', response.data.city);
+          }
+        } catch (error) {
+          console.error('Не удалось получить город пациента:', error);
+        }
+      }
+    };
+    
     loadSpecializations();
-  }, []);
+    loadPatientCity();
+  }, [user]);
 
   // Загрузка врачей при первом рендере и при изменении фильтров или страницы
   useEffect(() => {
@@ -360,10 +547,17 @@ function SearchDoctorsPage() {
       setError(null);
       
       try {
-        // Фильтры для запроса (только специализация)
+        // Фильтры для запроса
         const filters = {};
         if (specialization) {
           filters.specialization = specialization;
+        }
+        // Автоматически фильтруем по городу пациента
+        if (patientCity) {
+          filters.city = patientCity;
+        }
+        if (selectedLanguage) {
+          filters.language = selectedLanguage;
         }
         
         // Отправляем запрос на API
@@ -400,7 +594,7 @@ function SearchDoctorsPage() {
     };
     
     fetchDoctors();
-  }, [page, specialization]);
+  }, [page, specialization, patientCity, selectedLanguage]);
   
   // Обработчик поиска (сбрасывает пагинацию и выполняет новый поиск)
   const handleSearch = (e) => {
@@ -408,10 +602,15 @@ function SearchDoctorsPage() {
     setPage(1); // Сбрасываем страницу на первую при новом поиске
   };
   
-  // Обработчик изменения специализации
+  // Обработчики изменения фильтров
   const handleSpecializationChange = (e) => {
     setSpecialization(e.target.value);
-    setPage(1); // Сбрасываем на первую страницу при изменении фильтра
+    setPage(1);
+  };
+
+  const handleLanguageChange = (e) => {
+    setSelectedLanguage(e.target.value);
+    setPage(1);
   };
   
   // Обработчик клика по карточке врача
@@ -502,21 +701,21 @@ function SearchDoctorsPage() {
         />
       </div>
       
-      <div className="max-w-screen-xl mx-auto px-4 py-8 relative z-10">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={fadeInUp}
-          className="text-center mb-8"
+          className="text-center mb-6 sm:mb-8"
         >
-          <div className="mb-4 flex justify-center">
+          <div className="mb-3 sm:mb-4 flex justify-center">
             <motion.div
               className="relative inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <motion.h1 
-                className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
               >
                 Soglom
               </motion.h1>
@@ -534,10 +733,10 @@ function SearchDoctorsPage() {
               />
             </motion.div>
           </div>
-          <h1 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Поиск врачей</h1>
-          <p className="text-gray-600 max-w-md mx-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 px-4">{t('findDoctor')}</h1>
+          <p className="text-sm sm:text-base text-gray-600 max-w-md mx-auto px-4">
             <span className="bg-gradient-to-r from-gray-700 to-gray-500 bg-clip-text text-transparent font-medium">
-              Найдите подходящего специалиста для консультации
+              {t('findSpecialistDescription')}
             </span>
           </p>
         </motion.div>
@@ -548,10 +747,10 @@ function SearchDoctorsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <form onSubmit={handleSearch} className="mb-8 bg-white/90 border border-white/30 shadow-2xl p-6 rounded-xl overflow-hidden">
+          <form onSubmit={handleSearch} className="mb-6 sm:mb-8 bg-white/90 border border-white/30 shadow-2xl p-4 sm:p-6 rounded-xl overflow-hidden relative">
             {/* Анимированная линия вверху */}
             <motion.div 
-              className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mt-6 -mx-6 mb-6"
+              className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 -mt-4 sm:-mt-6 -mx-4 sm:-mx-6 mb-4 sm:mb-6"
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ delay: 0.3, duration: 0.8 }}
@@ -561,19 +760,19 @@ function SearchDoctorsPage() {
             <div className="absolute -top-20 -left-20 w-40 h-40 rounded-full bg-pink-400/20 mix-blend-multiply opacity-70"></div>
             <div className="absolute -bottom-20 -right-20 w-40 h-40 rounded-full bg-blue-400/20 mix-blend-multiply opacity-70"></div>
             
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-grow">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
+              {/* Специализация */}
+              <div>
                 <Select
-                  label="Специализация"
-                  placeholder="Выберите специализацию"
+                  label={t('specialization')}
+                  placeholder={t('selectSpecialization')}
                   value={specialization}
                   onChange={handleSpecializationChange}
                   variant="bordered"
                   radius="lg"
                   fullWidth
-                  className="min-w-full"
                 >
-                  <SelectItem key="" value="">Все специализации</SelectItem>
+                  <SelectItem key="" value="">{t('allSpecializations')}</SelectItem>
                   {specializations.map((spec) => (
                     <SelectItem key={spec} value={spec}>
                       {spec}
@@ -581,24 +780,70 @@ function SearchDoctorsPage() {
                   ))}
                 </Select>
               </div>
-              <Button
-                type="submit"
-                color="primary"
-                isLoading={loading}
-                className="md:w-auto w-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md hover:shadow-lg transition-all"
-                size="lg"
-                radius="full"
-                startContent={
-                  !loading && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  )
-                }
-              >
-                {loading ? 'Поиск...' : 'Найти врача'}
-              </Button>
+
+              {/* Язык */}
+              <div>
+                <Select
+                  label={t('language')}
+                  placeholder={t('selectLanguage')}
+                  value={selectedLanguage}
+                  onChange={handleLanguageChange}
+                  variant="bordered"
+                  radius="lg"
+                  fullWidth
+                >
+                  <SelectItem key="" value="">{t('allLanguages')}</SelectItem>
+                  {availableLanguages.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {lang}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Кнопка поиска */}
+              <div className="flex items-end sm:col-span-2 lg:col-span-1">
+                <Button
+                  type="submit"
+                  color="primary"
+                  isLoading={loading}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md hover:shadow-lg transition-all"
+                  size="lg"
+                  radius="lg"
+                  startContent={
+                    !loading && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                      </svg>
+                    )
+                  }
+                >
+                  <span className="text-sm sm:text-base">{loading ? t('searching') : t('findDoctor')}</span>
+                </Button>
+              </div>
             </div>
+            
+            {/* Информация о автоматической фильтрации по городу */}
+            {patientCity && (
+              <div className="mb-4 text-center px-2">
+                <Chip 
+                  color="primary" 
+                  variant="flat" 
+                  size="sm"
+                  startContent={
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  }
+                >
+                  <span className="text-xs sm:text-sm">{t('searchInRegion')}: {patientCity}</span>
+                </Chip>
+                <p className="text-xs sm:text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+                  {t('autoFilterByRegion')}
+                </p>
+              </div>
+            )}
           </form>
         </motion.div>
         
@@ -635,22 +880,22 @@ function SearchDoctorsPage() {
           <>
             {/* Информация о результатах */}
             <motion.div 
-              className="mb-6 flex justify-between items-center"
+              className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 px-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+              <h2 className="text-lg sm:text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
                 {doctors.length > 0 ? (
-                  <>Найдено врачей: <span className="text-primary">{totalItems}</span></>
+                  <>{t('doctorsFound')}: <span className="text-primary">{totalItems}</span></>
                 ) : (
-                  'Результаты поиска'
+                  t('searchResults')
                 )}
               </h2>
               
               {doctors.length > 0 && (
-                <p className="text-sm text-gray-600">
-                  Страница {page} из {totalPages}
+                <p className="text-xs sm:text-sm text-gray-600">
+                  {t('page')} {page} {t('of')} {totalPages}
                 </p>
               )}
             </motion.div>
@@ -665,18 +910,19 @@ function SearchDoctorsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-lg font-medium mb-2 text-gray-700">Нет врачей, соответствующих вашим критериям поиска</p>
-                <p className="text-gray-500">Попробуйте изменить параметры поиска или выбрать другую специализацию</p>
+                <p className="text-lg font-medium mb-2 text-gray-700">{t('noDoctorsFound')}</p>
+                <p className="text-gray-500">{t('tryChangeSearchParams')}</p>
               </motion.div>
             ) : (
               <>
                 {/* Список врачей */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="space-y-4 sm:space-y-6 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 md:gap-6 lg:gap-8 xl:gap-10 mb-6 sm:mb-8 px-4 sm:px-6">
                   {doctors.map((doctor, index) => (
                     <DoctorCard 
                       key={doctor.id} 
                       doctor={doctor} 
                       onClick={() => handleDoctorClick(doctor.id)}
+                      variant="auto"
                     />
                   ))}
                 </div>

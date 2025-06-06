@@ -1,4 +1,3 @@
-// frontend/src/components/DoctorProfileForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, Spinner, Textarea, Card, CardBody, CardHeader, Divider, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Switch, Chip, Select, SelectItem } from '@nextui-org/react';
 import { toast } from 'react-toastify';
@@ -7,6 +6,8 @@ import api, { getCsrfToken } from '../api';
 import { notificationsApi } from '../api';
 import { uploadAvatar } from '../api';
 import AvatarWithFallback from './AvatarWithFallback';
+import { useTranslation } from './LanguageSelector';
+import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions'; // Импортируем систему регионов
 
 // Анимационные варианты для элементов
 const fadeIn = {
@@ -29,23 +30,22 @@ const staggerFormContainer = {
   }
 };
 
-// Компонент формы для профиля Врача
-// Используется на странице ProfileSettingsPage для создания или редактирования профиля Врача.
-// Принимает:
-// - profile: Объект с текущими данными профиля врача (null, если профиль не создан).
-// - onSave: Функция, которая будет вызвана при отправке формы с данными профиля.
-// - isLoading: Флаг, указывающий, идет ли процесс сохранения (передается из родительского компонента).
-// - error: Сообщение об ошибке сохранения (передается из родительского компонента).
 function DoctorProfileForm({ profile, onSave, isLoading, error }) {
+   const { t } = useTranslation();
    const [full_name, setFullName] = useState('');
    const [specialization, setSpecialization] = useState('');
    const [experience_years, setExperienceYears] = useState('');
    const [education, setEducation] = useState('');
+   const [city, setCity] = useState('');
    const [district, setDistrict] = useState('');
    const [cost_per_consultation, setCostPerConsultation] = useState(0);
    const [formLocalError, setFormLocalError] = useState(null);
    const [profileImage, setProfileImage] = useState(null);
    const [isEditing, setIsEditing] = useState(false);
+   
+   // Состояние для системы регионов
+   const [availableRegions, setAvailableRegions] = useState([]);
+   const [availableDistricts, setAvailableDistricts] = useState([]);
    
    // Состояние для модальных окон
    const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
@@ -127,6 +127,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          }
          
          setEducation(profile.education || '');
+         setCity(profile.city || '');
          setDistrict(profile.district || profile.practice_areas || '');
          setIsEditing(false);
          
@@ -168,7 +169,26 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
       };
       
       fetchCsrfToken();
+   }, []);
 
+   // Загружаем список регионов при монтировании
+   useEffect(() => {
+      const regions = getRegions();
+      setAvailableRegions(regions);
+   }, []);
+
+   // Обновляем районы при изменении города
+   useEffect(() => {
+      if (city) {
+         const districts = getDistrictsByRegion(city);
+         setAvailableDistricts(districts);
+      } else {
+         setAvailableDistricts([]);
+      }
+   }, [city]);
+
+   // Загружаем настройки уведомлений
+   useEffect(() => {
       // Загрузка настроек уведомлений из API
       const fetchNotificationSettings = async () => {
          try {
@@ -217,6 +237,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          specialization: specialization || '',
          experience: experience_years ? `${experience_years} лет` : '',
          education: education || '',
+         city: city || '',
          district: district || ''
       };
 
@@ -296,10 +317,23 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          }
          
          setEducation(profile.education || '');
+         setCity(profile.city || '');
          setDistrict(profile.district || profile.practice_areas || '');
       }
       setIsEditing(false);
       setFormLocalError(null);
+   };
+
+   // Обработчик изменения города/региона
+   const handleCityChange = (e) => {
+      const newCity = e.target.value;
+      setCity(newCity);
+      setDistrict(''); // Сбрасываем район при смене города
+   };
+
+   // Обработчик изменения района
+   const handleDistrictChange = (e) => {
+      setDistrict(e.target.value);
    };
    
    // Обработчик клика на фото
@@ -550,37 +584,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
       }
    };
 
-   // Функция для получения названия района по идентификатору
-   const getDistrictName = (districtId) => {
-      if (!districtId) return 'Не указано';
-      
-      // Статический список районов
-      const districtsList = [
-         "Алмазарский район",
-         "Бектемирский район",
-         "Мирабадский район",
-         "Мирзо-Улугбекский район",
-         "Сергелийский район",
-         "Учтепинский район",
-         "Чиланзарский район",
-         "Шайхантаурский район",
-         "Юнусабадский район",
-         "Яккасарайский район",
-         "Яшнабадский район"
-      ];
-      
-      // Если districtId - число и находится в пределах массива
-      if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
-         return districtsList[parseInt(districtId) - 1];
-      }
-      
-      // Если districtId совпадает с названием района, возвращаем его как есть
-      if (districtsList.includes(districtId)) {
-         return districtId;
-      }
-      
-      return districtId; // Если не удалось распознать, возвращаем как есть
-   };
+
 
    return (
       <motion.div 
@@ -653,91 +657,53 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          )}
          
          <motion.div className="mb-8" variants={staggerFormContainer}>
-            <div className="flex justify-between items-center mb-8">
-               <motion.div variants={slideUp} className="relative">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+                        <div className="mb-8 text-center">
+               <motion.div variants={slideUp} className="relative mb-6 inline-block">
+                  <h2 className="text-2xl sm:text-3xl md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                      Настройки профиля врача
                   </h2>
                   <motion.div 
-                     className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                     className="absolute -bottom-1 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full w-full"
                      initial={{ width: 0 }}
                      animate={{ width: "100%" }}
                      transition={{ delay: 0.2, duration: 0.8 }}
                   />
                </motion.div>
                
-               <motion.div variants={slideUp}>
-                  {isEditing ? (
-                     <div className="flex gap-2">
-                        <motion.div
-                           whileHover={{ scale: 1.03 }}
-                           whileTap={{ scale: 0.97 }}
-                        >
-                           <Button 
-                              color="danger" 
-                              variant="flat" 
-                              onClick={handleCancelEdit}
-                              disabled={isLoading}
-                              className="font-medium"
-                              startContent={
-                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                 </svg>
-                              }
-                           >
-                              Отмена
-                           </Button>
-                        </motion.div>
-                        <motion.div
-                           whileHover={{ scale: 1.03 }}
-                           whileTap={{ scale: 0.97 }}
-                        >
-                           <Button 
-                              color="primary" 
-                              type="submit"
-                              form="doctor-profile-form"
-                              disabled={isLoading}
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg font-medium"
-                              startContent={
-                                 isLoading ? null : 
-                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                 </svg>
-                              }
-                           >
-                              {isLoading ? <Spinner size="sm" /> : "Сохранить изменения"}
-                           </Button>
-                        </motion.div>
-                     </div>
-                  ) : (
-                     <div>
-                        <Chip 
-                           color="primary" 
-                           variant="flat" 
-                           className="mb-2 bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-200/50"
-                           startContent={
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                           }
-                        >
-                           <span className="text-blue-800 font-medium">Ваш профиль зафиксирован администратором</span>
-                        </Chip>
-                     </div>
-                  )}
-               </motion.div>
+               {!isEditing && (
+                  <motion.div 
+                     variants={slideUp}
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: 0.4, duration: 0.5 }}
+                     className="flex justify-center"
+                  >
+                     <Chip 
+                        color="primary" 
+                        variant="flat" 
+                        className="bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-200/50"
+                        startContent={
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                           </svg>
+                        }
+                     >
+                        <span className="text-blue-800 font-medium">Ваш профиль зафиксирован администратором</span>
+                     </Chip>
+                  </motion.div>
+               )}
             </div>
             
-            <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                {/* Левая колонка - фото профиля и настройки аккаунта */}
                <motion.div 
-                  className="md:w-1/3 space-y-6"
+                  className="lg:w-1/3 space-y-4 sm:space-y-6"
                   variants={slideUp}
                >
                   {/* Фото профиля */}
                   <Card className="shadow-lg hover:shadow-xl transition-all duration-300 overflow-visible border-none">
                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-                     <CardBody className="p-6 flex flex-col items-center relative">
+                     <CardBody className="p-4 sm:p-6 flex flex-col items-center relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-xl"></div>
                         
                         <div className="relative z-10 flex flex-col items-center">
@@ -812,7 +778,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                        )
                                     }
                                  >
-                                    {isUploading ? "Загрузка..." : "Изменить фото"}
+                                    {isUploading ? t('loading') : "Изменить фото"}
                                  </Button>
                               </motion.div>
                            </div>
@@ -835,21 +801,21 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                   {/* Настройки безопасности */}
                   <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-none overflow-hidden">
                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-                     <CardBody className="p-5">
+                     <CardBody className="p-4 sm:p-5">
                         <div className="flex flex-col h-full">
                            <div className="mb-3 flex items-center">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-md">
-                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-md">
+                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                  </svg>
                               </div>
-                              <h3 className="text-medium font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Безопасность</h3>
+                              <h3 className="text-base sm:text-medium font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Безопасность</h3>
                            </div>
-                           <p className="text-sm text-gray-600 mb-5 pl-11">Управление паролем и настройками безопасности вашего аккаунта</p>
+                           <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-5 pl-13 sm:pl-11">Управление паролем и настройками безопасности вашего аккаунта</p>
                            
                            <div className="mt-auto">
                               {/* Кнопки настроек */}
-                              <div className="flex flex-col gap-3">
+                              <div className="flex flex-col gap-2 sm:gap-3">
                                  {/* Кнопка смены пароля только для пользователей не из Google */}
                                  {authProvider !== "google" && (
                                     <motion.div
@@ -860,18 +826,18 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           color="primary"
                                           variant="light"
                                           startContent={
-                                             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                                 </svg>
                                              </div>
                                           }
                                           onClick={() => setPasswordModalOpen(true)}
-                                          className="justify-start hover:bg-blue-50 transition-colors w-full py-3"
+                                          className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                                        >
-                                          <div>
-                                             <span className="font-medium">Сменить пароль</span>
-                                             <p className="text-tiny text-default-500 text-left">Обновите пароль для обеспечения безопасности аккаунта</p>
+                                          <div className="text-left">
+                                             <span className="font-medium text-sm sm:text-base block mb-1">Сменить пароль</span>
+                                             <p className="text-xs sm:text-tiny text-default-500">Обновите пароль для безопасности</p>
                                           </div>
                                        </Button>
                                     </motion.div>
@@ -886,18 +852,17 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                        color="default"
                                        variant="light"
                                        startContent={
-                                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
-                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex items-center justify-center mr-2">
+                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                              </svg>
                                           </div>
                                        }
                                        onClick={() => setNotificationsModalOpen(true)}
-                                       className="justify-start hover:bg-blue-50 transition-colors w-full py-3"
+                                       className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                                     >
-                                       <div>
-                                          <span className="font-medium">Настройка уведомлений</span>
-                                          <p className="text-tiny text-default-500 text-left">Управление типами получаемых уведомлений</p>
+                                       <div className="text-left">
+                                          <span className="font-medium text-sm sm:text-base block mb-1">Настройка уведомлений</span>
                                        </div>
                                     </Button>
                                  </motion.div>
@@ -909,7 +874,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                </motion.div>
                
                {/* Правая колонка - форма профиля */}
-               <motion.div className="md:w-2/3" variants={slideUp}>
+               <motion.div className="lg:w-2/3" variants={slideUp}>
                   <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-none overflow-hidden">
                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
                      <CardBody className="p-0">
@@ -979,7 +944,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                        </div>
                                     </motion.div>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                                        <motion.div 
                                           className="space-y-6"
                                           initial={{ opacity: 0, x: -20 }}
@@ -1006,7 +971,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           {/* Специализация (только для просмотра) */}
                                           <div className="relative group">
                                              <Input
-                                                label="Специализация"
+                                                label={t('specialization')}
                                                 value={specialization}
                                                 readOnly
                                                 variant="bordered"
@@ -1015,6 +980,23 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                                 startContent={
                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                                   </svg>
+                                                }
+                                             />
+                                          </div>
+
+                                          {/* Район практики (перемещен сюда) */}
+                                          <div className="relative group">
+                                             <Input
+                                                label="Район практики"
+                                                value={district || 'Не указано'}
+                                                readOnly
+                                                variant="bordered"
+                                                isDisabled={true}
+                                                className="max-w-full"
+                                                startContent={
+                                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                                                    </svg>
                                                 }
                                              />
@@ -1049,11 +1031,11 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                              />
                                           </div>
                                           
-                                          {/* Район практики (только для просмотра) */}
+                                          {/* Город/Регион (только для просмотра) */}
                                           <div className="relative group">
                                              <Input
-                                                label="Район практики"
-                                                value={getDistrictName(district)}
+                                                label="Город/Регион"
+                                                value={city || 'Не указано'}
                                                 readOnly
                                                 variant="bordered"
                                                 isDisabled={true}
@@ -1077,7 +1059,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                        transition={{ delay: 0.5 }}
                                     >
                                        <Textarea
-                                          label="Образование"
+                                          label={t('education')}
                                           value={education}
                                           readOnly
                                           variant="bordered"
@@ -1094,8 +1076,107 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           }
                                        />
                                     </motion.div>
+
+                                    {/* Языки консультаций */}
+                                    <motion.div 
+                                       className="relative group"
+                                       initial={{ opacity: 0, y: 20 }}
+                                       animate={{ opacity: 1, y: 0 }}
+                                       transition={{ delay: 0.6 }}
+                                    >
+                                       <div className="flex flex-col space-y-2">
+                                          <label className="text-small text-blue-600 font-medium flex items-center">
+                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                                             </svg>
+                                             Языки консультаций
+                                          </label>
+                                          <div className="flex flex-wrap gap-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50 min-h-[60px] items-start">
+                                             {profile?.languages && profile.languages.length > 0 ? (
+                                                profile.languages.map((language, index) => (
+                                                   <motion.div
+                                                      key={index}
+                                                      initial={{ opacity: 0, scale: 0.8 }}
+                                                      animate={{ opacity: 1, scale: 1 }}
+                                                      transition={{ delay: 0.1 * index }}
+                                                   >
+                                                      <Chip
+                                                         variant="flat"
+                                                         color="primary"
+                                                         className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200/50 font-medium"
+                                                         startContent={
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                         }
+                                                      >
+                                                         {language}
+                                                      </Chip>
+                                                   </motion.div>
+                                                ))
+                                             ) : (
+                                                <div className="text-gray-500 text-sm flex items-center justify-center w-full py-4">
+                                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.994-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                                   </svg>
+                                                   Языки консультаций не указаны
+                                                </div>
+                                             )}
+                                          </div>
+                                       </div>
+                                    </motion.div>
                                  </div>
                               </form>
+                              
+                              {/* Кнопки управления формой */}
+                              {isEditing && (
+                                 <motion.div 
+                                    className="flex flex-col space-y-3 pt-6 mt-6 border-t border-gray-200"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.7, duration: 0.5 }}
+                                 >
+                                    <motion.div
+                                       whileHover={{ scale: 1.02 }}
+                                       whileTap={{ scale: 0.98 }}
+                                    >
+                                       <Button 
+                                          color="primary" 
+                                          type="submit"
+                                          form="doctor-profile-form"
+                                          disabled={isLoading}
+                                          className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg font-medium w-full py-6 sm:py-4 text-base sm:text-sm min-h-[56px] sm:min-h-[48px] rounded-xl"
+                                          startContent={
+                                             isLoading ? null : 
+                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                             </svg>
+                                          }
+                                       >
+                                          {isLoading ? <Spinner size="sm" /> : "Сохранить изменения"}
+                                       </Button>
+                                    </motion.div>
+                                    <motion.div
+                                       whileHover={{ scale: 1.02 }}
+                                       whileTap={{ scale: 0.98 }}
+                                    >
+                                       <Button 
+                                          color="default" 
+                                          variant="light" 
+                                          onClick={handleCancelEdit}
+                                          disabled={isLoading}
+                                          className="font-medium w-full py-4 sm:py-3 min-h-[48px] sm:min-h-[44px] rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
+                                          startContent={
+                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                             </svg>
+                                          }
+                                       >
+                                          Отмена
+                                       </Button>
+                                    </motion.div>
+                                 </motion.div>
+                              )}
                            </div>
                         </div>
                      </CardBody>

@@ -5,9 +5,11 @@ import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import api from '../api';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../components/LanguageSelector.jsx';
 
 // Компонент страницы истории консультаций и платежей
 function HistoryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { unreadMessages, fetchUnreadCounts } = useChatStore();
@@ -81,7 +83,7 @@ function HistoryPage() {
               }
             } catch (error) {
               console.error(`Ошибка загрузки данных о пациенте ${patientId}:`, error);
-              patientData[patientId] = { full_name: `Пациент #${patientId}` };
+              patientData[patientId] = { full_name: `${t('patient')} #${patientId}` };
             }
           }
           
@@ -98,7 +100,7 @@ function HistoryPage() {
         
       } catch (error) {
         console.error('Error fetching consultations:', error);
-        setError('Не удалось загрузить историю консультаций. Пожалуйста, попробуйте позже.');
+        setError(t('failedToLoadHistory'));
       } finally {
         setLoading(false);
       }
@@ -124,11 +126,11 @@ function HistoryPage() {
   // Функция для получения текста статуса консультации
   const getConsultationStatusText = (status) => {
     switch(status) {
-      case "completed": return "Завершена";
-      case "active": return "Активна";
-      case "pending": return "Ожидает";
-      case "cancelled": return "Отменена";
-      default: return "Неизвестно";
+      case "completed": return t('completed');
+      case "active": return t('active');
+      case "pending": return t('pending');
+      case "cancelled": return t('cancelled');
+      default: return t('unknown');
     }
   };
   
@@ -166,12 +168,12 @@ function HistoryPage() {
       const doctorProfile = doctorProfiles[consultation.doctor_id];
       return doctorProfile && doctorProfile.full_name 
         ? doctorProfile.full_name 
-        : `Врач #${consultation.doctor_id}`;
+        : `${t('doctor')} #${consultation.doctor_id}`;
     } else {
       const patientProfile = patientProfiles[consultation.patient_id];
       return patientProfile && patientProfile.full_name 
         ? patientProfile.full_name 
-        : `Пациент #${consultation.patient_id}`;
+        : `${t('patient')} #${consultation.patient_id}`;
     }
   };
   
@@ -235,7 +237,7 @@ function HistoryPage() {
                       {getParticipantName(consultation)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {user.role === 'patient' ? 'Врач' : 'Пациент'}
+                      {user.role === 'patient' ? t('doctor') : t('patient')}
                     </div>
                   </div>
                 </div>
@@ -243,7 +245,7 @@ function HistoryPage() {
                 <Divider className="my-3 bg-gradient-to-r from-transparent via-indigo-200 to-transparent w-full" />
                 
                 <div className="flex flex-col items-center md:items-start">
-                  <div className="text-sm text-gray-600">Статус:</div>
+                  <div className="text-sm text-gray-600">{t('status')}:</div>
                   <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${statusGradient} text-white text-sm font-medium shadow-sm mt-1`}>
                     {getConsultationStatusText(consultation.status)}
                   </div>
@@ -255,13 +257,13 @@ function HistoryPage() {
                 <div className="flex flex-col h-full">
                   <div className="flex flex-col md:flex-row md:justify-between mb-3">
                     <div>
-                      <div className="text-sm text-gray-600">Дата создания:</div>
+                      <div className="text-sm text-gray-600">{t('creationDate')}:</div>
                       <div className="font-medium">{formatDate(consultation.created_at)}</div>
                     </div>
                     
                     {consultation.started_at && (
                       <div className="mt-2 md:mt-0">
-                        <div className="text-sm text-gray-600">Время начала:</div>
+                        <div className="text-sm text-gray-600">{t('startTime')}:</div>
                         <div className="font-medium">{formatTime(consultation.started_at)}</div>
                       </div>
                     )}
@@ -416,7 +418,7 @@ function HistoryPage() {
             >
               <Card shadow="sm" className="mt-4 border border-gray-100 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                  <h2 className="text-lg font-medium">История консультаций</h2>
+                  <h2 className="text-lg font-medium">{t('history')}</h2>
                 </CardHeader>
                 <CardBody className="p-4">
                   {loading ? (

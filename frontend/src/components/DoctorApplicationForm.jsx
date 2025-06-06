@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Textarea, Spinner, Select, SelectItem } from '@nextui-org/react';
 import { motion } from 'framer-motion';
 import api from '../api';
+import { getRegions, getDistrictsByRegion, availableLanguages } from '../constants/uzbekistanRegions';
+import { useTranslation } from './LanguageSelector';
 
 // Анимационные варианты для элементов
 const fadeIn = {
@@ -25,6 +27,7 @@ const staggerContainer = {
 };
 
 function DoctorApplicationForm({ onSuccess }) {
+  const { t } = useTranslation();
   // Состояние для полей формы
   const [fullName, setFullName] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -32,21 +35,25 @@ function DoctorApplicationForm({ onSuccess }) {
   const [education, setEducation] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
+  const [languages, setLanguages] = useState([]);
   
   // Состояние для списков из бэкенда
-  const [districts, setDistricts] = useState([]);
+  const [availableRegions, setAvailableRegions] = useState([]);
+  const [availableDistricts, setAvailableDistricts] = useState([]);
   const [specializations, setSpecializations] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   
-  // Загрузка списков районов и специализаций
+  // Загрузка списков регионов и специализаций
   useEffect(() => {
     const fetchOptions = async () => {
       try {
         setLoadingOptions(true);
-        // Загружаем районы
-        const districtResponse = await api.get('/api/districts');
-        setDistricts(districtResponse.data);
+        
+        // Загружаем регионы из константы
+        const regions = getRegions();
+        setAvailableRegions(regions);
         
         // Загружаем специализации
         const specializationResponse = await api.get('/api/specializations');
@@ -60,6 +67,17 @@ function DoctorApplicationForm({ onSuccess }) {
     
     fetchOptions();
   }, []);
+
+  // Обновляем районы при изменении города
+  useEffect(() => {
+    if (city) {
+      const districts = getDistrictsByRegion(city);
+      setAvailableDistricts(districts);
+      setDistrict(''); // Сбрасываем район при смене города
+    } else {
+      setAvailableDistricts([]);
+    }
+  }, [city]);
   
   // Состояние для файлов
   const [photo, setPhoto] = useState(null);
@@ -109,6 +127,17 @@ function DoctorApplicationForm({ onSuccess }) {
       setLicenseName(file.name);
     }
   };
+
+  // Обработчики для новых полей
+  const handleCityChange = (e) => {
+    const newCity = e.target.value;
+    setCity(newCity);
+    setDistrict(''); // Сбрасываем район при смене города
+  };
+
+  const handleLanguageChange = (selectedKeys) => {
+    setLanguages(Array.from(selectedKeys));
+  };
   
   // Валидация формы
   const validateForm = () => {
@@ -137,8 +166,18 @@ function DoctorApplicationForm({ onSuccess }) {
       return false;
     }
     
+    if (!city) {
+      setError('Пожалуйста, выберите город/регион вашей практики');
+      return false;
+    }
+
     if (!district) {
       setError('Пожалуйста, укажите район вашей практики');
+      return false;
+    }
+
+    if (!languages.length) {
+      setError('Пожалуйста, выберите языки консультаций');
       return false;
     }
     
@@ -179,7 +218,9 @@ function DoctorApplicationForm({ onSuccess }) {
       formData.append('experience', experience);
       formData.append('education', education);
       formData.append('license_number', licenseNumber);
+      formData.append('city', city);
       formData.append('district', district);
+      formData.append('languages', JSON.stringify(languages));
       
       if (additionalInfo) {
         formData.append('additional_info', additionalInfo);
@@ -214,7 +255,9 @@ function DoctorApplicationForm({ onSuccess }) {
       setEducation('');
       setLicenseNumber('');
       setAdditionalInfo('');
+      setCity('');
       setDistrict('');
+      setLanguages([]);
       setPhoto(null);
       setPhotoPreview(null);
       setDiploma(null);
@@ -363,13 +406,13 @@ function DoctorApplicationForm({ onSuccess }) {
             </Select>
           </motion.div>
           
-          {/* Район практики */}
+          {/* Город/Регион */}
           <motion.div variants={slideUp}>
             <Select
-              label="Район практики *"
-              placeholder="Выберите район вашей практики"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              label="Город/Регион *"
+              placeholder="Выберите город или регион вашей практики"
+              value={city}
+              onChange={handleCityChange}
               variant="bordered"
               radius="lg"
               fullWidth
@@ -378,9 +421,57 @@ function DoctorApplicationForm({ onSuccess }) {
                 value: "text-base"
               }}
             >
-              {districts.map((dist) => (
+              {availableRegions.map((region) => (
+                <SelectItem key={region} value={region}>
+                  {region}
+                </SelectItem>
+              ))}
+            </Select>
+          </motion.div>
+
+          {/* Район практики */}
+          <motion.div variants={slideUp}>
+            <Select
+              label="Район практики *"
+              placeholder={city ? "Выберите район вашей практики" : "Сначала выберите город"}
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              isDisabled={!city || availableDistricts.length === 0}
+              classNames={{
+                trigger: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary h-12 bg-white/70",
+                value: "text-base"
+              }}
+            >
+              {availableDistricts.map((dist) => (
                 <SelectItem key={dist} value={dist}>
                   {dist}
+                </SelectItem>
+              ))}
+            </Select>
+          </motion.div>
+
+          {/* Языки консультаций */}
+          <motion.div variants={slideUp}>
+            <Select
+              label="Языки консультаций *"
+              placeholder="Выберите языки, на которых вы проводите консультации"
+              selectedKeys={new Set(languages)}
+              onSelectionChange={handleLanguageChange}
+              variant="bordered"
+              radius="lg"
+              fullWidth
+              selectionMode="multiple"
+              classNames={{
+                trigger: "shadow-sm hover:shadow transition-all duration-300 border hover:border-primary/50 focus:border-primary min-h-12 bg-white/70",
+                value: "text-base"
+              }}
+            >
+              {availableLanguages.map((lang) => (
+                <SelectItem key={lang} value={lang}>
+                  {lang}
                 </SelectItem>
               ))}
             </Select>

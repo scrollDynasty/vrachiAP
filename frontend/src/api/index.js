@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Определяем базовый URL нашего бэкенда
 // Используем переменную окружения VITE_API_URL если она есть, иначе используем localhost для разработки
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Localhost для разработки
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Local development URL
 
 // Экспортируем базовый URL для использования в других частях приложения
 export const DIRECT_API_URL = API_BASE_URL;
@@ -142,37 +142,22 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
         
+        // Очищаем localStorage от неработающего токена
         try {
-          console.log('🔄 Попытка автоматического обновления токена...');
+          localStorage.removeItem('auth_token');
+          console.log('🔑 Токен успешно удален из localStorage');
           
-          // Пробуем выполнить вход через Google
-          // Сначала попытаемся перенаправить на страницу Google авторизации
-          // Сохраняем текущий URL для возврата
-          sessionStorage.setItem('auth_redirect_url', window.location.href);
-          window.location.href = `${DIRECT_API_URL}/auth/google/login`;
-          
-          // Отклоняем промис, так как будет перенаправление
-          return Promise.reject(new Error('Выполняется перенаправление для обновления токена'));
-        } catch (refreshError) {
-          console.error('❌ Ошибка при обновлении токена:', refreshError);
-          
-          // Очищаем localStorage от неработающего токена
-          try {
-            localStorage.removeItem('auth_token');
-            console.log('🔑 Токен успешно удален из localStorage');
-            
-            // Удаляем заголовок авторизации из дефолтных заголовков
-            delete api.defaults.headers.common['Authorization'];
-            console.log('🔑 Заголовок авторизации удален из API клиента');
-          } catch (e) {
-            console.error('Ошибка при очистке данных авторизации:', e);
-          }
-          
-          // Перенаправляем на страницу входа
-          console.log('🔑 Перенаправляем на /login из-за ошибки авторизации');
-          window.location.href = '/login';
-          return Promise.reject(error);
+          // Удаляем заголовок авторизации из дефолтных заголовков
+          delete api.defaults.headers.common['Authorization'];
+          console.log('🔑 Заголовок авторизации удален из API клиента');
+        } catch (e) {
+          console.error('Ошибка при очистке данных авторизации:', e);
         }
+        
+        // Перенаправляем на страницу входа
+        console.log('🔑 Перенаправляем на /login из-за ошибки авторизации');
+        window.location.href = '/login';
+        return Promise.reject(error);
       }
     }
     

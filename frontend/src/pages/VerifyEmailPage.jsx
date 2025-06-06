@@ -6,8 +6,10 @@ import { Button, Spinner, Card, CardHeader, CardBody, Input } from '@nextui-org/
 import useAuthStore from '../stores/authStore';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../components/LanguageSelector';
 
 const VerifyEmailPage = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const [status, setStatus] = useState('loading'); // loading, success, error, expired, no_token
@@ -94,8 +96,8 @@ const VerifyEmailPage = () => {
               
               // Показываем уведомление об успешном подтверждении
               const message = response.data.already_verified 
-                ? 'Email уже был подтвержден! Переходим в ваш профиль через 5 секунд.'
-                : 'Email успешно подтвержден! Переходим в ваш профиль через 5 секунд.';
+                ? t('emailAlreadyConfirmedRedirect')
+                : t('emailVerifiedRedirect');
               
               // Проверяем, было ли недавно показано уведомление
               const lastToastTime = localStorage.getItem('lastVerifyToastTime');
@@ -121,7 +123,7 @@ const VerifyEmailPage = () => {
             // Если функция недоступна, все равно считаем проверку успешной
             setStatus('success');
             console.warn('Функция handleEmailVerification не найдена в authStore');
-            toast.success('Email подтвержден успешно!', { autoClose: 3000 });
+            toast.success(t('emailVerified'), { autoClose: 3000 });
             setTimeout(() => navigate('/login'), 3000);
           }
         } catch (verificationError) {
@@ -144,7 +146,7 @@ const VerifyEmailPage = () => {
           
           if (result && result.success) {
             setStatus('success');
-            toast.success('Email уже был успешно подтвержден! Переходим в профиль...', {
+            toast.success(t('emailAlreadyVerifiedRedirect'), {
               autoClose: 3000
             });
             startRedirectCountdown();
@@ -262,7 +264,7 @@ const VerifyEmailPage = () => {
       const response = await api.post('/resend-verification', { email: resendEmail });
       if (response.status === 200) {
         setResendSuccess(true);
-        toast.success('Новая ссылка для подтверждения отправлена на указанную почту', {
+        toast.success(t('newVerificationLinkSent'), {
           autoClose: 5000
         });
         setTimeout(() => {

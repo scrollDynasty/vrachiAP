@@ -3,18 +3,24 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Spinner, Checkbox, Card, CardHeader, CardBody, Input, Select, SelectItem, Divider, Radio, RadioGroup, Textarea } from '@nextui-org/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api'; // Импортируем API для получения списка районов
+import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions';
+import { translateRegion, translateDistrict } from './RegionTranslations';
+import { useTranslation } from './LanguageSelector'; // Импортируем новую структуру регионов
 import { useNavigate } from 'react-router-dom';
 import MedicalLoader from './MedicalLoader';
 
 function RegisterForm({ onSubmit, isLoading, error }) {
+  const { t, currentLanguage } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [userType, setUserType] = useState('patient'); // Только пациент
   const [formError, setFormError] = useState(null);
-  const [districts, setDistricts] = useState([]);
-  const [district, setDistrict] = useState('');
+  const [availableRegions, setAvailableRegions] = useState([]);
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [availableDistricts, setAvailableDistricts] = useState([]);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [fullName, setFullName] = useState(''); // ФИО
   const [phone, setPhone] = useState(''); // Номер телефона
   const [address, setAddress] = useState(''); // Адрес
@@ -55,26 +61,23 @@ function RegisterForm({ onSubmit, isLoading, error }) {
     { size: '40px', delay: 3, duration: 9, x: [15, -15], y: [-12, 12], color: 'from-cyan-400/20 to-blue-400/20' },
   ];
 
-  // Загрузка списка районов при монтировании компонента
+  // Загрузка списка регионов при монтировании компонента
   useEffect(() => {
-    const fetchDistricts = async () => {
-      try {
-        const districtsData = await api.getDistricts();
-        // Преобразуем массив строк в массив объектов с id и name
-        const formattedDistricts = districtsData.map((district, index) => ({
-          id: index + 1,
-          name: district
-        }));
-        setDistricts(formattedDistricts);
-      } catch (error) {
-        console.error('Failed to load districts:', error);
-        // В случае ошибки устанавливаем пустой массив
-        setDistricts([]);
-      }
-    };
-    
-    fetchDistricts();
+    // Загружаем список регионов/областей
+    const regions = getRegions();
+    setAvailableRegions(regions);
   }, []);
+
+  // Обработчик изменения региона/области
+  const handleRegionChange = (e) => {
+    const regionName = e.target.value;
+    setSelectedRegion(regionName);
+    setSelectedDistrict(''); // Сбрасываем выбранный район
+    
+    // Загружаем районы выбранного региона
+    const districts = getDistrictsByRegion(regionName);
+    setAvailableDistricts(districts);
+  };
 
   // Проверка валидности email с помощью регулярного выражения
   const isValidEmail = useCallback((email) => {
@@ -132,7 +135,11 @@ function RegisterForm({ onSubmit, isLoading, error }) {
       setFormError("Пожалуйста, введите номер телефона");
       return;
     }
-    if (!district) {
+    if (!selectedRegion) {
+      setFormError("Пожалуйста, выберите город/область");
+      return;
+    }
+    if (!selectedDistrict) {
       setFormError("Пожалуйста, выберите район");
       return;
     }
@@ -142,13 +149,16 @@ function RegisterForm({ onSubmit, isLoading, error }) {
     }
     
     // Создаем объект с данными пользователя
+    // ВАЖНО: отправляем оригинальные названия (selectedRegion/selectedDistrict),
+    // а не переведенные версии, чтобы данные в БД были консистентными
     const userData = {
       email: email.trim(),
       password,
       role: userType,
       full_name: fullName.trim(),
       contact_phone: phone.trim(),
-      district: district,  // district уже является ID (числовым значением)
+      city: selectedRegion,  // оригинальное название города/области (рус)
+      district: selectedDistrict,  // оригинальное название района (рус)
       contact_address: address.trim(),
       medical_info: medicalInfo.trim()
     };
@@ -175,7 +185,8 @@ function RegisterForm({ onSubmit, isLoading, error }) {
             email: email.trim(),
             fullName: fullName.trim(),
             phone: phone.trim(),
-            district: district,  // сохраняем district как ID
+            city: selectedRegion,  // сохраняем город/область
+            district: selectedDistrict,  // сохраняем район
             address: address.trim(),
             medicalInfo: medicalInfo.trim(),
             timestamp: new Date().toISOString()
@@ -251,13 +262,13 @@ function RegisterForm({ onSubmit, isLoading, error }) {
               </svg>
             </motion.div>
             
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Регистрация успешна!</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('registrationSuccess')}</h2>
             
             {verificationRequired ? (
               <>
                 <p className="text-gray-600 mb-6">
-                  Мы отправили письмо с подтверждением на адрес <span className="font-semibold">{registeredEmail}</span>. 
-                  Пожалуйста, проверьте вашу почту и перейдите по ссылке в письме для активации аккаунта.
+                  {t('verificationEmailSent')} <span className="font-semibold">{registeredEmail}</span>. 
+                  {t('verificationInstructions')}
                 </p>
                 
                 <Button
@@ -390,15 +401,15 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
                   whileHover={{ scale: 1.02 }}
                 >
-                  Основная информация
+                  {t("basicInfo")}
                 </motion.h3>
                 <div className="space-y-4">
                   <Input
                     type="text"
-                    label="Полное имя"
+                    label={t('fullName')}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Введите ваше ФИО"
+                    placeholder={t("enterFullName")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="name"
@@ -420,7 +431,7 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                     label="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Введите ваш email"
+                    placeholder={t("enterEmail")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="email"
@@ -439,10 +450,10 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   
                   <Input
                     type="tel"
-                    label="Номер телефона"
+                    label={t("phoneNumber")}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Введите ваш номер телефона"
+                    placeholder={t("enterPhoneNumber")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="tel"
@@ -473,15 +484,15 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
                   whileHover={{ scale: 1.02 }}
                 >
-                  Безопасность
+{t("securityInfo")}
                 </motion.h3>
                 <div className="space-y-4">
                   <Input
                     type="password"
-                    label="Пароль"
+                    label={t('password')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Минимум 8 символов"
+                    placeholder={t("minimumChars")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="new-password"
@@ -500,17 +511,17 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   
                   <Input
                     type="password"
-                    label="Подтверждение пароля"
+                    label={t("confirmPassword")}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Повторите пароль"
+                    placeholder={t("repeatPassword")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="new-password"
                     fullWidth
                     isRequired
                     isInvalid={passwordMismatch}
-                    errorMessage={passwordMismatch ? "Пароли не совпадают" : ""}
+                    errorMessage={passwordMismatch ? t("passwordsDontMatch") : ""}
                     classNames={{
                       inputWrapper: `bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all ${passwordMismatch ? 'border-red-500' : ''}`,
                       input: "text-gray-800 placeholder:text-gray-400"
@@ -536,14 +547,14 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
                   whileHover={{ scale: 1.02 }}
                 >
-                  Дополнительная информация
+{t("locationInfo")}
                 </motion.h3>
                 <div className="space-y-4">
                   <Select
-                    label="Район"
-                    placeholder="Выберите ваш район"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
+                    label={t("cityRegion")}
+                    placeholder={t("selectCityRegion")}
+                    value={selectedRegion}
+                    onChange={handleRegionChange}
                     variant="bordered"
                     radius="lg"
                     fullWidth
@@ -552,26 +563,70 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                       trigger: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all h-[56px]",
                       value: "text-gray-800"
                     }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    }
                   >
-                    {districts && districts.length > 0 ? (
-                      districts.map((dist) => (
-                        <SelectItem key={dist.id} value={dist.id.toString()} textValue={dist.name}>
-                          {dist.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem key="loading" value="" textValue="Загрузка районов...">
-                        Загрузка районов...
+                    {availableRegions.map((region) => (
+                      <SelectItem key={region} value={region}>
+                        {translateRegion(region, currentLanguage)}
                       </SelectItem>
-                    )}
+                    ))}
                   </Select>
                   
+                  {selectedRegion && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Select
+                        label={t('district')}
+                        placeholder={t("selectDistrict")}
+                        value={selectedDistrict}
+                        onChange={(e) => setSelectedDistrict(e.target.value)}
+                        variant="bordered"
+                        radius="lg"
+                        fullWidth
+                        isRequired
+                        classNames={{
+                          trigger: "bg-white/80 border-2 hover:border-primary focus-within:border-primary transition-all h-[56px]",
+                          value: "text-gray-800"
+                        }}
+                        startContent={
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        }
+                      >
+                        {availableDistricts.map((district) => (
+                          <SelectItem key={district} value={district}>
+                            {translateDistrict(district, currentLanguage)}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+              
+              <motion.div variants={itemVariants}>
+                <motion.h3 
+                  className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                  whileHover={{ scale: 1.02 }}
+                >
+{t("additionalInfo")}
+                </motion.h3>
+                <div className="space-y-4">
                   <Input
                     type="text"
-                    label="Адрес"
+                    label={t('address')}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Введите ваш адрес"
+                    placeholder={t("enterAddress")}
                     variant="bordered"
                     radius="lg"
                     autoComplete="street-address"
@@ -589,10 +644,10 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   />
                   
                   <Textarea
-                    label="Медицинская информация"
+                    label={t('medicalInfo')}
                     value={medicalInfo}
                     onChange={(e) => setMedicalInfo(e.target.value)}
-                    placeholder="Введите информацию о хронических заболеваниях, аллергиях и т.д."
+                    placeholder={t("medicalInfoPlaceholder")}
                     variant="bordered"
                     radius="lg"
                     fullWidth
@@ -617,26 +672,26 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                   }}
                 >
                   <span className="text-sm">
-                    Я согласен с <motion.a 
+{t("agreeWith")} <motion.a 
                       href="#" 
                       className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <span>условиями использования</span>
+                      <span>{t("termsOfService")}</span>
                       <motion.span 
                         className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                         initial={{ scaleX: 0 }}
                         whileHover={{ scaleX: 1 }}
                         transition={{ duration: 0.3 }}
                       />
-                    </motion.a> и <motion.a 
+                    </motion.a> {t("and")} <motion.a 
                       href="#" 
                       className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <span>политикой конфиденциальности</span>
+                      <span>{t("privacyPolicy")}</span>
                       <motion.span 
                         className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                         initial={{ scaleX: 0 }}
@@ -666,7 +721,7 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                       </svg>
                     )}
                   >
-                    {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" /></div> : 'Зарегистрироваться'}
+                    {isLoading ? <div className="flex items-center justify-center"><MedicalLoader size="small" text="" /></div> : t('registerButton')}
                   </Button>
                   
                   <motion.div 
@@ -679,14 +734,14 @@ function RegisterForm({ onSubmit, isLoading, error }) {
                 
                 <div className="text-center mt-4">
                   <p className="text-gray-600">
-                    Уже есть аккаунт?{' '}
+{t('alreadyHaveAccount')} 
                     <motion.a 
                       href="/login"
                       className="text-primary hover:text-primary-dark font-medium transition-colors relative inline-block"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <span className="relative z-10">Войти</span>
+                      <span className="relative z-10">{t('loginLink')}</span>
                       <motion.span 
                         className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
                         initial={{ scaleX: 0 }}

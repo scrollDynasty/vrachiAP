@@ -18,10 +18,13 @@ import AdminPage from './pages/AdminPage'
 import DoctorApplicationPage from './pages/DoctorApplicationPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 
+
 // Импортируем компонент хедера
 import Header from './components/Header'
 // Импортируем компонент WebSocket-уведомлений
 import NotificationWebSocket from './components/NotificationWebSocket'
+// Импортируем провайдер для языков
+import { LanguageProvider } from './components/LanguageSelector'
 // Импортируем провайдер для toast-уведомлений
 import { Toaster } from 'react-hot-toast'
 
@@ -32,13 +35,12 @@ import ProtectedRoute from './components/ProtectedRoute'
 // Импортируем компонент для проверки подтверждения email
 import EmailVerificationRequired from './components/EmailVerificationRequired'
 import MedicalLoader from './components/MedicalLoader'
-import PageTransitionLoader from './components/PageTransitionLoader'
 
 // Импортируем основные стили
 import './index.scss'
 import soundService from './services/soundService' // Импортируем soundService
 
-// Главный компонент приложения, который настраивает роутинг и общую структуру
+  // Главный компонент приложения, который настраивает роутинг и общую структуру
 function App() {
   // Получаем все необходимые данные и функции из стора на верхнем уровне компонента
   const initializeAuth = useAuthStore((state) => state.initializeAuth)
@@ -169,7 +171,8 @@ function App() {
   });
   
   return (
-    <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen relative overflow-hidden medical-theme">
+    <LanguageProvider>
+      <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen relative overflow-hidden medical-theme">
       {/* Декоративные фоновые элементы для улучшения визуального вида */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         {/* Верхний градиентный круг */}
@@ -266,7 +269,11 @@ function App() {
       </div>
       
       {/* Компонент анимации перехода между страницами */}
-      <PageTransitionLoader isAuthLoading={isLoading} />
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <MedicalLoader />
+        </div>
+      )}
       
       {/* Хедер приложения (показываем только если пользователь аутентифицирован и нет ошибок) */}
       {isAuthenticated && user && !error && <Header />}
@@ -296,6 +303,7 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/admin-piisa-popa" element={<AdminLoginPage />} />
+        
         <Route path="/404" element={<NotFoundPage />} />
           
           {/* Базовые защищенные роуты (требуют только аутентификации) */}
@@ -340,7 +348,8 @@ function App() {
           </div>
         </footer>
       )}
-    </div>
+      </div>
+    </LanguageProvider>
   )
 }
 

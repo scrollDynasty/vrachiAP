@@ -6,6 +6,7 @@ import ConsultationChat from '../components/ConsultationChat';
 import api from '../api';
 import useAuthStore from '../stores/authStore';
 import ReviewForm from '../components/ReviewForm';
+import { useTranslation } from '../components/LanguageSelector';
 
 // Страница консультации
 function ConsultationPage() {
@@ -24,6 +25,7 @@ function ConsultationPage() {
   const [doctorAvatar, setDoctorAvatar] = useState(null);
 
   const { user } = useAuthStore();
+  const { t } = useTranslation();
 
   const isDoctor = user?.id === consultation?.doctor_id;
   const isPatient = user?.id === consultation?.patient_id;
@@ -148,7 +150,7 @@ function ConsultationPage() {
       toast.dismiss();
       
       // Показываем красивое уведомление в правом верхнем углу
-      toast.success('Консультация успешно началась', {
+      toast.success(t('consultationStarted'), {
         position: 'top-right',
         duration: 4000,
         icon: '✓'
@@ -232,7 +234,7 @@ function ConsultationPage() {
       localStorage.setItem(`review_added_${consultationId}`, 'true');
       sessionStorage.setItem(`review_added_${consultationId}`, 'true');
       
-      toast.success('Спасибо за ваш отзыв!');
+      toast.success(t('thanksForReview'));
       setIsReviewModalOpen(false);
       setHasReview(true);
       
@@ -242,7 +244,7 @@ function ConsultationPage() {
       }
       
       // Перенаправляем на главную страницу
-      toast.success('Перенаправление на главную страницу...');
+      toast.success(t('redirectingHome'));
       setTimeout(() => {
         navigate('/');
       }, 2000);

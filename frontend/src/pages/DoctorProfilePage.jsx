@@ -7,6 +7,7 @@ import RequestConsultationModal from '../components/RequestConsultationModal';
 import api from '../api';
 import AvatarWithFallback from '../components/AvatarWithFallback';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../components/LanguageSelector.jsx';
 
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
@@ -161,7 +162,7 @@ const ReviewItem = ({ review }) => {
                 animate={{ opacity: 1, height: "auto" }}
                 transition={{ duration: 0.4, delay: 0.3 }}
               >
-                {review.comment || 'Отзыв без комментария'}
+                {review.comment || t('reviewWithoutComment')}
               </motion.p>
             </div>
           </div>
@@ -205,6 +206,7 @@ const getDistrictName = (districtId) => {
 
 // Компонент страницы профиля врача
 function DoctorProfilePage() {
+  const { t } = useTranslation();
   const { doctorId } = useParams(); // Получаем ID врача из URL
   const navigate = useNavigate();
   const { user } = useAuthStore(); // Получаем текущего пользователя
@@ -317,6 +319,15 @@ function DoctorProfilePage() {
         }
         
         setDoctor(data);
+        
+        // Отладочная информация о городе и районе
+        console.log('Данные врача для отображения:', {
+          city: data.city,
+          district: data.district,
+          languages: data.languages,
+          user_id: data.user_id,
+          id: data.id
+        });
         
         // Добавим дополнительный запрос для получения профиля пользователя, если avatar_path отсутствует
         if (!data.avatar_path) {
@@ -584,9 +595,6 @@ function DoctorProfilePage() {
               // Преобразуем строку specializations в массив
               const specializationsArray = doctor.specializations ? doctor.specializations.split(',').map(s => s.trim()) : [];
               
-              // Преобразуем строку practice_areas в массив
-              const practiceAreasArray = doctor.practice_areas ? doctor.practice_areas.split(',').map(s => s.trim()).map(area => getDistrictName(area)) : [];
-              
               // Рассчитаем рейтинг врача
               const doctorRating = calculateRating(reviews);
               
@@ -745,7 +753,7 @@ function DoctorProfilePage() {
                                   </svg>
                                 }
                               >
-                                Записаться на консультацию
+                                {t('bookConsultation')}
                               </Button>
                             </motion.div>
                           )}
@@ -768,23 +776,49 @@ function DoctorProfilePage() {
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.5 }}
                           >
-                            Информация о враче
+                            {t('doctorInfo')}
                           </motion.h3>
                           
+                          {/* Город/Регион практики - показываем в первую очередь */}
+                          <InfoSection title={t('practiceLocation')}>
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-lg font-semibold text-gray-800">{doctor.city || t('notSpecified')}</span>
+                                    {doctor.district && (
+                                      <>
+                                        <span className="text-gray-400 text-lg">•</span>
+                                        <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">{doctor.district}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-1">{t('doctorPracticeRegion')}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </InfoSection>
+
                           {doctor.about && (
-                            <InfoSection title="О враче">
+                            <InfoSection title={t('about')}>
                               <p className="text-gray-700">{doctor.about}</p>
                             </InfoSection>
                           )}
                           
                           {doctor.education && (
-                            <InfoSection title="Образование">
+                            <InfoSection title={t('education')}>
                               <p className="text-gray-700">{doctor.education}</p>
                             </InfoSection>
                           )}
                           
                           {specializationsArray.length > 0 && (
-                            <InfoSection title="Специализации">
+                            <InfoSection title={t('specializations')}>
                               <div className="flex flex-wrap gap-2">
                                 {specializationsArray.map((spec, index) => (
                                   <motion.div
@@ -802,11 +836,11 @@ function DoctorProfilePage() {
                               </div>
                             </InfoSection>
                           )}
-                          
-                          {practiceAreasArray.length > 0 && (
-                            <InfoSection title="Районы практики">
+
+                          {doctor.languages && doctor.languages.length > 0 && (
+                            <InfoSection title={t('consultationLanguages')}>
                               <div className="flex flex-wrap gap-2">
-                                {practiceAreasArray.map((area, index) => (
+                                {doctor.languages.map((language, index) => (
                                   <motion.div
                                     key={index}
                                     initial={{ opacity: 0, scale: 0.8 }}
@@ -814,14 +848,25 @@ function DoctorProfilePage() {
                                     transition={{ delay: 0.1 * index, duration: 0.3 }}
                                     whileHover={{ scale: 1.05 }}
                                   >
-                                    <Chip color="primary" variant="flat" className="shadow-sm">
-                                      {area}
+                                    <Chip 
+                                      color="secondary" 
+                                      variant="flat" 
+                                      className="shadow-sm bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200"
+                                      startContent={
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                                        </svg>
+                                      }
+                                    >
+                                      {language}
                                     </Chip>
                                   </motion.div>
                                 ))}
                               </div>
                             </InfoSection>
                           )}
+
+
                         </CardBody>
                       </Card>
                     </motion.div>
@@ -845,7 +890,7 @@ function DoctorProfilePage() {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
                   >
-                    Отзывы о враче
+                    {t('doctorReviews')}
                   </motion.h3>
                   
                   {reviewsLoading ? (
@@ -874,8 +919,8 @@ function DoctorProfilePage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
-                      <p className="text-lg font-medium mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">У этого врача пока нет отзывов</p>
-                      <p className="text-sm text-gray-500">Будьте первым, кто оставит отзыв после консультации</p>
+                      <p className="text-lg font-medium mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{t('noDoctorReviews')}</p>
+                      <p className="text-sm text-gray-500">{t('beFirstToReview')}</p>
                     </motion.div>
                   ) : (
                     <div>

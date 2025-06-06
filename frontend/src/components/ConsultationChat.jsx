@@ -6,6 +6,7 @@ import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import { useNavigate } from 'react-router-dom';
 import webSocketService from '../services/webSocketService';
+import { useTranslation } from './LanguageSelector';
 
 // Подавляем ошибки 404 для конкретных URL
 const suppressedEndpoints = [
@@ -227,6 +228,7 @@ function ConsultationChat({
   patientName,
   doctorName
 }) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { markAsRead } = useChatStore();
@@ -357,14 +359,14 @@ function ConsultationChat({
         console.log(`[WebSocket] Сообщение отправлено: ${content.trim()}`);
       } else {
         console.error('[WebSocket] Соединение не установлено');
-        toast.error('Соединение с сервером потеряно. Попробуйте позже.');
+        toast.error(t('connectionLost'));
         
         // Удаляем временное сообщение
         setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
       }
     } catch (error) {
       console.error('[Chat] Ошибка при отправке сообщения:', error);
-      toast.error('Не удалось отправить сообщение. Попробуйте еще раз.');
+      toast.error(t('messageSendFailed'));
       
       // Удаляем временное сообщение
       setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
@@ -422,18 +424,18 @@ function ConsultationChat({
           wsInitializedRef.current = true;
         } else {
           console.warn('[WebSocket] Не удалось установить WebSocket соединение');
-          toast.error('Не удалось установить соединение с сервером.', {
+          toast.error(t('connectionError'), {
             id: 'ws-connection-error',
             duration: 4000
           });
-          updateConnectionStatus('error', 'Не удалось установить соединение с сервером');
+          updateConnectionStatus('error', t('connectionError'));
         }
       } else {
         console.log(`[Chat] WebSocket соединение для консультации ${consultationId} уже инициализировано`);
       }
     } catch (error) {
       console.error('[Chat] Ошибка при инициализации чата:', error);
-      toast.error('Ошибка при загрузке чата. Попробуйте обновить страницу.');
+      toast.error(t('chatLoadError'));
     } finally {
       setIsSending(false);
     }
@@ -520,7 +522,7 @@ function ConsultationChat({
       console.log('[Chat] Лимит сообщений достигнут, запускаем автоматическое завершение');
       
       // Показываем предупреждение
-      toast.error(`Достигнут лимит сообщений (${patientMessageCount}/${consultation.message_limit})`, {
+      toast.error(`${t('messageLimitReached')} (${patientMessageCount}/${consultation.message_limit})`, {
         duration: 5000,
         id: 'message-limit-warning'
       });
@@ -597,13 +599,13 @@ function ConsultationChat({
         // Устанавливаем статусное сообщение только если оно еще не установлено,
         // чтобы избежать дублирования
         if (!errorMessage) {
-          setErrorMessage('Не удалось подключиться к серверу');
+          setErrorMessage(t('serverConnectionFailed'));
         }
       }
     } else if (status === 'connected') {
       setErrorMessage(null);
     } else if (status === 'connecting' && !errorMessage) {
-      setErrorMessage('Подключение к серверу...');
+      setErrorMessage(t('connectingToServer'));
     }
   };
 
@@ -612,7 +614,7 @@ function ConsultationChat({
     setIsCompleteModalOpen(false); // Закрываем модальное окно сразу
     
     // Показываем индикатор загрузки
-    toast.loading('Завершение консультации...', {id: 'complete-consultation'});
+    toast.loading(t('finalizingConsultation'), {id: 'complete-consultation'});
     
     try {
       // Сначала пробуем через WebSocket
@@ -645,7 +647,7 @@ function ConsultationChat({
             const result = await consultationsApi.completeConsultation(consultationId);
             
             toast.dismiss('complete-consultation');
-            toast.success('Консультация успешно завершена');
+            toast.success(t('consultationCompletedSuccess'));
             
             // Обновляем данные консультации через колбэк
             if (onConsultationUpdated) {
@@ -654,7 +656,7 @@ function ConsultationChat({
           } catch (apiError) {
             console.error("[Chat] Не удалось завершить консультацию через HTTP API:", apiError);
             toast.dismiss('complete-consultation');
-            toast.error('Не удалось завершить консультацию. Пожалуйста, обновите страницу и попробуйте еще раз.');
+            toast.error(t('completionFailed'));
           }
         }, 5000); // 5 секунд таймаут для WebSocket
         
@@ -675,7 +677,7 @@ function ConsultationChat({
               
               // Обновляем UI
               toast.dismiss('complete-consultation');
-              toast.success('Консультация успешно завершена');
+              toast.success(t('consultationCompletedSuccess'));
               
               // Обновляем данные консультации через колбэк
               if (onConsultationUpdated) {
@@ -700,7 +702,7 @@ function ConsultationChat({
         const result = await consultationsApi.completeConsultation(consultationId);
         
         toast.dismiss('complete-consultation');
-        toast.success('Консультация успешно завершена');
+        toast.success(t('consultationCompletedSuccess'));
         
         // Обновляем данные консультации через колбэк
         if (onConsultationUpdated) {
@@ -710,7 +712,7 @@ function ConsultationChat({
     } catch (error) {
       console.error("[Chat] Ошибка при завершении консультации:", error);
       toast.dismiss('complete-consultation');
-      toast.error('Не удалось завершить консультацию. Пожалуйста, попробуйте еще раз.');
+      toast.error(t('completionFailed'));
     }
   };
 
@@ -724,7 +726,7 @@ function ConsultationChat({
     console.log('[Chat] Выполняем автоматическое завершение консультации');
     
     // Показываем уведомление
-    toast.loading('Завершение консультации...', {id: 'auto-complete-consultation'});
+    toast.loading(t('finalizingConsultation'), {id: 'auto-complete-consultation'});
     
     // Получаем WebSocket соединение из сервиса
     const wsConnection = await webSocketService.getConsultationConnection(
@@ -736,7 +738,7 @@ function ConsultationChat({
     // Проверяем WebSocket соединение
     if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
       console.error('[Chat] Нет соединения WebSocket для завершения консультации');
-      toast.error('Нет соединения с сервером. Попробуйте позже.', {id: 'auto-complete-consultation'});
+      toast.error(t('serverConnectionFailed'), {id: 'auto-complete-consultation'});
       return;
     }
     
@@ -775,7 +777,7 @@ function ConsultationChat({
         wsConnection.removeEventListener('message', statusHandler);
         
         // Показываем ошибку
-        toast.error('Не удалось автоматически завершить консультацию. Обратитесь к врачу.', {id: 'auto-complete-consultation'});
+        toast.error(t('autoCompletionFailed'), {id: 'auto-complete-consultation'});
         
         reject(new Error('Таймаут при завершении консультации'));
       }, 5000);
@@ -796,7 +798,7 @@ function ConsultationChat({
     completePromise
       .then(() => {
         toast.dismiss('auto-complete-consultation');
-        toast.success('Консультация автоматически завершена из-за достижения лимита сообщений', { duration: 5000 });
+        toast.success(t('messageLimitAutoComplete'), { duration: 5000 });
         
         // Обновляем данные консультации через колбэк
         if (onConsultationUpdated) {
@@ -937,7 +939,7 @@ function ConsultationChat({
               console.log('[Chat] Достигнут лимит сообщений. Автоматическое завершение консультации.');
               
               // Показываем предупреждение
-              toast.error('Достигнут лимит сообщений. Консультация будет завершена.', {
+              toast.error(t('messageLimitReached'), {
                 duration: 5000,
                 icon: '⚠️'
               });
@@ -1058,7 +1060,7 @@ function ConsultationChat({
         case 'error':
           // Сообщение об ошибке от сервера
           console.error('[WebSocket] Ошибка от сервера:', data.message);
-          toast.error(data.message || 'Произошла ошибка на сервере');
+          toast.error(data.message || t('unknownError'));
           break;
           
         default:
@@ -1113,7 +1115,7 @@ function ConsultationChat({
         }, delay);
       } else {
         console.warn(`[WebSocket] Достигнуто максимальное количество попыток переподключения (${maxReconnectAttempts})`);
-        updateConnectionStatus('error', 'Превышено количество попыток подключения. Пожалуйста, обновите страницу.');
+        updateConnectionStatus('error', t('connectionTimeout'));
         disableReconnect.current = true;
       }
       
@@ -1203,7 +1205,7 @@ function ConsultationChat({
       }
     } catch (error) {
       console.error('Ошибка при отправке сообщения:', error);
-      toast.error('Не удалось отправить сообщение');
+      toast.error(t('messageSendFailed'));
       
       // Возвращаем текст в поле ввода при ошибке
       setInputValue(messageText);
@@ -1221,7 +1223,7 @@ function ConsultationChat({
             <i className="fas fa-exclamation-triangle text-3xl"></i>
           </div>
           <h3 className="text-xl font-medium mb-2">Ошибка отображения чата</h3>
-          <p className="text-gray-600 text-center mb-4">{renderError.message || 'Произошла неизвестная ошибка'}</p>
+          <p className="text-gray-600 text-center mb-4">{renderError.message || t('unknownError')}</p>
           <Button 
             color="primary" 
             onClick={() => window.location.reload()}
@@ -1291,8 +1293,8 @@ function ConsultationChat({
                     variant="flat"
                     className="mr-2"
                   >
-                    {consultation?.status === 'active' ? 'Активна' : 
-                      consultation?.status === 'completed' ? 'Завершена' : 'Ожидание'}
+                    {consultation?.status === 'active' ? t('statusActive') : 
+                      consultation?.status === 'completed' ? t('statusCompleted') : t('statusWaiting')}
                   </Badge>
                 </div>
               </div>
@@ -1328,7 +1330,7 @@ function ConsultationChat({
                     if (window.showReviewModal) {
                       window.showReviewModal();
                     } else {
-                      toast.error('Не удалось открыть форму отзыва');
+                      toast.error(t('reviewFormError'));
                     }
                   }}
                 >
@@ -1388,7 +1390,7 @@ function ConsultationChat({
             
             {isSending ? (
               <div className="flex-grow flex items-center justify-center p-4">
-                <Spinner label="Загрузка сообщений..." color="primary" labelColor="primary" />
+                <Spinner label={t('loadingMessages')} color="primary" labelColor="primary" />
               </div>
             ) : (
               <>
@@ -1398,11 +1400,11 @@ function ConsultationChat({
                       <div className="w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-gray-100">
                         <i className="fas fa-comments text-2xl text-gray-400"></i>
                       </div>
-                      <p className="text-lg mb-2">Нет сообщений</p>
+                      <p className="text-lg mb-2">{t('noMessages')}</p>
                       <p className="text-sm">
                         {canSendMessages ? 
-                          'Начните диалог, отправив первое сообщение' : 
-                          'Дождитесь начала консультации'}
+                          t('startConversation') : 
+                          t('waitForConsultation')}
                       </p>
                     </div>
                   ) : (
@@ -1433,9 +1435,9 @@ function ConsultationChat({
                       ref={textareaRef}
                       fullWidth
                       placeholder={
-                        !canSendMessages ? "Отправка сообщений недоступна" :
-                        isMessageLimitReached ? "Достигнут лимит сообщений" :
-                        "Введите сообщение..."
+                        !canSendMessages ? t('messagingDisabled') :
+                        isMessageLimitReached ? t('messageLimitReached') :
+                        t('enterMessage')
                       }
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
@@ -1462,7 +1464,7 @@ function ConsultationChat({
                   {isMessageLimitReached && (
                     <div className="mt-2 text-center text-xs text-danger-500 animate-pulse">
                       <i className="fas fa-exclamation-circle mr-1"></i>
-                      Вы достигли лимита сообщений для этой консультации
+                      {t('messageLimitExceeded')}
                     </div>
                   )}
                 </div>
@@ -1484,15 +1486,14 @@ function ConsultationChat({
         >
           <ModalContent>
             <ModalHeader className="flex flex-col gap-1">
-              Завершение консультации
+              {t('completeConsultation')}
             </ModalHeader>
             <ModalBody>
               <p>
-                Вы уверены, что хотите завершить консультацию? 
-                После завершения отправка сообщений будет недоступна.
+                {t('confirmCompleteConsultation')}
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                Пациент получит возможность оставить отзыв о консультации.
+                {t('patientCanLeaveReview')}
               </p>
             </ModalBody>
             <ModalFooter>

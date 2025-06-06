@@ -16,6 +16,7 @@ class UserCreate(BaseModel):
     # Дополнительные поля для создания профиля
     full_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    city: Optional[str] = None  # Город/область/республика
     district: Optional[str] = None
     contact_address: Optional[str] = None
     medical_info: Optional[str] = None
@@ -34,6 +35,7 @@ class UserResponse(BaseModel):
     # Дополнительные поля из профилей (для админ панели)
     full_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    city: Optional[str] = None
     district: Optional[str] = None
     contact_address: Optional[str] = None
     
@@ -68,7 +70,9 @@ class PatientProfileCreateUpdate(BaseModel):
     full_name: Optional[str] = Field(None, max_length=255)
     contact_phone: Optional[str] = Field(None, max_length=50)
     contact_address: Optional[str] = Field(None, max_length=255)
+    city: Optional[str] = Field(None, max_length=255)  # Город/область/республика
     district: Optional[str] = Field(None, max_length=255)  # Убираю дефолтное значение
+    country: Optional[str] = Field(default="Узбекистан", max_length=255)  # Страна
     medical_info: Optional[str] = None
 
 
@@ -79,7 +83,9 @@ class PatientProfileResponse(BaseModel):
     full_name: Optional[str] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
+    city: Optional[str] = None  # Город/область/республика
     district: Optional[str] = None
+    country: Optional[str] = None  # Страна
     medical_info: Optional[str] = None
     user: Optional[UserBasicInfo] = None  # Добавляем информацию о пользователе с аватаром
 
@@ -94,8 +100,21 @@ class DoctorProfileCreateUpdate(BaseModel):
     specialization: str = Field(..., max_length=255) # Специализация обязательна. '...' указывает, что поле обязательное.
     experience: Optional[str] = Field(None, max_length=255)
     education: Optional[str] = Field(None, max_length=1000) # Текст образования может быть длиннее
+    
+    # Новые поля для опыта работы
+    work_experience: Optional[List[dict]] = None  # Массив с опытом работы
+    
+    # Местоположение врача
+    city: Optional[str] = Field(None, max_length=255)
+    country: Optional[str] = Field(default="Узбекистан", max_length=255)
+    
+    # Языки, на которых говорит врач
+    languages: Optional[List[str]] = None
+    
     # Стоимость консультации, обязательна, должна быть больше 0
     cost_per_consultation: int = Field(..., gt=0) # gt=0 - greater than 0
+    
+    # Старые поля (оставляем для совместимости)
     practice_areas: Optional[str] = Field(None, max_length=511)
     district: Optional[str] = Field(None, max_length=255)  # Убираю дефолтное значение
     is_active: Optional[bool] = None  # Поле для активации/деактивации профиля (только врач может менять)
@@ -110,10 +129,24 @@ class DoctorProfileResponse(BaseModel):
     specialization: str
     experience: Optional[str] = None
     education: Optional[str] = None
+    
+    # Новые поля для опыта работы
+    work_experience: Optional[List[dict]] = None
+    
+    # Местоположение врача
+    city: Optional[str] = None
+    country: Optional[str] = None
+    
+    # Языки, на которых говорит врач
+    languages: Optional[List[str]] = None
+    
     cost_per_consultation: int
+    
+    # Старые поля (оставляем для совместимости)
     practice_areas: Optional[str] = None
     district: Optional[str] = None  # Убираю дефолтное значение
-    is_verified: bool # Статус верификации (возвращаем в ответе)
+    
+    is_verified: bool # Статус верификации (переименовано из "Проверенный врач" в "Верифицированный врач")
     is_active: bool # Статус активности врача (доступен ли для консультаций)
     user: Optional[UserBasicInfo] = None  # Добавляем информацию о пользователе с аватаром
 
@@ -131,6 +164,9 @@ class DoctorApplicationCreate(BaseModel):
     experience: str = Field(..., max_length=255)
     education: str = Field(..., max_length=1000)
     license_number: str = Field(..., max_length=255)
+    city: Optional[str] = Field(None, max_length=255)  # Город/регион
+    district: Optional[str] = Field(None, max_length=255)  # Район
+    languages: Optional[List[str]] = None  # Языки консультаций
     additional_info: Optional[str] = Field(None, max_length=2000)
     # Пути к файлам будут добавлены отдельно после успешной загрузки
 
@@ -144,6 +180,9 @@ class DoctorApplicationResponse(BaseModel):
     experience: str
     education: str
     license_number: str
+    city: Optional[str] = None  # Город/регион
+    district: Optional[str] = None  # Район
+    languages: Optional[List[str]] = None  # Языки консультаций
     photo_path: Optional[str] = None
     diploma_path: Optional[str] = None
     license_path: Optional[str] = None
@@ -177,9 +216,13 @@ class DoctorApplicationListResponse(BaseModel):
 # Модель для параметров фильтрации врачей
 class DoctorFilter(BaseModel):
     specialization: Optional[str] = None  # Специализация для фильтрации
-    practice_area: Optional[str] = None   # Район практики для фильтрации
+    city: Optional[str] = None            # Город для фильтрации (вместо района)
+    country: Optional[str] = None         # Страна для фильтрации
+    language: Optional[str] = None        # Язык для фильтрации
     min_price: Optional[int] = None       # Минимальная стоимость консультации
     max_price: Optional[int] = None       # Максимальная стоимость консультации
+    # Старые поля для совместимости
+    practice_area: Optional[str] = None   # Район практики для фильтрации (deprecated)
 
 # Модель для краткой информации о враче (для списка)
 class DoctorBrief(BaseModel):
@@ -188,9 +231,17 @@ class DoctorBrief(BaseModel):
     full_name: Optional[str]     # ФИО врача
     specialization: str          # Специализация
     cost_per_consultation: int   # Стоимость консультации
-    district: Optional[str] = None  # Район практики врача
-    experience: Optional[str] = None  # Опыт работы врача
-    is_verified: bool            # Статус верификации
+    
+    # Новые поля
+    city: Optional[str] = None           # Город врача
+    country: Optional[str] = None        # Страна врача
+    languages: Optional[List[str]] = None # Языки врача
+    
+    # Старые поля для совместимости
+    district: Optional[str] = None       # Район практики врача (deprecated)
+    experience: Optional[str] = None     # Опыт работы врача
+    
+    is_verified: bool            # Статус верификации (Верифицированный врач)
 
     class Config:
         from_attributes = True

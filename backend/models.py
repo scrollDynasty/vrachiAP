@@ -100,7 +100,12 @@ class PatientProfile(Base):
     full_name = Column(String(255)) # ФИО пациента
     contact_phone = Column(String(50)) # Телефон пациента (опционально)
     contact_address = Column(String(255)) # Адрес пациента (опционально)
+    
+    # Новые поля для местоположения
+    city = Column(String(255), nullable=True) # Город/область/республика пациента
     district = Column(String(255)) # Район пациента (опционально)
+    country = Column(String(255), nullable=True, default="Узбекистан") # Страна
+    
     medical_info = Column(Text) # Медицинская информация пациента (опционально)
     # TODO: Добавить поля для истории консультаций и платежей (связи с другими моделями)
 
@@ -122,9 +127,22 @@ class DoctorProfile(Base):
     experience = Column(String(255)) # Опыт работы (например, "5 лет")
     education = Column(Text) # Образование (может быть длинным описанием)
     cost_per_consultation = Column(Integer, nullable=False) # Стоимость консультации в минимальных единицах (например, копейках), Integer лучше для денег
-    practice_areas = Column(String(511)) # Районы практики (можно хранить как строку)
-    district = Column(String(255)) # Основной район практики (указанный при регистрации)
-    is_verified = Column(Boolean, default=False) # Статус верификации Администратором
+    
+    # Новые поля для опыта работы
+    work_experience = Column(JSON, nullable=True) # JSON массив с опытом работы [{"organization": "Больница №1", "position": "Терапевт", "years": "2020-2023"}]
+    
+    # Местоположение врача
+    city = Column(String(255), nullable=True) # Город, где работает врач
+    country = Column(String(255), nullable=True, default="Узбекистан") # Страна
+    
+    # Языки, на которых говорит врач
+    languages = Column(JSON, nullable=True) # JSON массив языков ["русский", "узбекский", "английский"]
+    
+    # Старые поля (оставляем для совместимости, но будем использовать новые)
+    practice_areas = Column(String(511)) # Районы практики (deprecated, используем work_experience)
+    district = Column(String(255)) # Основной район практики (deprecated, используем city)
+    
+    is_verified = Column(Boolean, default=False) # Статус верификации Администратором (переименовано в is_verified из "Проверенный врач")
     is_active = Column(Boolean, default=True) # Статус активности врача (доступен ли для консультаций)
 
     # TODO: Добавить связи с моделями Отзывов, Консультаций, Расписания
@@ -146,6 +164,11 @@ class DoctorApplication(Base):
     experience = Column(String(255), nullable=False) # Опыт работы
     education = Column(Text, nullable=False) # Образование (вуз, год окончания)
     license_number = Column(String(255), nullable=False) # Номер лицензии/сертификата
+    
+    # Местоположение и языки
+    city = Column(String(255), nullable=True) # Город/регион работы врача
+    district = Column(String(255), nullable=True) # Район работы врача
+    languages = Column(JSON, nullable=True) # Языки консультаций
     
     # Документы и фото
     photo_path = Column(String(512), nullable=True) # Путь к фото врача
@@ -314,6 +337,7 @@ class PendingUser(Base):
     # Данные профиля
     full_name = Column(String(255), nullable=True)
     contact_phone = Column(String(50), nullable=True)
+    city = Column(String(255), nullable=True) # Город/область/республика
     district = Column(String(255), nullable=True)
     contact_address = Column(String(255), nullable=True)
     medical_info = Column(Text, nullable=True)
