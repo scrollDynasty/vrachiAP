@@ -276,6 +276,27 @@ class Message(Base):
     consultation = relationship("Consultation", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
     receiver = relationship("User", foreign_keys=[receiver_id])
+    attachments = relationship("MessageAttachment", back_populates="message", cascade="all, delete-orphan")
+
+
+# Модель для файлов, прикрепленных к сообщениям
+class MessageAttachment(Base):
+    __tablename__ = "message_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
+    
+    # Информация о файле
+    filename = Column(String(255), nullable=False)  # Оригинальное имя файла
+    file_path = Column(String(512), nullable=False)  # Путь к файлу на сервере
+    file_size = Column(Integer, nullable=False)  # Размер файла в байтах
+    content_type = Column(String(100), nullable=False)  # MIME тип файла
+    
+    # Дата загрузки
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношение к сообщению
+    message = relationship("Message", back_populates="attachments")
 
 
 # Модель для отзывов о консультации

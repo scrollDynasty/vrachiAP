@@ -656,6 +656,53 @@ export const consultationsApi = {
       console.error(`Ошибка при завершении консультации ${consultationId} через API:`, error);
       throw error;
     }
+  },
+
+  // Загрузка файла в консультацию
+  uploadFile: async (consultationId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      console.log(`Загрузка файла в консультацию ${consultationId}:`, file.name);
+      
+      const response = await api.post(`/api/consultations/${consultationId}/upload-file`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      console.log('Файл успешно загружен:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка при загрузке файла:', error);
+      throw error;
+    }
+  },
+
+  // Отправка сообщения с файлами
+  sendMessageWithFiles: async (consultationId, content, fileData = []) => {
+    try {
+      const formData = new FormData();
+      formData.append('content', content);
+      if (fileData.length > 0) {
+        formData.append('attachment_ids', JSON.stringify(fileData));
+      }
+      
+      console.log(`Отправка сообщения с файлами в консультацию ${consultationId}`);
+      
+      const response = await api.post(`/api/consultations/${consultationId}/messages-with-files`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      console.log('Сообщение с файлами успешно отправлено:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка при отправке сообщения с файлами:', error);
+      throw error;
+    }
   }
 };
 // Экспортируем базовый экземпляр API

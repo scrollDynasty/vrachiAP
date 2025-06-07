@@ -434,7 +434,7 @@ function ConsultationPage() {
 
   // Проверяем, может ли пользователь писать сообщения
   const canSendMessages = 
-    (consultation.status === 'active' || consultation.status === 'waiting') && 
+    consultation.status === 'active' && // Только в активных консультациях
     (isDoctor || isPatient) &&
     (isDoctor || consultation.message_count < consultation.message_limit);
 
@@ -510,7 +510,7 @@ function ConsultationPage() {
               consultation={consultation}
               onConsultationUpdated={handleConsultationUpdated}
               hasReview={hasReview}
-              canSendMessages={true}
+              canSendMessages={canSendMessages}
               isDoctor={isDoctor}
               isPatient={isPatient}
               patientName={patientName}

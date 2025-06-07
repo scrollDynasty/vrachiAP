@@ -67,7 +67,44 @@ const getItem = (key) => {
 
 // Компонент сообщения в чате
 const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) => {
+  const { t } = useTranslation(); // Добавляем импорт функции перевода
   const isMyMessage = message.sender_id === currentUserId;
+  
+  // Состояние для модального окна с изображением
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  
+  // Отладочный вывод для проверки вложений
+  if (message.attachments && message.attachments.length > 0) {
+    console.log('[ChatMessage] Сообщение с вложениями:', message.id, message.attachments);
+  }
+  
+  // Функция для открытия изображения в модальном окне
+  const openImageModal = (attachment) => {
+    setSelectedImage(attachment);
+    setIsImageModalOpen(true);
+  };
+  
+  // Функция для скачивания файла
+  const downloadFile = async (attachment) => {
+    try {
+      const fileUrl = `${window.location.origin}${attachment.file_path}`;
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка при скачивании файла:', error);
+    }
+  };
   
   // Форматирование времени
   const formatTime = (dateString) => {
@@ -121,6 +158,137 @@ const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) =>
       )}
       <div className={messageClasses.trim()}>
         <div className="text-sm font-medium">{message.content}</div>
+        
+        {/* Отображение прикрепленных файлов */}
+        {message.attachments && message.attachments.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {message.attachments.map((attachment, index) => {
+              // Определяем тип файла
+              const isImage = attachment.content_type?.startsWith('image/') || 
+                             attachment.filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+              
+              // Формируем полный URL к файлу
+              const fileUrl = `${window.location.origin}${attachment.file_path}`;
+              
+              return (
+                <div key={index} className="space-y-2">
+                  {isImage ? (
+                    // Отображение изображения
+                    <div 
+                      className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg group ${
+                        isMyMessage ? 'bg-white/10 border border-white/30' : 'bg-gray-50 border border-gray-200'
+                      }`}
+                      onClick={() => openImageModal(attachment)}
+                    >
+                      <img 
+                        src={fileUrl}
+                        alt={attachment.filename}
+                        className="max-w-full max-h-64 rounded-lg object-cover"
+                        style={{ width: 'auto', height: 'auto' }}
+                        onError={(e) => {
+                          // Если изображение не загрузилось, показываем как обычный файл
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      {/* Fallback если изображение не загрузится */}
+                      <div 
+                        className={`hidden items-center gap-2 p-3 ${
+                          isMyMessage ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <i className="fas fa-image text-lg"></i>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium truncate">{attachment.filename}</div>
+                          <div className="text-xs opacity-75">
+                            {(attachment.file_size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                        <div className="text-xs opacity-75">
+                          <i className="fas fa-external-link-alt"></i>
+                        </div>
+                      </div>
+                      {/* Overlay с кнопками действий */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button
+                          size="sm"
+                          color="secondary"
+                          variant="solid"
+                          isIconOnly
+                          className="bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadFile(attachment);
+                          }}
+                        >
+                          <i className="fas fa-download"></i>
+                        </Button>
+                      </div>
+                      
+                      {/* Overlay с информацией о файле */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        <div className="text-white text-xs font-medium truncate">
+                          {attachment.filename}
+                        </div>
+                        <div className="text-white/80 text-xs flex items-center justify-between">
+                          <span>{(attachment.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                          <span className="opacity-75">{t('clickToView')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Отображение документа/файла
+                                         <div 
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-300 hover:shadow-md group ${
+                        isMyMessage ? 'bg-white/20 border border-white/30 hover:bg-white/30' : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                      onClick={() => downloadFile(attachment)}
+                    >
+                      {/* Иконка в зависимости от типа файла */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                        isMyMessage ? 'bg-white/30' : 'bg-gray-200'
+                      }`}>
+                        {attachment.content_type === 'application/pdf' ? (
+                          <i className="fas fa-file-pdf text-red-500 text-lg"></i>
+                        ) : attachment.content_type?.includes('word') || attachment.filename?.match(/\.(doc|docx)$/i) ? (
+                          <i className="fas fa-file-word text-blue-500 text-lg"></i>
+                        ) : attachment.content_type === 'text/plain' ? (
+                          <i className="fas fa-file-alt text-gray-500 text-lg"></i>
+                        ) : (
+                          <i className="fas fa-file text-gray-500 text-lg"></i>
+                        )}
+                      </div>
+                      
+                      {/* Информация о файле */}
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium truncate ${
+                          isMyMessage ? 'text-white' : 'text-gray-800'
+                        }`}>
+                          {attachment.filename}
+                        </div>
+                        <div className={`text-xs flex items-center gap-2 ${
+                          isMyMessage ? 'text-white/80' : 'text-gray-500'
+                        }`}>
+                          <span>{(attachment.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                          <span>•</span>
+                          <span className="group-hover:text-primary-500 transition-colors">{t('clickToDownload')}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Иконка действия */}
+                      <div className={`flex-shrink-0 ${
+                        isMyMessage ? 'text-white/60' : 'text-gray-400'
+                      }`}>
+                        <i className="fas fa-download text-sm"></i>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        
         <div className={`text-xs mt-1 flex items-center ${isMyMessage ? 'text-blue-100' : 'text-gray-500'}`}>
           {formatTime(message.sent_at)}
           {renderMessageStatus()}
@@ -133,6 +301,84 @@ const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) =>
           size="sm" 
         />
       )}
+      
+      {/* Модальное окно для просмотра изображений */}
+      <Modal 
+        isOpen={isImageModalOpen} 
+        onClose={() => setIsImageModalOpen(false)}
+        size="4xl"
+        backdrop="blur"
+        className="bg-transparent"
+        hideCloseButton
+      >
+        <ModalContent className="bg-transparent shadow-none">
+          <ModalBody className="p-0">
+            {selectedImage && (
+              <div className="relative bg-black/90 rounded-lg overflow-hidden">
+                {/* Заголовок модального окна */}
+                <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 to-transparent p-4">
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <h3 className="font-medium text-lg truncate">{selectedImage.filename}</h3>
+                      <p className="text-sm opacity-75">
+                        {(selectedImage.file_size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        color="secondary"
+                        variant="solid"
+                        startContent={<i className="fas fa-download"></i>}
+                        className="bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm"
+                        onPress={() => downloadFile(selectedImage)}
+                                              >
+                          {t('downloadFile')}
+                        </Button>
+                      <Button
+                        size="sm"
+                        color="danger"
+                        variant="solid"
+                        isIconOnly
+                        className="bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm"
+                        onPress={() => setIsImageModalOpen(false)}
+                      >
+                        <i className="fas fa-times"></i>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Изображение */}
+                <div className="flex items-center justify-center min-h-[60vh] max-h-[80vh] p-4">
+                  <img 
+                    src={`${window.location.origin}${selectedImage.file_path}`}
+                    alt={selectedImage.filename}
+                    className="max-w-full max-h-full object-contain rounded"
+                    style={{ maxHeight: '70vh' }}
+                  />
+                </div>
+                
+                {/* Нижняя панель с дополнительными действиями */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                  <div className="flex items-center justify-center gap-4">
+                    <Button
+                      size="sm"
+                      color="secondary"
+                      variant="light"
+                      startContent={<i className="fas fa-search-plus"></i>}
+                      className="text-white hover:bg-white/20"
+                      onPress={() => window.open(`${window.location.origin}${selectedImage.file_path}`, '_blank')}
+                    >
+                      {t('openFullSize')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };
@@ -262,11 +508,16 @@ function ConsultationChat({
   const textareaRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const messageBufferRef = useRef([]);
+  const fileInputRef = useRef(null);
   
   // Флаги для управления жизненным циклом
   const isUnmounting = useRef(false);  // Флаг для отслеживания размонтирования компонента
   const disableReconnect = useRef(false);  // Флаг для отключения повторных подключений
   const wsInitializedRef = useRef(false); // Флаг для отслеживания инициализации WebSocket
+  
+  // Состояния для работы с файлами
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Получаем счетчик сообщений пациента и лимит
   const patientMessageCount = useMemo(() => {
@@ -1182,7 +1433,13 @@ function ConsultationChat({
 
   // Обработка отправки сообщения
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && attachedFiles.length === 0) return;
+    
+    // Если есть прикрепленные файлы, используем функцию отправки с файлами
+    if (attachedFiles.length > 0) {
+      await sendMessageWithFiles();
+      return;
+    }
     
     // Очищаем поле ввода
     const messageText = inputValue;
@@ -1209,6 +1466,90 @@ function ConsultationChat({
       
       // Возвращаем текст в поле ввода при ошибке
       setInputValue(messageText);
+    }
+  };
+
+  // Функции для работы с файлами
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    
+    // Проверяем каждый файл
+    const validFiles = files.filter(file => {
+      // Проверка размера (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: ${t('fileTooLarge')}`);
+        return false;
+      }
+      
+      // Проверка типа файла
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: ${t('invalidFileType')}`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+      toast.success(`${t('fileUploaded')}: ${validFiles.map(f => f.name).join(', ')}`);
+    }
+    
+    // Очищаем input
+    event.target.value = '';
+  };
+
+  const removeFile = (index) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const sendMessageWithFiles = async () => {
+    if (!inputValue.trim() && attachedFiles.length === 0) return;
+    
+    setIsUploading(true);
+    
+    try {
+      if (attachedFiles.length > 0) {
+        // Сначала загружаем все файлы и получаем их данные
+        const uploadPromises = attachedFiles.map(file => 
+          consultationsApi.uploadFile(consultationId, file)
+        );
+        
+        const uploadedFiles = await Promise.all(uploadPromises);
+        
+        console.log('Файлы загружены, данные:', uploadedFiles);
+        
+        // Отправляем сообщение с полными данными файлов
+        await consultationsApi.sendMessageWithFiles(
+          consultationId,
+          inputValue.trim(),
+          uploadedFiles  // Передаем полные данные файлов
+        );
+      } else {
+        // Отправляем обычное сообщение
+        await sendMessage(inputValue.trim());
+      }
+      
+      // Очищаем поля
+      setInputValue('');
+      setAttachedFiles([]);
+      
+      // Прокручиваем к последнему сообщению
+      setTimeout(scrollToBottom, 100);
+      
+    } catch (error) {
+      console.error('Ошибка при отправке сообщения с файлами:', error);
+      toast.error(t('uploadError'));
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -1430,41 +1771,118 @@ function ConsultationChat({
                     </div>
                   )}
                   
+                  {/* Блок прикрепленных файлов */}
+                  {attachedFiles.length > 0 && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-file-alt text-primary-500"></i>
+                        <span className="text-sm font-medium text-gray-700">
+                          {t('attachedFiles')} ({attachedFiles.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {attachedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <i className="fas fa-file text-gray-400 flex-shrink-0"></i>
+                              <span className="text-sm truncate">{file.name}</span>
+                              <span className="text-xs text-gray-400 flex-shrink-0">
+                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="light"
+                              isIconOnly
+                              onPress={() => removeFile(index)}
+                              className="flex-shrink-0"
+                            >
+                              <i className="fas fa-times"></i>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-end gap-2">
-                    <Textarea
-                      ref={textareaRef}
-                      fullWidth
-                      placeholder={
-                        !canSendMessages ? t('messagingDisabled') :
-                        isMessageLimitReached ? t('messageLimitReached') :
-                        t('enterMessage')
-                      }
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
+                    <div className="flex-1">
+                      <Textarea
+                        ref={textareaRef}
+                        fullWidth
+                        placeholder={
+                          consultation?.status === 'completed' ? t('consultationCompleted') :
+                          !canSendMessages ? t('messagingDisabled') :
+                          isMessageLimitReached ? t('messageLimitReached') :
+                          t('enterMessage')
+                        }
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={!canSendMessages || isMessageLimitReached}
+                        minRows={1}
+                        maxRows={4}
+                        className={`transition-all duration-300 ${!canSendMessages ? 'opacity-50' : 'hover:border-primary-300 focus:border-primary-500'}`}
+                      />
+                    </div>
+                    
+                    {/* Кнопка прикрепления файлов */}
+                    <Button
+                      color="default"
+                      variant="light"
+                      isIconOnly
+                      size="lg"
+                      className="min-w-12 h-12 hover:bg-gray-100 transition-all duration-300"
+                      onPress={() => fileInputRef.current?.click()}
                       disabled={!canSendMessages || isMessageLimitReached}
-                      minRows={1}
-                      maxRows={4}
-                      className={`transition-all duration-300 ${!canSendMessages ? 'opacity-50' : 'hover:border-primary-300 focus:border-primary-500'}`}
-                    />
+                    >
+                      <i className="fas fa-paperclip"></i>
+                    </Button>
+                    
                     <Button
                       color="primary"
                       isIconOnly
                       size="lg"
                       className={`min-w-12 h-12 shadow-md hover:shadow-lg transition-all duration-300 ${
-                        !canSendMessages || !inputValue.trim() ? 'opacity-50' : 'animate-subtle-pulse'
+                        !canSendMessages || (!inputValue.trim() && attachedFiles.length === 0) ? 'opacity-50' : 'animate-subtle-pulse'
                       }`}
-                      onPress={handleSendMessage}
-                      disabled={!canSendMessages || !inputValue.trim() || isMessageLimitReached}
+                      onPress={() => {
+                        if (attachedFiles.length > 0) {
+                          sendMessageWithFiles();
+                        } else {
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={!canSendMessages || (!inputValue.trim() && attachedFiles.length === 0) || isMessageLimitReached || isUploading}
+                      isLoading={isUploading}
                     >
                       <i className="fas fa-paper-plane"></i>
                     </Button>
                   </div>
                   
+                  {/* Скрытый input для выбора файлов */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
                   {isMessageLimitReached && (
                     <div className="mt-2 text-center text-xs text-danger-500 animate-pulse">
                       <i className="fas fa-exclamation-circle mr-1"></i>
                       {t('messageLimitExceeded')}
+                    </div>
+                  )}
+                  
+                  {/* Сообщение о завершенной консультации */}
+                  {consultation?.status === 'completed' && !canSendMessages && (
+                    <div className="mt-2 text-center text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border">
+                      <i className="fas fa-check-circle mr-2 text-success-500"></i>
+                      {t('consultationCompleted')}. {t('createNewConsultationForQuestions')}.
                     </div>
                   )}
                 </div>

@@ -23,7 +23,7 @@ from fastapi.security import (
     OAuth2PasswordRequestForm,
     OAuth2PasswordBearer,
 )  # Добавляем OAuth2PasswordRequestForm и OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Annotated, List, Optional, Union, Dict, Any
 from datetime import timedelta, datetime  # Импортируем timedelta и datetime
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +59,7 @@ from models import (
     ViewedNotification,
     Consultation,
     Message,
+    MessageAttachment,  # Добавляем импорт модели файлов
     Review,
     UserNotificationSettings,
     PendingUser,
@@ -139,9 +140,10 @@ PHOTO_DIR = os.path.join(UPLOAD_DIR, "photos")
 DIPLOMA_DIR = os.path.join(UPLOAD_DIR, "diplomas")
 LICENSE_DIR = os.path.join(UPLOAD_DIR, "licenses")
 AVATAR_DIR = os.path.join(UPLOAD_DIR, "avatars")  # Добавляем директорию для аватаров
+CONSULTATION_FILES_DIR = os.path.join(UPLOAD_DIR, "consultation_files")  # Добавляем директорию для файлов чата
 
 # Создаем директории, если они еще не существуют
-for directory in [PHOTO_DIR, DIPLOMA_DIR, LICENSE_DIR, AVATAR_DIR]:  # Добавляем AVATAR_DIR в список директорий
+for directory in [PHOTO_DIR, DIPLOMA_DIR, LICENSE_DIR, AVATAR_DIR, CONSULTATION_FILES_DIR]:  # Добавляем CONSULTATION_FILES_DIR
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -2741,6 +2743,25 @@ class MessageCreate(BaseModel):
 
 
 # Модель для ответа по сообщению
+class MessageAttachmentResponse(BaseModel):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    content_type: str
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class FileUploadResponse(BaseModel):
+    filename: str
+    file_path: str
+    file_size: int
+    content_type: str
+    uploaded_at: str
+
+
 class MessageResponse(BaseModel):
     id: int
     consultation_id: int
@@ -2751,6 +2772,7 @@ class MessageResponse(BaseModel):
     sender_role: str
     receiver_id: int
     receiver_role: str
+    attachments: List[MessageAttachmentResponse] = []
 
     class Config:
         from_attributes = True
@@ -3597,9 +3619,10 @@ async def get_messages(
             status_code=403, detail="У вас нет доступа к сообщениям этой консультации"
         )
 
-    # Получаем сообщения, сортируя по времени отправки
+    # Получаем сообщения с вложениями, исключая временные вложения с message_id=0
     messages = (
         db.query(Message)
+        .options(joinedload(Message.attachments.and_(MessageAttachment.message_id != 0)))
         .filter(Message.consultation_id == consultation_id)
         .order_by(Message.sent_at)
         .all()
@@ -3632,6 +3655,266 @@ async def get_messages(
                     pass
 
     return messages
+
+
+# Эндпоинт для загрузки файла в сообщение консультации
+@app.post(
+    "/api/consultations/{consultation_id}/upload-file",
+    response_model=FileUploadResponse,
+    tags=["consultations"],
+)
+async def upload_consultation_file(
+    consultation_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Загружает файл для отправки в сообщении консультации.
+    Максимальный размер файла: 5 МБ.
+    Поддерживаемые типы: изображения, документы PDF, DOC, DOCX.
+    """
+    # Получаем консультацию
+    consultation = db.query(Consultation).filter(Consultation.id == consultation_id).first()
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Консультация не найдена")
+    
+    # Проверяем права доступа (только участники консультации могут загружать файлы)
+    if (
+        current_user.id != consultation.patient_id
+        and current_user.id != consultation.doctor_id
+    ):
+        raise HTTPException(
+            status_code=403, detail="У вас нет доступа к этой консультации"
+        )
+    
+    # Проверяем, что консультация активна
+    if consultation.status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail="Загрузка файлов возможна только в активной консультации",
+        )
+    
+    # Проверяем размер файла (максимум 5 МБ)
+    contents = await file.read()
+    size = len(contents)
+    if size > 5 * 1024 * 1024:  # 5 МБ
+        raise HTTPException(
+            status_code=400,
+            detail="Файл слишком большой. Максимальный размер: 5 МБ",
+        )
+    
+    # Возвращаем указатель файла в начало после чтения
+    await file.seek(0)
+    
+    # Проверяем тип файла
+    allowed_types = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+    ]
+    
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Недопустимый тип файла. Разрешены: изображения (JPEG, PNG, GIF, WEBP), PDF, DOC, DOCX, TXT",
+        )
+    
+    try:
+        # Создаем уникальное имя файла
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        filename = f"consultation_{consultation_id}_{current_user.id}_{uuid.uuid4()}{file_extension}"
+        file_path = os.path.join(CONSULTATION_FILES_DIR, filename)
+        
+        # Сохраняем файл
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Возвращаем информацию о файле БЕЗ сохранения в БД
+        # Файл сохранен на диске, но запись в БД создастся только при отправке сообщения
+        attachment_data = FileUploadResponse(
+            filename=file.filename,
+            file_path=f"/uploads/consultation_files/{filename}",
+            file_size=size,
+            content_type=file.content_type,
+            uploaded_at=datetime.utcnow().isoformat()
+        )
+        
+        print(f"Файл успешно загружен на диск: {attachment_data.file_path}")
+        
+        return attachment_data
+        
+    except Exception as e:
+        print(f"Ошибка при загрузке файла: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Ошибка при сохранении файла. Попробуйте позже.",
+        )
+
+
+# Эндпоинт для отправки сообщения с файлами
+@app.post(
+    "/api/consultations/{consultation_id}/messages-with-files",
+    response_model=MessageResponse,
+    tags=["consultations"],
+)
+async def send_message_with_files(
+    consultation_id: int,
+    content: str = Form(...),
+    attachment_ids: Optional[str] = Form(None),  # JSON строка с данными файлов
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Отправляет сообщение с прикрепленными файлами.
+    Учитывает лимит в 30 сообщений.
+    """
+    max_retries = 3
+    retry_delay = 0.1
+    
+    for attempt in range(max_retries):
+        try:
+            # Получаем консультацию с блокировкой
+            consultation = (
+                db.query(Consultation)
+                .filter(Consultation.id == consultation_id)
+                .with_for_update()
+                .first()
+            )
+
+            if not consultation:
+                raise HTTPException(status_code=404, detail="Консультация не найдена")
+
+            # Проверяем права доступа
+            if (
+                current_user.id != consultation.patient_id
+                and current_user.id != consultation.doctor_id
+            ):
+                raise HTTPException(
+                    status_code=403, detail="У вас нет доступа к этой консультации"
+                )
+
+            # Проверяем, что консультация активна
+            if consultation.status != "active":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Отправка сообщений возможна только в активной консультации",
+                )
+
+            # Проверяем лимит сообщений
+            if consultation.message_count >= consultation.message_limit:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Достигнут лимит сообщений ({consultation.message_limit}). Необходимо продлить консультацию.",
+                )
+
+            # Определяем роль отправителя
+            sender_role = "doctor" if current_user.id == consultation.doctor_id else "patient"
+
+            # Создаем сообщение
+            db_message = Message(
+                consultation_id=consultation_id,
+                sender_id=current_user.id,
+                content=content,
+                is_read=False,
+                sender_role=sender_role,
+                receiver_id=consultation.doctor_id if current_user.id == consultation.patient_id else consultation.patient_id,
+                receiver_role="doctor" if current_user.id == consultation.patient_id else "patient"
+            )
+
+            db.add(db_message)
+            db.flush()  # Получаем ID сообщения
+
+            # Обрабатываем прикрепленные файлы
+            if attachment_ids:
+                try:
+                    import json
+                    file_data_list = json.loads(attachment_ids)  # Теперь это данные файлов с оригинальными именами
+                    
+                    for file_data in file_data_list:
+                        # Извлекаем данные файла
+                        file_path = file_data.get('file_path', '')
+                        original_filename = file_data.get('filename', '')
+                        file_size = file_data.get('file_size', 0)
+                        content_type = file_data.get('content_type', 'application/octet-stream')
+                        
+                        # Валидируем данные файла
+                        if not original_filename or not file_path:
+                            print(f"Ошибка: неполные данные файла - {file_data}")
+                            continue
+                        
+                        # Создаем запись о файле в БД
+                        attachment = MessageAttachment(
+                            message_id=db_message.id,
+                            filename=original_filename,
+                            file_path=file_path,
+                            file_size=file_size,
+                            content_type=content_type,
+                        )
+                        
+                        db.add(attachment)
+                        
+                except Exception as e:
+                    print(f"Ошибка при обработке файлов: {str(e)}")
+
+            # Увеличиваем счетчик сообщений
+            consultation.message_count += 1
+
+            # Сохраняем изменения
+            db.commit()
+            
+            # Обновляем сообщение с вложениями (исключаем временные с message_id=0)
+            db_message = (
+                db.query(Message)
+                .options(joinedload(Message.attachments.and_(MessageAttachment.message_id != 0)))
+                .filter(Message.id == db_message.id)
+                .first()
+            )
+            
+            break
+            
+        except Exception as e:
+            if attempt < max_retries - 1 and "Record has changed since last read" in str(e):
+                print(f"Ошибка при сохранении сообщения (попытка {attempt + 1}/{max_retries}): {str(e)}")
+                db.rollback()
+                await asyncio.sleep(retry_delay * (2 ** attempt))
+                continue
+            else:
+                print(f"Критическая ошибка при сохранении сообщения: {str(e)}")
+                db.rollback()
+                raise HTTPException(status_code=500, detail="Ошибка при сохранении сообщения")
+
+    # Отправляем уведомление через WebSocket
+    try:
+        await broadcast_consultation_update(consultation_id, {
+            "type": "message",
+            "message": {
+                "id": db_message.id,
+                "consultation_id": db_message.consultation_id,
+                "sender_id": db_message.sender_id,
+                "content": db_message.content,
+                "sent_at": db_message.sent_at.isoformat(),
+                "is_read": db_message.is_read,
+                "sender_role": sender_role,
+                "attachments": [
+                    {
+                        "id": att.id,
+                        "filename": att.filename,
+                        "file_path": att.file_path,
+                        "file_size": att.file_size,
+                        "content_type": att.content_type,
+                        "uploaded_at": att.uploaded_at.isoformat()
+                    } for att in db_message.attachments
+                ]
+            }
+        })
+        print(f"[WebSocket] Сообщение с файлами (ID: {db_message.id}) отправлено через WebSocket")
+    except Exception as e:
+        print(f"[WebSocket] Ошибка при отправке сообщения через WebSocket: {str(e)}")
+
+    return db_message
 
 
 # Эндпоинт для создания отзыва о консультации
@@ -5801,7 +6084,7 @@ async def google_auth_callback(
             <div class="container">
                 <div class="success-icon"></div>
                 <h1>Авторизация успешна!</h1>
-                <p class="subtitle">Добро пожаловать в vrachiAPP</p>
+                <p class="subtitle">Добро пожаловать в soglom</p>
                 
                 <div class="loading-container">
                     <div class="spinner"></div>
@@ -6514,4 +6797,58 @@ async def get_unread_messages_alias(
     current_user: User = Depends(get_current_user),
 ):
     """Alias для /api/consultations/unread для обратной совместимости"""
-    return await get_unread_messages(db, current_user) 
+    return await get_unread_messages(db, current_user)
+
+
+# Административный endpoint для очистки временных вложений
+@app.delete("/admin/cleanup-temp-attachments", status_code=status.HTTP_200_OK)
+async def cleanup_temp_attachments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """
+    Очищает временные вложения с message_id=0
+    Доступно только администраторам
+    """
+    try:
+        # Находим все временные вложения
+        temp_attachments = db.query(MessageAttachment).filter(
+            MessageAttachment.message_id == 0
+        ).all()
+        
+        files_deleted = 0
+        files_errors = 0
+        
+        # Удаляем физические файлы
+        for attachment in temp_attachments:
+            try:
+                # Формируем полный путь к файлу
+                file_path = attachment.file_path.replace('/uploads/consultation_files/', 'uploads/consultation_files/')
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    files_deleted += 1
+            except Exception as e:
+                files_errors += 1
+                print(f"Ошибка при удалении файла {attachment.file_path}: {e}")
+        
+        # Удаляем записи из базы данных
+        deleted_count = db.query(MessageAttachment).filter(
+            MessageAttachment.message_id == 0
+        ).delete()
+        
+        db.commit()
+        
+        return {
+            "message": "Временные вложения успешно очищены",
+            "deleted_records": deleted_count,
+            "deleted_files": files_deleted,
+            "file_errors": files_errors
+        }
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Ошибка при очистке временных вложений: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Ошибка при очистке временных вложений"
+        ) 

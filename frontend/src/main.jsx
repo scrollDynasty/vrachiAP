@@ -12,6 +12,7 @@ import App from './App'
 // Импортируем стили
 import './index.css' // Tailwind CSS
 import './index.scss' // SCSS стили
+import '@fortawesome/fontawesome-free/css/all.css' // FontAwesome иконки
 
 // Импортируем тему MUI
 import muiTheme from './theme/index'

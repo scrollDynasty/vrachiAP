@@ -316,6 +316,22 @@ const translations = {
     newMessages: 'Новые сообщения',
     hasMessages: 'Есть сообщения',
     
+    // Переводы для загрузки файлов в чате
+    attachFile: 'Прикрепить файл',
+    uploadFile: 'Загрузить файл',
+    fileUploaded: 'Файл загружен',
+    removeFile: 'Удалить файл',
+    fileTooLarge: 'Файл слишком большой. Максимальный размер: 5 МБ',
+    invalidFileType: 'Недопустимый тип файла',
+    uploadError: 'Ошибка при загрузке файла',
+    attachedFiles: 'Прикрепленные файлы',
+    consultationCompleted: 'Консультация завершена',
+    createNewConsultationForQuestions: 'Для новых вопросов создайте новую консультацию',
+    clickToDownload: 'Нажмите для скачивания',
+    clickToView: 'Нажмите для просмотра',
+    downloadFile: 'Скачать',
+    openFullSize: 'Открыть в полном размере',
+    
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Найдите подходящего специалиста для консультации',
     searchInRegion: 'Поиск в регионе',
@@ -1117,6 +1133,22 @@ const translations = {
     newMessages: 'Yangi xabarlar',
     hasMessages: 'Xabarlar bor',
     
+    // Переводы для загрузки файлов в чате
+    attachFile: 'Fayl biriktirish',
+    uploadFile: 'Fayl yuklash',
+    fileUploaded: 'Fayl yuklandi',
+    removeFile: 'Faylni o\'chirish',
+    fileTooLarge: 'Fayl juda katta. Maksimal hajm: 5 MB',
+    invalidFileType: 'Noto\'g\'ri fayl turi',
+    uploadError: 'Fayl yuklashda xatolik',
+    attachedFiles: 'Biriktirilgan fayllar',
+    consultationCompleted: 'Konsultatsiya tugallandi',
+    createNewConsultationForQuestions: 'Yangi savollar uchun yangi konsultatsiya yarating',
+    clickToDownload: 'Yuklab olish uchun bosing',
+    clickToView: 'Ko\'rish uchun bosing',
+    downloadFile: 'Yuklab olish',
+    openFullSize: 'To\'liq o\'lchamda ochish',
+    
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Konsultatsiya uchun mos mutaxassisni toping',
     searchInRegion: 'Hududda qidiruv',
@@ -1866,6 +1898,22 @@ const translations = {
     messages: 'Messages',
     newMessages: 'New Messages',
     hasMessages: 'Has Messages',
+    
+    // Translations for file uploads in chat
+    attachFile: 'Attach File',
+    uploadFile: 'Upload File',
+    fileUploaded: 'File Uploaded',
+    removeFile: 'Remove File',
+    fileTooLarge: 'File too large. Maximum size: 5 MB',
+    invalidFileType: 'Invalid file type',
+    uploadError: 'Error uploading file',
+    attachedFiles: 'Attached Files',
+    consultationCompleted: 'Consultation completed',
+    createNewConsultationForQuestions: 'Create a new consultation for new questions',
+    clickToDownload: 'Click to download',
+    clickToView: 'Click to view',
+    downloadFile: 'Download',
+    openFullSize: 'Open in full size',
     
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Find the right specialist for consultation',
