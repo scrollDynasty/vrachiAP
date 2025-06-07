@@ -2,8 +2,32 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Textarea, Spinner, Select, SelectItem } from '@nextui-org/react';
 import { motion } from 'framer-motion';
 import api from '../api';
-import { getRegions, getDistrictsByRegion, availableLanguages } from '../constants/uzbekistanRegions';
+import { getRegions, getDistrictsByRegion, availableLanguages, translateLanguage } from '../constants/uzbekistanRegions';
 import { useTranslation } from './LanguageSelector';
+import { translateRegion, translateDistrict } from './RegionTranslations';
+
+// Функция для перевода специализаций
+const translateSpecialization = (specialization, t) => {
+  const specializationMap = {
+    'Терапевт': t('therapist'),
+    'Кардиолог': t('cardiologist'),
+    'Невролог': t('neurologist'),
+    'Хирург': t('surgeon'),
+    'Педиатр': t('pediatrician'),
+    'Офтальмолог': t('ophthalmologist'),
+    'Стоматолог': t('dentist'),
+    'Гинеколог': t('gynecologist'),
+    'Уролог': t('urologist'),
+    'Эндокринолог': t('endocrinologist'),
+    'Дерматолог': t('dermatologist'),
+    'Психиатр': t('psychiatrist'),
+    'Онколог': t('oncologist'),
+    'Отоларинголог (ЛОР)': t('otolaryngologist'),
+    'Ортопед': t('orthopedist')
+  };
+  
+  return specializationMap[specialization] || specialization;
+};
 
 // Анимационные варианты для элементов
 const fadeIn = {
@@ -27,7 +51,7 @@ const staggerContainer = {
 };
 
 function DoctorApplicationForm({ onSuccess }) {
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   // Состояние для полей формы
   const [fullName, setFullName] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -340,10 +364,10 @@ function DoctorApplicationForm({ onSuccess }) {
     >
       <motion.div variants={fadeIn} className="text-center mb-5">
         <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
-          Данные для заявки
+          {t('applicationData')}
         </h3>
         <p className="text-gray-600 text-sm">
-          Заполните форму ниже и предоставьте необходимые документы
+          {t('fillFormAndDocuments')}
         </p>
       </motion.div>
       
@@ -369,8 +393,8 @@ function DoctorApplicationForm({ onSuccess }) {
           <motion.div variants={slideUp}>
             <Input
               type="text"
-              label="Полное имя *"
-              placeholder="Иванов Иван Иванович"
+              label={t('fullNameLabel') + ' *'}
+              placeholder={fullName || "Иванов Иван Иванович"}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               variant="bordered"
@@ -386,8 +410,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Специализация */}
           <motion.div variants={slideUp}>
             <Select
-              label="Специализация *"
-              placeholder="Выберите вашу специализацию"
+              label={t('specialization') + ' *'}
+              placeholder={t('selectSpecialization')}
               value={specialization}
               onChange={(e) => setSpecialization(e.target.value)}
               variant="bordered"
@@ -400,7 +424,7 @@ function DoctorApplicationForm({ onSuccess }) {
             >
               {specializations.map((spec) => (
                 <SelectItem key={spec} value={spec}>
-                  {spec}
+                  {translateSpecialization(spec, t)}
                 </SelectItem>
               ))}
             </Select>
@@ -409,8 +433,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Город/Регион */}
           <motion.div variants={slideUp}>
             <Select
-              label="Город/Регион *"
-              placeholder="Выберите город или регион вашей практики"
+                              label={t('cityRegionLabel') + ' *'}
+              placeholder={t('selectCityRegionPractice')}
               value={city}
               onChange={handleCityChange}
               variant="bordered"
@@ -423,7 +447,7 @@ function DoctorApplicationForm({ onSuccess }) {
             >
               {availableRegions.map((region) => (
                 <SelectItem key={region} value={region}>
-                  {region}
+                  {translateRegion(region, currentLanguage)}
                 </SelectItem>
               ))}
             </Select>
@@ -432,8 +456,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Район практики */}
           <motion.div variants={slideUp}>
             <Select
-              label="Район практики *"
-              placeholder={city ? "Выберите район вашей практики" : "Сначала выберите город"}
+                              label={t('practiceDistrictLabel') + ' *'}
+                              placeholder={city ? t('selectPracticeDistrict') : t('selectCityFirst')}
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
               variant="bordered"
@@ -447,7 +471,7 @@ function DoctorApplicationForm({ onSuccess }) {
             >
               {availableDistricts.map((dist) => (
                 <SelectItem key={dist} value={dist}>
-                  {dist}
+                  {translateDistrict(dist, currentLanguage)}
                 </SelectItem>
               ))}
             </Select>
@@ -456,8 +480,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Языки консультаций */}
           <motion.div variants={slideUp}>
             <Select
-              label="Языки консультаций *"
-              placeholder="Выберите языки, на которых вы проводите консультации"
+              label={t('consultationLanguages') + ' *'}
+              placeholder={t('selectConsultationLanguages')}
               selectedKeys={new Set(languages)}
               onSelectionChange={handleLanguageChange}
               variant="bordered"
@@ -471,7 +495,7 @@ function DoctorApplicationForm({ onSuccess }) {
             >
               {availableLanguages.map((lang) => (
                 <SelectItem key={lang} value={lang}>
-                  {lang}
+                  {translateLanguage(lang, currentLanguage)}
                 </SelectItem>
               ))}
             </Select>
@@ -481,8 +505,8 @@ function DoctorApplicationForm({ onSuccess }) {
           <motion.div variants={slideUp}>
             <Input
               type="text"
-              label="Опыт работы *"
-              placeholder="Например: 5 лет в городской клинике"
+              label={t('workExperience') + ' *'}
+              placeholder={t('workExperiencePlaceholder')}
               value={experience}
               onChange={(e) => setExperience(e.target.value)}
               variant="bordered"
@@ -500,8 +524,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Образование */}
           <motion.div variants={slideUp}>
             <Textarea
-              label="Образование *"
-              placeholder="Укажите ваше образование, ВУЗ, годы обучения"
+              label={t('educationField') + ' *'}
+              placeholder={t('educationPlaceholder')}
               value={education}
               onChange={(e) => setEducation(e.target.value)}
               variant="bordered"
@@ -519,8 +543,8 @@ function DoctorApplicationForm({ onSuccess }) {
           <motion.div variants={slideUp}>
             <Input
               type="text"
-              label="Номер лицензии/сертификата *"
-              placeholder="Например: 123456789"
+              label={t('licenseNumber') + ' *'}
+              placeholder={t('licenseNumberPlaceholder')}
               value={licenseNumber}
               onChange={(e) => setLicenseNumber(e.target.value)}
               variant="bordered"
@@ -536,8 +560,8 @@ function DoctorApplicationForm({ onSuccess }) {
           {/* Дополнительная информация */}
           <motion.div variants={slideUp}>
             <Textarea
-              label="Дополнительная информация"
-              placeholder="Укажите дополнительную информацию (необязательно)"
+              label={t('additionalInformationField')}
+              placeholder={t('additionalInfoPlaceholder')}
               value={additionalInfo}
               onChange={(e) => setAdditionalInfo(e.target.value)}
               variant="bordered"
@@ -556,13 +580,13 @@ function DoctorApplicationForm({ onSuccess }) {
       {/* Загрузка файлов */}
       <motion.div variants={fadeIn} className="mt-6 space-y-4">
         <h4 className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
-          Загрузка документов
+          {t('documentUpload')}
         </h4>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Фотография */}
           <motion.div variants={slideUp} className="space-y-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Фотография *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t('photographField')} *</label>
             <div 
               className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
                 photoPreview ? 'border-primary shadow-sm' : 'border-gray-300'
@@ -572,15 +596,15 @@ function DoctorApplicationForm({ onSuccess }) {
               {photoPreview ? (
                 <div className="flex flex-col items-center">
                   <img src={photoPreview} alt="Preview" className="w-28 h-28 object-cover rounded-lg mb-1 shadow-sm" />
-                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
+                  <span className="text-xs text-primary mt-1">{t('clickToChange')}</span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-3">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="mt-2 block text-sm text-gray-600">Нажмите для загрузки</span>
-                  <span className="mt-1 block text-xs text-gray-400">Фото для профиля</span>
+                  <span className="mt-2 block text-sm text-gray-600">{t('clickToUpload')}</span>
+                  <span className="mt-1 block text-xs text-gray-400">{t('photoForProfileDesc')}</span>
                 </div>
               )}
               <input
@@ -595,7 +619,7 @@ function DoctorApplicationForm({ onSuccess }) {
           
           {/* Диплом */}
           <motion.div variants={slideUp} className="space-y-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Скан диплома *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t('diplomaScanField')} *</label>
             <div 
               className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
                 diploma ? 'border-primary shadow-sm' : 'border-gray-300'
@@ -607,13 +631,13 @@ function DoctorApplicationForm({ onSuccess }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span className="mt-2 block text-sm text-gray-600 max-w-full truncate">
-                  {diplomaName || 'Нажмите для загрузки'}
+                  {diplomaName || t('clickToUpload')}
                 </span>
                 {!diploma && (
-                  <span className="mt-1 block text-xs text-gray-400">PDF, JPG или PNG</span>
+                  <span className="mt-1 block text-xs text-gray-400">{t('pdfJpgPng')}</span>
                 )}
                 {diploma && (
-                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
+                  <span className="text-xs text-primary mt-1">{t('clickToChange')}</span>
                 )}
               </div>
               <input
@@ -628,7 +652,7 @@ function DoctorApplicationForm({ onSuccess }) {
           
           {/* Лицензия */}
           <motion.div variants={slideUp} className="space-y-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Скан лицензии *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t('licenseScanField')} *</label>
             <div 
               className={`border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-blue-50/50 transition-all duration-300 ${
                 license ? 'border-primary shadow-sm' : 'border-gray-300'
@@ -640,13 +664,13 @@ function DoctorApplicationForm({ onSuccess }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span className="mt-2 block text-sm text-gray-600 max-w-full truncate">
-                  {licenseName || 'Нажмите для загрузки'}
+                  {licenseName || t('clickToUpload')}
                 </span>
                 {!license && (
-                  <span className="mt-1 block text-xs text-gray-400">PDF, JPG или PNG</span>
+                  <span className="mt-1 block text-xs text-gray-400">{t('pdfJpgPng')}</span>
                 )}
                 {license && (
-                  <span className="text-xs text-primary mt-1">Нажмите, чтобы изменить</span>
+                  <span className="text-xs text-primary mt-1">{t('clickToChange')}</span>
                 )}
               </div>
               <input
@@ -675,7 +699,7 @@ function DoctorApplicationForm({ onSuccess }) {
           radius="lg"
           className="w-full md:w-1/2 text-md font-medium shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-500 to-indigo-600"
         >
-          {isLoading ? "Отправка заявки..." : "Отправить заявку"}
+          {isLoading ? t('submittingApplication') : t('submitApplication')}
         </Button>
       </motion.div>
     </motion.form>

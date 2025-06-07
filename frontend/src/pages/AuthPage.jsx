@@ -284,7 +284,16 @@ function AuthPage() {
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden auth-page-container">
       {/* Селектор языка в правом верхнем углу */}
       <div className="absolute top-4 right-4 z-50">
-        <LanguageSelector variant="button" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="bg-white/95 backdrop-blur-lg border border-white/40 rounded-full p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-white/100"
+        >
+          <LanguageSelector variant="button" />
+        </motion.div>
       </div>
       {/* Динамический градиентный фон */}
       <motion.div 

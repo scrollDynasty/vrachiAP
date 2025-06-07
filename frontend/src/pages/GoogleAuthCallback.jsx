@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { Card, CardBody, Spinner } from '@nextui-org/react';
 import GoogleProfileForm from '../components/GoogleProfileForm';
-import { useTranslation } from '../components/LanguageSelector';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
+import MedicalLoader from '../components/MedicalLoader';
 
 // Добавляем функцию для проверки наличия конфликтующих расширений
 const checkForConflictingExtensions = () => {
@@ -26,13 +27,13 @@ const checkForConflictingExtensions = () => {
 };
 
 function GoogleAuthCallback() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('processing');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasConflictingExtensions, setHasConflictingExtensions] = useState(false);
-  const { t } = useTranslation();
   
   // Get auth functions and state from store
   const processGoogleAuth = useAuthStore(state => state.processGoogleAuth);
@@ -374,7 +375,7 @@ function GoogleAuthCallback() {
           error.message?.includes('invalid_grant') || 
           error.message?.includes('Code exchange failed')) {
         setStatus('error');
-        setErrorMessage(t('authErrorCodeExpired') || 'Код авторизации истек или недействителен. Пожалуйста, попробуйте войти снова.');
+        setErrorMessage('Код авторизации истек или недействителен. Пожалуйста, попробуйте войти снова.');
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 2000);
@@ -384,7 +385,7 @@ function GoogleAuthCallback() {
       // Если код уже был обработан, но пользователь не авторизован
       if (error.message?.includes('уже был')) {
         setStatus('error');
-        setErrorMessage(t('authErrorCodeUsed') || 'Этот код авторизации уже был использован. Пожалуйста, войдите снова.');
+        setErrorMessage('Этот код авторизации уже был использован. Пожалуйста, войдите снова.');
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 2000);
@@ -402,7 +403,7 @@ function GoogleAuthCallback() {
         }
       } else {
         setStatus('error');
-        setErrorMessage(error.message || t('authErrorGeneric') || 'Произошла ошибка при обработке авторизации через Google');
+        setErrorMessage(error.message || 'Произошла ошибка при обработке авторизации через Google');
       }
     };
     
@@ -474,35 +475,77 @@ function GoogleAuthCallback() {
   }, [isAuthenticated, error, navigate, isProcessing, needsProfileUpdate]);
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden py-12 px-4 sm:px-6 lg:px-8"
+         style={{
+           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+           animation: 'gradientShift 15s ease infinite'
+         }}
+    >
+      {/* Анимированный фон с частицами */}
+      <div className="absolute inset-0 overflow-hidden opacity-20">
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px), 
+                             linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px',
+            animation: 'float 20s linear infinite'
+          }}
+        />
+      </div>
+      
+      {/* Плавающие декоративные элементы */}
+      <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-white/10 animate-pulse"></div>
+      <div className="absolute bottom-10 right-10 w-24 h-24 rounded-full bg-white/10 animate-pulse" style={{animationDelay: '1s'}}></div>
+      <div className="absolute top-1/3 right-20 w-16 h-16 rounded-full bg-white/10 animate-pulse" style={{animationDelay: '2s'}}></div>
       {hasConflictingExtensions && (
         <div className="fixed top-4 right-4 p-4 bg-yellow-100 border border-yellow-400 rounded shadow-md max-w-md">
           <p className="text-yellow-800">
-            <strong>{t('attention') || 'Внимание'}:</strong> {t('extensionWarning') || 'Обнаружены расширения браузера, которые могут мешать процессу авторизации. Если возникают проблемы, попробуйте временно отключить расширения или использовать режим инкогнито.'}
+            <strong>Внимание:</strong> Обнаружены расширения браузера, которые могут мешать процессу авторизации. 
+            Если возникают проблемы, попробуйте временно отключить расширения или использовать режим инкогнито.
           </p>
         </div>
       )}
       
       {status === 'processing' && (
-        <Card className="max-w-md w-full mx-auto shadow-xl">
-          <CardBody className="py-8 px-6 text-center">
-            <Spinner size="lg" className="mb-4" />
-            <h2 className="text-xl font-semibold text-gray-800">{t('authProcessing')}</h2>
-            <p className="mt-2 text-gray-600">{t('authProcessingDescription')}</p>
+        <Card className="max-w-lg w-full mx-auto shadow-xl border border-white/30 bg-white/90">
+          <CardBody className="py-10 px-6 text-center">
+            <MedicalLoader 
+              size="large" 
+              message={t('completingGoogleAuth', 'Завершение авторизации...')}
+            />
+            <p className="mt-4 text-gray-600 text-sm">
+              {t('processingGoogleAuth', 'Пожалуйста, подождите, мы обрабатываем вашу авторизацию через Google.')}
+            </p>
           </CardBody>
         </Card>
       )}
       
       {status === 'success' && !needsProfileUpdate && (
-        <Card className="max-w-md w-full mx-auto shadow-xl">
-          <CardBody className="py-8 px-6 text-center">
-            <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <Card className="max-w-lg w-full mx-auto shadow-xl border border-white/30 bg-white/90 backdrop-blur-sm">
+          <CardBody className="py-10 px-6 text-center">
+            <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">{t('authSuccess')}</h2>
-            <p className="mt-2 text-gray-600">{t('authRedirectMessage')}</p>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+              {t('authSuccessful', 'Авторизация успешна!')}
+            </h2>
+            <p className="text-gray-600 text-sm">
+              {t('redirectingToHome', 'Вы будете перенаправлены на главную страницу...')}
+            </p>
+            
+            {/* Анимированные точки загрузки */}
+            <div className="flex space-x-2 justify-center mt-4">
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 animate-pulse"
+                  style={{animationDelay: `${index * 0.2}s`}}
+                />
+              ))}
+            </div>
           </CardBody>
         </Card>
       )}
@@ -514,22 +557,24 @@ function GoogleAuthCallback() {
       )}
       
       {status === 'error' && (
-        <Card className="max-w-md w-full mx-auto shadow-xl">
-          <CardBody className="py-8 px-6 text-center">
-            <div className="w-16 h-16 bg-danger rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <Card className="max-w-lg w-full mx-auto shadow-xl border border-white/30 bg-white/90 backdrop-blur-sm">
+          <CardBody className="py-10 px-6 text-center">
+            <div className="w-20 h-20 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">{t('authErrorTitle')}</h2>
-            <p className="mt-2 text-gray-600">
-              {errorMessage || error || t('authErrorGeneric') || "Произошла ошибка при обработке авторизации через Google. Пожалуйста, попробуйте еще раз."}
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-4">
+              {t('authError', 'Ошибка авторизации')}
+            </h2>
+            <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+              {errorMessage || error || t('authErrorMessage', "Произошла ошибка при обработке авторизации через Google. Пожалуйста, попробуйте еще раз.")}
             </p>
             <button 
               onClick={() => navigate('/login')}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
-              {t('returnToLogin')}
+              {t('returnToLogin', 'Вернуться на страницу входа')}
             </button>
           </CardBody>
         </Card>

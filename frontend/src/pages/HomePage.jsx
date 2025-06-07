@@ -1,5 +1,5 @@
 // frontend/src/pages/HomePage.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Avatar } from '@nextui-org/react';
 import useAuthStore from '../stores/authStore';
@@ -8,6 +8,7 @@ import { ApplicationStatusTracker } from '../components/Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import AvatarWithFallback from '../components/AvatarWithFallback';
 import { useTranslation } from '../components/LanguageSelector';
+import OfflineMode from '../components/OfflineMode';
 
 function HomePage() {
   const { t } = useTranslation();
@@ -18,6 +19,9 @@ function HomePage() {
   const isLoading = useAuthStore(state => state.isLoading);
   const navigate = useNavigate();
   const authError = useAuthStore(state => state.error);
+  
+  // Состояние для отслеживания режима offline
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   
   // Добавляем log при монтировании компонента
   useEffect(() => {
@@ -62,12 +66,41 @@ function HomePage() {
       userData: user,
       isAuthenticated
     });
+    
+    // Проверяем, получили ли мы HTML вместо данных пользователя (признак недоступности backend)
+    if (user && typeof user === 'string' && user.includes('<!doctype html>')) {
+      console.warn('HomePage: Backend unavailable - received HTML instead of user data');
+      setIsOfflineMode(true);
+    } else if (user && typeof user === 'object' && Object.keys(user).length > 0) {
+      setIsOfflineMode(false);
+    }
   }, [user, isAuthenticated]);
+  
+  // Функция для повторной попытки подключения к backend
+  const handleRetryConnection = async () => {
+    console.log('HomePage: Retrying connection to backend...');
+    setIsOfflineMode(false);
+    
+    try {
+      // Принудительно переинициализируем авторизацию
+      const { initializeAuth } = useAuthStore.getState();
+      await initializeAuth();
+    } catch (error) {
+      console.error('HomePage: Retry failed:', error);
+      setIsOfflineMode(true);
+    }
+  };
   
   // Если есть ошибка аутентификации, не рендерим содержимое страницы
   if (authError) {
     console.log('HomePage: Not rendering due to auth error');
     return null;
+  }
+  
+  // Если backend недоступен, показываем offline режим
+  if (isOfflineMode && isAuthenticated) {
+    console.log('HomePage: Rendering offline mode due to backend unavailability');
+    return <OfflineMode user={user} onRetry={handleRetryConnection} />;
   }
   
   // Если требуется обновление профиля, показываем форму

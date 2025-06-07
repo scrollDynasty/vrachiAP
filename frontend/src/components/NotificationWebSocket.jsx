@@ -208,6 +208,13 @@ const NotificationWebSocket = () => {
       return;
     }
 
+    // Проверяем что user.id существует и не undefined
+    if (!user.id || user.id === 'undefined') {
+      console.warn('NotificationWebSocket: User ID отсутствует или undefined, пропускаем подключение');
+      console.log('NotificationWebSocket: User data:', user);
+      return;
+    }
+
     // Предотвращаем множественные подключения
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       console.log('NotificationWebSocket: WebSocket уже подключен, пропускаем');
@@ -236,6 +243,12 @@ const NotificationWebSocket = () => {
           return;
         }
         
+        // Дополнительная проверка user.id перед подключением
+        if (!user.id || user.id === 'undefined') {
+          console.error('NotificationWebSocket: User ID недействителен для WebSocket подключения');
+          return;
+        }
+        
         // Получаем WebSocket токен через API
         console.log('NotificationWebSocket: Запрашиваем WebSocket токен для уведомлений');
         
@@ -260,8 +273,9 @@ const NotificationWebSocket = () => {
 
         console.log('NotificationWebSocket: WebSocket токен получен');
         
+        // Исправляем URL - убираем двойной /ws
         const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://soglom.com'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
-        console.log('NotificationWebSocket: Подключение к WebSocket:', wsUrl);
+        console.log('NotificationWebSocket: Подключение к WebSocket:', wsUrl.replace(/token=.+/, 'token=***'));
         
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

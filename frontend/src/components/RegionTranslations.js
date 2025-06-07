@@ -1,4 +1,5 @@
 // Переводы для регионов и районов Узбекистана
+import { getDistrictsByRegion, uzbekistanRegions } from '../constants/uzbekistanRegions';
 export const regionTranslations = {
   ru: {
     "Ташкент": "Ташкент",
@@ -769,6 +770,70 @@ export const translateDistrict = (districtName, language) => {
   }
   
   return districtName;
+};
+
+// Создаем полный список всех районов из всех регионов с их индексами
+const getAllDistricts = () => {
+  const allDistricts = [];
+  const regions = Object.keys(uzbekistanRegions);
+  
+  regions.forEach(regionName => {
+    const regionData = uzbekistanRegions[regionName];
+    if (regionData && regionData.districts) {
+      allDistricts.push(...regionData.districts);
+    }
+  });
+  
+  return allDistricts;
+};
+
+// Универсальная функция для преобразования номера района в переведенное название
+export const getDistrictNameById = (districtId, cityName, language = 'ru') => {
+  if (!districtId) {
+    return language === 'ru' ? 'Не указано' : (language === 'uz' ? 'Ko\'rsatilmagan' : 'Not specified');
+  }
+  
+  const districtIndex = parseInt(districtId) - 1;
+  
+  // Если у нас есть город, сначала пробуем найти районы для него
+  if (cityName) {
+    const districts = getDistrictsByRegion(cityName);
+    
+    if (districts && districts.length > 0) {
+      if (districtIndex >= 0 && districtIndex < districts.length) {
+        const districtName = districts[districtIndex];
+        return translateDistrict(districtName, language);
+      }
+      
+      // Если не удалось найти по индексу, возможно это уже название района
+      if (typeof districtId === 'string' && districts.includes(districtId)) {
+        return translateDistrict(districtId, language);
+      }
+    }
+  }
+  
+  // Если город не указан или районы не найдены, используем полный список всех районов
+  const allDistricts = getAllDistricts();
+  
+  if (districtIndex >= 0 && districtIndex < allDistricts.length) {
+    const districtName = allDistricts[districtIndex];
+    return translateDistrict(districtName, language);
+  }
+  
+  // Если это уже название района, проверяем во всех регионах
+  if (typeof districtId === 'string' && allDistricts.includes(districtId)) {
+    return translateDistrict(districtId, language);
+  }
+  
+  // Если ничего не найдено, создаем универсальное название
+  if (!isNaN(parseInt(districtId))) {
+    const districtNum = parseInt(districtId);
+    const genericName = `Район ${districtNum}`;
+    return genericName;
+  }
+  
+  // Если не удалось преобразовать, возвращаем как есть
+  return districtId.toString();
 };
 
 // Функция для получения всех регионов с переводами

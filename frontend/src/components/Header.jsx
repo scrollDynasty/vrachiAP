@@ -318,7 +318,7 @@ function Header() {
           <>
             <NavbarItem>
               <Link to="/" className="text-gray-700 hover:text-primary transition-colors relative group">
-                Главная
+                {t('home')}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
               </Link>
             </NavbarItem>
@@ -326,7 +326,7 @@ function Header() {
             {user?.role === 'patient' && (
               <NavbarItem>
                 <Link to="/search-doctors" className="text-gray-700 hover:text-primary transition-colors relative group">
-                  Найти врача
+                  {t('findDoctor')}
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </NavbarItem>
@@ -335,7 +335,7 @@ function Header() {
             {user?.role === 'admin' && (
               <NavbarItem>
                 <Link to="/admin" className="text-gray-700 hover:text-purple-600 transition-colors relative group">
-                  Админ-панель
+                  {t('adminPanel')}
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </NavbarItem>
@@ -345,7 +345,7 @@ function Header() {
               <NavbarItem>
                 <Badge content={totalUnread > 0 ? totalUnread : null} color="danger" shape="circle" size="sm">
                   <Link to="/history" className="text-gray-700 hover:text-primary transition-colors relative group">
-                    История
+                    {t('history')}
                     <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
                   </Link>
                 </Badge>
@@ -507,7 +507,7 @@ function Header() {
                   </div>
                 </DropdownItem>
                 
-                <DropdownItem key="role" textValue="Роль" className="text-gray-500 text-xs py-2" isReadOnly>
+                <DropdownItem key="role" textValue={t('role')} className="text-gray-500 text-xs py-2" isReadOnly>
                   {user?.role === 'patient' ? t('patient') : 
                    user?.role === 'doctor' ? t('doctor') : 
                    user?.role === 'admin' ? t('admin') : t('user')}
@@ -516,56 +516,56 @@ function Header() {
                 <DropdownItem key="divider" textValue="Разделитель" className="h-px bg-gray-200 my-1" isReadOnly/>
                 
                 {user?.role !== 'admin' && (
-                  <DropdownItem key="profile-settings" textValue="Настройки профиля" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="profile-settings" textValue={t('profileSettings')} className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                      Настройки профиля
+                      {t('profileSettings')}
                     </div>
                   </DropdownItem>
                 )}
                 
                 {user?.role === 'admin' && (
-                  <DropdownItem key="admin-panel" textValue="Админ-панель" className="py-2.5 hover:bg-purple-50">
+                  <DropdownItem key="admin-panel" textValue={t('adminPanel')} className="py-2.5 hover:bg-purple-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      Админ-панель
+                      {t('adminPanel')}
                     </div>
                   </DropdownItem>
                 )}
                 
                 {user?.role !== 'admin' && (
-                  <DropdownItem key="history" textValue="История" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="history" textValue={t('history')} className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      История
+                      {t('history')}
                     </div>
                   </DropdownItem>
                 )}
                 
                 {user?.role === 'patient' && (
-                  <DropdownItem key="search" textValue="Найти врача" className="py-2.5 hover:bg-blue-50">
+                  <DropdownItem key="search" textValue={t('findDoctor')} className="py-2.5 hover:bg-blue-50">
                     <div className="flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
-                      Найти врача
+                      {t('findDoctor')}
                     </div>
                   </DropdownItem>
                 )}
                 
-                <DropdownItem key="logout" textValue="Выйти" color="danger" className="py-2.5">
+                <DropdownItem key="logout" textValue={t('logout')} color="danger" className="py-2.5">
                   <div className="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
-                    Выйти
+                    {t('logout')}
                   </div>
                 </DropdownItem>
               </DropdownMenu>

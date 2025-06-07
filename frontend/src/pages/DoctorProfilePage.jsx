@@ -8,6 +8,31 @@ import api from '../api';
 import AvatarWithFallback from '../components/AvatarWithFallback';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../components/LanguageSelector.jsx';
+import { translateRegion, translateDistrict, getDistrictNameById } from '../components/RegionTranslations';
+import { translateLanguage } from '../constants/uzbekistanRegions';
+
+// Функция для перевода специализаций
+const translateSpecialization = (specialization, t) => {
+  const specializationMap = {
+    'Терапевт': t('therapist'),
+    'Кардиолог': t('cardiologist'),
+    'Невролог': t('neurologist'),
+    'Хирург': t('surgeon'),
+    'Педиатр': t('pediatrician'),
+    'Офтальмолог': t('ophthalmologist'),
+    'Стоматолог': t('dentist'),
+    'Гинеколог': t('gynecologist'),
+    'Уролог': t('urologist'),
+    'Эндокринолог': t('endocrinologist'),
+    'Дерматолог': t('dermatologist'),
+    'Психиатр': t('psychiatrist'),
+    'Онколог': t('oncologist'),
+    'Отоларинголог (ЛОР)': t('otolaryngologist'),
+    'Ортопед': t('orthopedist')
+  };
+  
+  return specializationMap[specialization] || specialization;
+};
 
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
@@ -172,41 +197,11 @@ const ReviewItem = ({ review }) => {
   );
 };
 
-// Функция для получения названия района по идентификатору
-const getDistrictName = (districtId) => {
-  if (!districtId) return 'Не указано';
-  
-  // Статический список районов
-  const districtsList = [
-    "Алмазарский район",
-    "Бектемирский район",
-    "Мирабадский район",
-    "Мирзо-Улугбекский район",
-    "Сергелийский район",
-    "Учтепинский район",
-    "Чиланзарский район",
-    "Шайхантаурский район",
-    "Юнусабадский район",
-    "Яккасарайский район",
-    "Яшнабадский район"
-  ];
-  
-  // Если districtId - число и находится в пределах массива
-  if (!isNaN(parseInt(districtId)) && parseInt(districtId) > 0 && parseInt(districtId) <= districtsList.length) {
-    return districtsList[parseInt(districtId) - 1];
-  }
-  
-  // Если districtId совпадает с названием района, возвращаем его как есть
-  if (districtsList.includes(districtId)) {
-    return districtId;
-  }
-  
-  return districtId; // Если не удалось распознать, возвращаем как есть
-};
+// Функция удалена - используем getDistrictNameById из RegionTranslations.js
 
 // Компонент страницы профиля врача
 function DoctorProfilePage() {
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const { doctorId } = useParams(); // Получаем ID врача из URL
   const navigate = useNavigate();
   const { user } = useAuthStore(); // Получаем текущего пользователя
@@ -618,7 +613,7 @@ function DoctorProfilePage() {
                       onPress={handleBackToSearch}
                       radius="full"
                     >
-                      Назад к поиску
+                      {t('backToSearch')}
                     </Button>
                   </motion.div>
                   
@@ -687,11 +682,11 @@ function DoctorProfilePage() {
                             transition={{ duration: 0.5, delay: 0.3 }}
                           >
                             <Chip color="primary" variant="flat" className="shadow-sm">
-                              {doctor.specialization}
+                              {translateSpecialization(doctor.specialization, t)}
                             </Chip>
                             {doctor.is_verified && (
                               <Chip color="success" variant="flat" className="shadow-sm">
-                                Проверенный врач
+                                {t('verifiedDoctor')}
                               </Chip>
                             )}
                           </motion.div>
@@ -705,14 +700,14 @@ function DoctorProfilePage() {
                             transition={{ duration: 0.5, delay: 0.4 }}
                           >
                             <div className="flex justify-between w-full">
-                              <span className="text-gray-600 font-medium">Стоимость:</span>
+                              <span className="text-gray-600 font-medium">{t('cost')}:</span>
                               <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
                                 {doctor.cost_per_consultation} UZS
                               </span>
                             </div>
                             
                             <div className="flex justify-between w-full">
-                              <span className="text-gray-600 font-medium">Рейтинг:</span>
+                              <span className="text-gray-600 font-medium">{t('rating')}:</span>
                               <div className="flex">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <motion.svg 
@@ -791,11 +786,11 @@ function DoctorProfilePage() {
                                 </div>
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-lg font-semibold text-gray-800">{doctor.city || t('notSpecified')}</span>
+                                    <span className="text-lg font-semibold text-gray-800">{doctor.city ? translateRegion(doctor.city, currentLanguage) : t('notSpecified')}</span>
                                     {doctor.district && (
                                       <>
                                         <span className="text-gray-400 text-lg">•</span>
-                                        <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">{doctor.district}</span>
+                                        <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">{getDistrictNameById(doctor.district, doctor.city, currentLanguage)}</span>
                                       </>
                                     )}
                                   </div>
@@ -811,7 +806,7 @@ function DoctorProfilePage() {
                             </InfoSection>
                           )}
                           
-                          {doctor.education && (
+                          {doctor.education && doctor.education !== 'нету' && doctor.education !== '' && (
                             <InfoSection title={t('education')}>
                               <p className="text-gray-700">{doctor.education}</p>
                             </InfoSection>
@@ -829,7 +824,7 @@ function DoctorProfilePage() {
                                     whileHover={{ scale: 1.05 }}
                                   >
                                     <Chip color="primary" variant="flat" className="shadow-sm">
-                                      {spec}
+                                      {translateSpecialization(spec, t)}
                                     </Chip>
                                   </motion.div>
                                 ))}
@@ -858,7 +853,7 @@ function DoctorProfilePage() {
                                         </svg>
                                       }
                                     >
-                                      {language}
+                                      {translateLanguage(language, currentLanguage)}
                                     </Chip>
                                   </motion.div>
                                 ))}

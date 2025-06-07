@@ -21,6 +21,17 @@ const useAuthStore = create(
       // Initialize authentication from cookies
       initializeAuth: async () => {
         console.log('initializeAuth: Starting initialization');
+        console.log('initializeAuth: Current pathname:', window.location.pathname);
+        console.log('initializeAuth: Current href:', window.location.href);
+        
+        // Проверяем, не находимся ли мы на странице Google auth callback
+        // Если да, то НЕ меняем isLoading, чтобы предотвратить редиректы на логин
+        if (window.location.pathname === '/auth/google/callback') {
+          console.log('initializeAuth: On Google auth callback page, keeping isLoading=true to prevent redirects');
+          // НЕ устанавливаем isLoading: false, позволяя GoogleAuthCallback обработать аутентификацию
+          // Состояние isLoading: true предотвратит редиректы на /login в App.jsx
+          return;
+        }
         
         try {
           // Попытка получить токен из localStorage
@@ -250,78 +261,155 @@ const useAuthStore = create(
                   needsProfile = true;
                 } else {
                   console.error('login: Ошибка при проверке профиля:', profileError);
-                  // По умолчанию не требуем профиль
-                  needsProfile = false;
+                  // Оставляем значение needsProfile как false по умолчанию
                 }
               }
+              
+              // Устанавливаем состояние аутентификации
+              set({ 
+                isAuthenticated: true, 
+                token: token,
+                needsProfileUpdate: needsProfile,
+                error: null,
+                isLoading: false,
+                pendingVerificationEmail: null
+              });
+              
+              // Пробуем получить данные пользователя
+              try {
+                const userResponse = await api.get('/users/me', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (userResponse.status === 200 && userResponse.data) {
+                  console.log('login: User data received successfully');
+                  set({ user: userResponse.data });
+                  return true;
+                }
+              } catch (userError) {
+                console.error('login: Error fetching user data:', userError);
+                // Даже если не удалось получить данные пользователя, токен корректен
+              }
+              
+              return true;
+            } else {
+              throw new Error('Токен доступа не получен от сервера');
             }
-            
-            // Добавляем задержку перед получением данных пользователя
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Get user data
-            const userData = await get().fetchUserData();
-            
-            // Явно устанавливаем состояние аутентификации и обновления профиля
-            set({ 
-              isAuthenticated: true,
-              token: token,
-              needsProfileUpdate: needsProfile,
-              pendingVerificationEmail: null
-            });
-            
-            return true;
           } else {
-            set({ 
-              isAuthenticated: false, 
-              user: null,
-              token: null,
-              error: 'Некорректный ответ от сервера при авторизации'
-            });
-            return false;
+            throw new Error('Неверные учетные данные');
           }
         } catch (error) {
-          // Handle login errors
-          let errorMessage = 'Произошла ошибка при входе';
+          console.error('Ошибка при входе:', error);
+          
+          let errorMessage = 'Произошла ошибка при входе в систему';
           
           if (error.response) {
-            // If there's a server response, use its details
-            if (error.response.data && error.response.data.detail) {
+            if (error.response.status === 401) {
+              errorMessage = 'Неверный email или пароль';
+            } else if (error.response.data && error.response.data.detail) {
               errorMessage = error.response.data.detail;
-            } else if (error.response.status === 401) {
-              errorMessage = 'Неверные учетные данные';
-            } else if (error.response.status === 403) {
-              errorMessage = 'Доступ запрещен';
             }
+          } else if (error.message) {
+            errorMessage = error.message;
           }
           
           set({ 
             isAuthenticated: false, 
             user: null,
-            error: errorMessage 
+            token: null,
+            error: errorMessage,
+            isLoading: false
           });
           
-          console.error('Ошибка при входе:', error);
-          return false;
+          throw new Error(errorMessage);
         }
       },
       
-      // User logout
+      // User registration
+      register: async (email, password, role = 'patient') => {
+        try {
+          console.log('register: Starting registration process');
+          
+          // Create user account
+          const response = await api.post('/auth/register', {
+            email,
+            password,
+            role,
+            is_active: true // Auto-activate user
+          });
+          
+          if (response.status === 201) {
+            console.log('register: Registration successful');
+            
+            // Пробуем сразу авторизоваться с теми же данными
+            try {
+              const loginResult = await get().login(email, password);
+              console.log('register: Auto-login after registration successful');
+              return { success: true, requiresEmailVerification: false };
+            } catch (loginError) {
+              console.error('register: Auto-login failed:', loginError);
+              
+              // Если автологин не удался, возвращаем успех регистрации
+              // но требуем ручной авторизации
+              set({ 
+                pendingVerificationEmail: email,
+                error: null
+              });
+              return { success: true, requiresEmailVerification: true };
+            }
+          } else {
+            throw new Error('Регистрация не удалась');
+          }
+        } catch (error) {
+          console.error('Ошибка при регистрации:', error);
+          
+          let errorMessage = 'Произошла ошибка при регистрации';
+          
+          if (error.response) {
+            if (error.response.status === 400) {
+              if (error.response.data && error.response.data.detail) {
+                if (error.response.data.detail.includes('already registered')) {
+                  errorMessage = 'Пользователь с таким email уже зарегистрирован';
+                } else {
+                  errorMessage = error.response.data.detail;
+                }
+              } else {
+                errorMessage = 'Некорректные данные для регистрации';
+              }
+            } else if (error.response.data && error.response.data.detail) {
+              errorMessage = error.response.data.detail;
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          set({ 
+            isAuthenticated: false, 
+            user: null, 
+            token: null,
+            error: errorMessage,
+            isLoading: false
+          });
+          
+          throw new Error(errorMessage);
+        }
+      },
+      
+      // Logout user
       logout: async () => {
         try {
-          // Очищаем токен из localStorage и заголовков API
+          // Очищаем токен из localStorage
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user_data');
           localStorage.removeItem('vrach_registration_profile');
           sessionStorage.removeItem('last_token_time');
+          sessionStorage.removeItem('current_auth_session');
+          sessionStorage.removeItem('is_google_auth_in_progress');
           
-          try {
-            api.defaults.headers.common['Authorization'] = '';
-          } catch (error) {
-            console.error('Error clearing auth header:', error);
-          }
+          // Очищаем заголовки API
+          delete api.defaults.headers.common['Authorization'];
           
-          // Очищаем все данные из состояния стора
+          // Сбрасываем состояние в store
           set({
             isAuthenticated: false,
             user: null,
@@ -332,61 +420,18 @@ const useAuthStore = create(
             isLoading: false
           });
           
-          // Call the logout function from API
-          await logout();
+          console.log('logout: User logged out successfully');
           
           return true;
         } catch (error) {
-          console.error('Ошибка при выходе:', error);
+          console.error('logout: Error during logout:', error);
           return false;
         }
       },
       
-      // User registration
-      register: async (userData) => {
-        try {
-          const response = await api.post('/register', userData);
-          
-          if (response.status === 201 || response.status === 200) {
-            set({ 
-              error: null,
-              // Сохраняем email, ожидающий подтверждения
-              pendingVerificationEmail: userData.email 
-            });
-            return { 
-              success: true,
-              requiresEmailVerification: response.data?.requires_email_verification || false
-            };
-          } else {
-            const errorMsg = 'Ошибка при регистрации: некорректный ответ от сервера';
-            set({ error: errorMsg });
-            return { 
-              success: false, 
-              error: errorMsg 
-            };
-          }
-        } catch (error) {
-          let errorMessage = 'Произошла ошибка при регистрации';
-          
-          if (error.response && error.response.data && error.response.data.detail) {
-            errorMessage = error.response.data.detail;
-          }
-          
-          set({ error: errorMessage });
-          
-          console.error('Ошибка при регистрации:', error);
-          return { 
-            success: false, 
-            error: errorMessage 
-          };
-        }
-      },
-      
-      // Обновление токена при истечении срока действия
+      // Refresh token from server
       refreshToken: async () => {
         try {
-          console.log('refreshToken: Попытка обновления токена...');
-          
           // Проверяем наличие текущего пользователя и токена
           const currentStore = get();
           if (!currentStore.token) {
@@ -414,86 +459,54 @@ const useAuthStore = create(
           // Сохраняем текущий токен перед запросом
           const currentToken = get().token;
           
-          const response = await api.get('/users/me');
+          if (!currentToken) {
+            console.warn('fetchUserData: No token available');
+            return false;
+          }
+          
+          console.log('fetchUserData: Fetching user data with token');
+          
+          const response = await api.get('/users/me', {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+          });
           
           if (response.status === 200 && response.data) {
-            // Определяем, нужно ли обновлять профиль
+            console.log('fetchUserData: User data fetched successfully');
+            set({ 
+              user: response.data,
+              error: null
+            });
+            
+            // Check if user needs to complete profile
             const isProfileComplete = 
               (response.data.role === 'patient' && response.data.patient_profile) ||
               (response.data.role === 'doctor' && response.data.doctor_profile);
+              
+            set({ needsProfileUpdate: !isProfileComplete });
             
-            // Обновляем состояние, сохраняя текущий токен
-            set({
-              isAuthenticated: true,
-              user: response.data,
-              error: null,
-              // Удостоверяемся, что не перезатираем уже установленный токен
-              token: currentToken || get().token,
-              needsProfileUpdate: !isProfileComplete
-            });
-            
-            return response.data;
-          } else {
-            throw new Error('Не удалось получить данные пользователя');
-          }
-        } catch (error) {
-          console.error('Ошибка при получении данных пользователя:', error);
-          
-          // If error is 401, user is not authenticated
-          if (error.response && error.response.status === 401) {
-            set({
-              isAuthenticated: false, 
-              user: null,
-              error: 'Пользователь не авторизован'
-            });
-          }
-          
-          return null;
-        }
-      },
-      
-      // Update user profile
-      updateProfile: async (profileData) => {
-        try {
-          const user = get().user;
-          
-          if (!user) {
-            throw new Error('Пользователь не авторизован');
-          }
-          
-          let response;
-          
-          if (user.role === 'patient') {
-            response = await api.put('/users/me/patient-profile', profileData);
-          } else if (user.role === 'doctor') {
-            response = await api.put('/users/me/doctor-profile', profileData);
-          } else {
-            throw new Error('Неизвестная роль пользователя');
-          }
-          
-          if (response.status === 200) {
-            await get().fetchUserData();
-            set({ needsProfileUpdate: false });
             return true;
           } else {
-            throw new Error('Не удалось обновить профиль');
+            console.warn('fetchUserData: Invalid response from server');
+            return false;
           }
         } catch (error) {
-          console.error('Ошибка при обновлении профиля:', error);
+          console.error('fetchUserData: Error fetching user data:', error);
           
-          let errorMessage = 'Произошла ошибка при обновлении профиля';
-          
-          if (error.response && error.response.data && error.response.data.detail) {
-            errorMessage = error.response.data.detail;
+          if (error.response && error.response.status === 401) {
+            // Token is invalid, clear authentication
+            console.warn('fetchUserData: Token invalid, clearing auth');
+            localStorage.removeItem('auth_token');
+            set({
+              isAuthenticated: false,
+              user: null,
+              token: null,
+              error: 'Сессия истекла, пожалуйста, войдите снова'
+            });
           }
           
-          set({ error: errorMessage });
           return false;
         }
       },
-      
-      // Reset error state
-      resetError: () => set({ error: null }),
       
       // Reset auth state - only used for testing or in case of critical errors
       resetAuth: () => {
@@ -551,9 +564,8 @@ const useAuthStore = create(
             }
           }
           
-          // Send Google auth request - используем baseURL без /api
-          const baseUrl = DIRECT_API_URL.replace('/api', '');
-          const response = await axios.post(`${baseUrl}/auth/google`, { 
+          // Send Google auth request
+          const response = await axios.post(`${DIRECT_API_URL}/auth/google`, { 
             code,
             // Устанавливаем длительное время жизни токена - 7 дней
             expires_in_days: 7
@@ -732,7 +744,8 @@ const useAuthStore = create(
             isAuthenticated: false, 
             user: null,
             token: null,
-            error: errorMessage
+            error: errorMessage,
+            isLoading: false
           });
           
           throw new Error(errorMessage);
@@ -744,288 +757,78 @@ const useAuthStore = create(
         try {
           console.log('handleEmailVerification: Обработка данных подтверждения', verificationData);
 
-          if (!verificationData || !verificationData.access_token) {
-            return { success: false, error: 'Данные подтверждения некорректны' };
+          if (!verificationData || !verificationData.token) {
+            throw new Error('Некорректные данные подтверждения email');
           }
 
-          // Проверяем, есть ли флаг уже подтвержденного email
-          const alreadyVerified = verificationData.already_verified === true;
-          const userEmail = verificationData.email || get().pendingVerificationEmail;
-
-          // Записываем токен в localStorage
-          localStorage.setItem('auth_token', verificationData.access_token);
+          // Устанавливаем токен от подтверждения email
+          const token = verificationData.token;
           
-          // Проверяем токен, чтобы определить роль пользователя
-          try {
-            // Простой парсинг JWT токена для получения полезной нагрузки
-            const tokenParts = verificationData.access_token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              console.log('JWT payload:', payload);
-              
-              // Проверяем наличие роли в токене
-              if (payload.role) {
-                // Сохраняем роль пользователя в localStorage
-                localStorage.setItem('user_role', payload.role);
-                console.log(`Роль пользователя (${payload.role}) сохранена в localStorage`);
-              }
-            }
-          } catch (tokenError) {
-            console.error('Ошибка при разборе токена:', tokenError);
-          }
-
-          // Устанавливаем токен в заголовки API
-          setAuthToken(verificationData.access_token);
-            
-          // Небольшая задержка для применения токена
-          await new Promise(resolve => setTimeout(resolve, 500));
+          console.log('handleEmailVerification: Сохраняем токен из подтверждения email');
+          console.log(`handleEmailVerification: Token length: ${token.length}`);
+          console.log(`handleEmailVerification: Token starts with: ${token.substring(0, 10)}...`);
           
-          // Получаем данные пользователя с сервера
-          try {
-            const response = await api.get('/users/me');
-            const userData = response.data;
+          // Устанавливаем токен в localStorage и API
+          setAuthToken(token);
+          
+          // Получаем данные пользователя с новым токеном
+          const userResponse = await api.get('/users/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (userResponse.status === 200 && userResponse.data) {
+            console.log('handleEmailVerification: User data received successfully');
             
-            // Если роль пользователя есть в ответе сервера, сохраняем её
-            if (userData && userData.role) {
-              localStorage.setItem('user_role', userData.role);
-              console.log(`Роль пользователя из API (${userData.role}) сохранена в localStorage`);
-            }
-
-            // Сохраняем данные пользователя
-            set({
-              user: userData,
+            // Проверяем, нужно ли заполнять профиль
+            const isProfileComplete = 
+              (userResponse.data.role === 'patient' && userResponse.data.patient_profile) ||
+              (userResponse.data.role === 'doctor' && userResponse.data.doctor_profile);
+            
+            // Обновляем состояние с полной информацией
+            set({ 
               isAuthenticated: true,
-              token: verificationData.access_token,
-              pendingVerificationEmail: null
+              user: userResponse.data,
+              token: token,
+              needsProfileUpdate: !isProfileComplete,
+              error: null,
+              isLoading: false,
+              pendingVerificationEmail: null // Очищаем, так как email подтвержден
             });
             
-            // Показываем успешное уведомление
-            if (alreadyVerified) {
-              const lastToastTime = localStorage.getItem('lastAuthToastTime');
-              const now = Date.now();
-              
-              // Показываем только если прошло более 5 секунд с момента последнего уведомления
-              if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
-                // Импортируем переводы
-                const { translations } = await import('../components/LanguageSelector');
-                const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
-                const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
-                
-                toast.success(`Email ${userEmail} ${t('emailAlreadyConfirmed')}`, {
-                  position: "top-right",
-                  autoClose: 3000
-                });
-                
-                // Сохраняем время показа
-                localStorage.setItem('lastAuthToastTime', now.toString());
-              }
-            } else {
-              const lastToastTime = localStorage.getItem('lastAuthToastTime');
-              const now = Date.now();
-              
-              // Показываем только если прошло более 5 секунд с момента последнего уведомления
-              if (!lastToastTime || (now - parseInt(lastToastTime)) > 5000) {
-                // Импортируем переводы
-                const { translations } = await import('../components/LanguageSelector');
-                const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
-                const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
-                
-                toast.success(t('emailSuccessfullyVerified'), {
-                  position: "top-right",
-                  autoClose: 3000
-                });
-                
-                // Сохраняем время показа
-                localStorage.setItem('lastAuthToastTime', now.toString());
-              }
-            }
-            
-            // Задержка перед созданием профиля, чтобы убедиться, что все данные обновлены
-            setTimeout(async () => {
-              try {
-                // Проверяем, есть ли сохраненные данные профиля в localStorage
-                const registrationDataJson = localStorage.getItem('vrach_registration_profile');
-                if (registrationDataJson) {
-                  try {
-                    console.log('Найдены сохраненные данные профиля из регистрации, пробуем создать профиль');
-                    const registrationData = JSON.parse(registrationDataJson);
-                    
-                    if (registrationData && registrationData.email) {
-                      // Формируем данные профиля
-                      const profileData = {
-                        full_name: registrationData.fullName || '',
-                        contact_phone: registrationData.phone || '',
-                        contact_address: registrationData.address || '',
-                        district: registrationData.district || '1',
-                        medical_info: registrationData.medicalInfo || ''
-                      };
-                      
-                      // Делаем попытку создать профиль
-                      try {
-                        console.log('Отправка запроса на создание профиля:', profileData);
-                        const profileResponse = await api.post('/patients/profiles', profileData);
-                        
-                        if (profileResponse.status === 201 || profileResponse.status === 200) {
-                          console.log('Профиль успешно создан из данных регистрации:', profileResponse.data);
-                          
-                          // Обновляем флаг необходимости обновления профиля
-                          set({ needsProfileUpdate: false });
-                          
-                          // Показываем уведомление
-                          // Импортируем переводы
-                          const { translations } = await import('../components/LanguageSelector');
-                          const currentLanguage = localStorage.getItem('preferred_language') || 'ru';
-                          const t = (key) => translations[currentLanguage]?.[key] || translations.ru[key] || key;
-                          
-                          toast.success(t('profileCreatedFromRegistration'), {
-                            position: "top-right",
-                            autoClose: 3000
-                          });
-                        }
-                      } catch (profileError) {
-                        console.error('Ошибка при создании профиля:', profileError);
-                        // Не удаляем данные регистрации в случае ошибки
-                      }
-                    }
-                  } catch (parseError) {
-                    console.error('Ошибка при парсинге данных регистрации:', parseError);
-                  }
-                }
-              } catch (profileError) {
-                console.error('Ошибка при работе с профилем:', profileError);
-              }
-            }, 1000);
-
-            return { success: true };
-          } catch (error) {
-            console.error('Ошибка при получении данных пользователя:', error);
-
-            // Даже если не удалось получить данные пользователя, мы все равно
-            // считаем верификацию успешной, если получили токен
-            set({
-              isAuthenticated: true,
-              token: verificationData.access_token,
-              pendingVerificationEmail: null
-            });
-
-            // Показываем частичное уведомление
-            toast.warning(`Email подтвержден, но не удалось получить данные пользователя. Возможно, потребуется повторный вход.`, {
-              position: "top-right",
-              autoClose: 5000
-            });
-
-            return { success: true, needRelogin: true };
-          }
-        } catch (error) {
-          console.error('handleEmailVerification error:', error);
-          return { 
-            success: false, 
-            error: error.message || 'Произошла ошибка при подтверждении email' 
-          };
-        }
-      },
-      
-      // Функция для парсинга профиля из регистрационных данных
-      parseProfileFromRegistration: () => {
-        try {
-          // Пытаемся получить сохраненные данные профиля из localStorage
-          const registrationDataJson = localStorage.getItem('vrach_registration_profile');
-          if (!registrationDataJson) {
-            console.log('Нет сохраненных данных регистрации');
-            return null;
-          }
-          
-          // Парсим JSON
-          const registrationData = JSON.parse(registrationDataJson);
-          console.log('Прочитаны данные регистрации:', registrationData);
-          
-          // Проверяем валидность данных
-          if (!registrationData || !registrationData.email) {
-            console.warn('Некорректные данные регистрации:', registrationData);
-            return null;
-          }
-          
-          // Проверяем, не устарели ли данные (24 часа)
-          if (registrationData.timestamp) {
-            const timestamp = new Date(registrationData.timestamp);
-            const now = new Date();
-            const diff = now - timestamp;
-            const hours = diff / (1000 * 60 * 60);
-            
-            if (hours > 24) {
-              console.warn('Данные регистрации устарели:', hours.toFixed(2), 'часов');
-              // Не удаляем данные, просто возвращаем null
-              return null;
-            }
+            console.log('handleEmailVerification: Email verification completed successfully');
+            return true;
           } else {
-            // Если нет метки времени, добавляем ее для будущих проверок
-            registrationData.timestamp = new Date().toISOString();
-            localStorage.setItem('vrach_registration_profile', JSON.stringify(registrationData));
+            throw new Error('Не удалось получить данные пользователя после подтверждения email');
           }
-          
-          // Формируем данные профиля
-          const profileData = {
-            full_name: registrationData.fullName || '',
-            contact_phone: registrationData.phone || '',
-            contact_address: registrationData.address || '',
-            district: registrationData.district || '1', // Если район не указан, используем 1 по умолчанию
-            medical_info: registrationData.medicalInfo || ''
-          };
-          
-          // Логируем извлеченные данные
-          console.log('Извлечены данные профиля из регистрации:', profileData);
-          
-          return profileData;
         } catch (error) {
-          console.error('Ошибка при парсинге данных регистрации:', error);
-          return null;
-        }
-      },
-      
-      // Функция для создания или обновления профиля пациента
-      createOrUpdatePatientProfile: async (profileData) => {
-        try {
-          console.log('Создание/обновление профиля пациента:', profileData);
+          console.error('handleEmailVerification: Error handling email verification:', error);
           
-          // Проверяем авторизацию
-          if (!get().isAuthenticated || !get().token) {
-            console.error('Нельзя создать профиль: пользователь не авторизован');
-            throw new Error('Вы не авторизованы');
-          }
+          let errorMessage = 'Ошибка при обработке подтверждения email';
           
-          // Отправляем запрос на создание/обновление профиля
-          const response = await api.post('/patients/profiles', profileData);
-          
-          if (response.status === 201 || response.status === 200) {
-            console.log('Профиль успешно создан/обновлен:', response.data);
-            
-            // Обновляем данные пользователя, если нужно
-            if (response.data && response.data.avatar_path) {
-              const user = get().user;
-              if (user && user.avatar_path !== response.data.avatar_path) {
-                const updatedUser = { ...user, avatar_path: response.data.avatar_path };
-                set({ user: updatedUser });
-              }
+          if (error.response) {
+            if (error.response.data && error.response.data.detail) {
+              errorMessage = error.response.data.detail;
             }
-            
-            // Возвращаем данные профиля
-            return response.data;
-          } else {
-            console.warn('Неожиданный ответ при создании профиля:', response);
-            throw new Error('Неожиданный ответ сервера');
+          } else if (error.message) {
+            errorMessage = error.message;
           }
-        } catch (error) {
-          console.error('Ошибка при создании/обновлении профиля:', error);
-          throw error;
+          
+          set({ 
+            error: errorMessage,
+            isLoading: false
+          });
+          
+          throw new Error(errorMessage);
         }
       }
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
         token: state.token,
-        pendingVerificationEmail: state.pendingVerificationEmail
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        needsProfileUpdate: state.needsProfileUpdate
       })
     }
   )

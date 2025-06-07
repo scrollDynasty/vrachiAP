@@ -213,10 +213,10 @@ function DoctorApplicationPage() {
           className="text-center mb-8"
         >
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-3">
-            Подача заявки на роль врача
+            {t('doctorApplicationTitle') || 'Подача заявки на роль врача'}
           </h1>
           <p className="text-gray-600 text-md max-w-xl mx-auto">
-            Заполните форму и предоставьте необходимые документы
+            {t('doctorApplicationDescription') || 'Заполните форму и предоставьте необходимые документы'}
           </p>
         </motion.div>
         
@@ -245,10 +245,10 @@ function DoctorApplicationPage() {
             <CardHeader className="flex justify-between items-center gap-3 p-6 bg-gradient-to-b from-indigo-50/50 to-transparent">
               <div>
                 <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                  Анкета врача
+                  {t('doctorQuestionnaire')}
                 </h2>
                 <p className="text-gray-600 text-sm">
-                  Ваша заявка будет рассмотрена в течение 1-3 рабочих дней
+                  {t('applicationReviewTime')}
                 </p>
               </div>
             </CardHeader>
@@ -262,17 +262,17 @@ function DoctorApplicationPage() {
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-200 mb-6 shadow-sm"
               >
-                <h3 className="text-lg font-bold text-blue-700 mb-2">Важная информация</h3>
+                <h3 className="text-lg font-bold text-blue-700 mb-2">{t('importantInformation')}</h3>
                 <p className="text-blue-600 mb-2 text-sm">
-                  Необходимые документы:
+                  {t('requiredDocuments')}
                 </p>
                 <ul className="list-disc list-inside text-blue-600 ml-2 space-y-1 text-sm">
-                  <li>Фотография (для профиля)</li>
-                  <li>Скан диплома о медицинском образовании</li>
-                  <li>Скан лицензии/сертификата на медицинскую деятельность</li>
+                  <li>{t('photoForProfile')}</li>
+                  <li>{t('diplomaScan')}</li>
+                  <li>{t('licenseScan')}</li>
                 </ul>
                 <p className="text-blue-600 mt-2 text-sm">
-                  После отправки заявки администрация проверит документы и примет решение.
+                  {t('afterSubmissionInfo')}
                 </p>
               </motion.div>
               

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Select, SelectItem, Button } from '@nextui-org/react';
-import { FiGlobe } from 'react-icons/fi';
+import { FiGlobe, FiChevronDown } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { brandColors } from '../theme';
 
-// Доступные языки с их кодами и названиями
+// Доступные языки с их кодами, названиями и эмодзи флагами
 const AVAILABLE_LANGUAGES = [
-  { code: 'ru', name: 'Русский', nativeName: 'Русский' },
-  { code: 'uz', name: 'Узбекский', nativeName: 'O\'zbekcha' },
-  { code: 'en', name: 'Английский', nativeName: 'English' }
+  { code: 'ru', name: 'Русский', nativeName: 'Русский', flag: '🇷🇺' },
+  { code: 'uz', name: 'Узбекский', nativeName: 'O\'zbekcha', flag: '🇺🇿' },
+  { code: 'en', name: 'Английский', nativeName: 'English', flag: '🇺🇸' }
 ];
 
 // Переводы для основных элементов интерфейса
@@ -471,6 +472,7 @@ const translations = {
     additionalInformation: 'Дополнительная информация',
     additionalInfoPlaceholder: 'Укажите дополнительную информацию о своей практике, достижениях или специализации...',
     submitApplication: 'Отправить заявку',
+    submittingApplication: 'Отправка заявки...',
     applicationSubmitted: 'Заявка успешно отправлена',
     applicationSubmittedMessage: 'Ваша заявка была успешно отправлена и будет рассмотрена администратором в ближайшее время.',
     backToProfile: 'Вернуться к профилю',
@@ -502,7 +504,295 @@ const translations = {
     pleaseCompleteAllFields: 'Пожалуйста, заполните все поля',
     loginError: 'Ошибка входа',
     medicalPlatformAdminPanel: 'Панель администрирования медицинской платформы',
-    accessOnlyForSoglomAdmins: 'Доступ только для администраторов Soglom'
+    accessOnlyForSoglomAdmins: 'Доступ только для администраторов Soglom',
+    
+    // Переводы для SearchDoctorsPage
+    doctorAppointmentError: 'Произошла ошибка при попытке записи к врачу. Попробуйте перейти в профиль врача.',
+    loginRequiredForAppointment: 'Для записи на консультацию необходимо войти в систему.',
+    onlyPatientsCanBook: 'Только пациенты могут записываться на консультации.',
+    doctorUnavailable: 'К сожалению, этот врач в данный момент недоступен для консультаций.',
+    notSpecified: 'Не указано',
+    chooseSpecialization: 'Выберите специализацию',
+    anySpecialization: 'Любая специализация',
+    chooseLanguage: 'Выберите язык',
+    allLanguages: 'Все языки',
+    filtersAndSearch: 'Фильтры и поиск',
+    specialization: 'Специализация',
+    language: 'Язык',
+    clearFilters: 'Очистить фильтры',
+    searchDoctor: 'Поиск врача...',
+    totalDoctors: 'Всего врачей',
+    costPerConsultation: 'Стоимость консультации',
+    selectSpecialization: 'Выберите специализацию',
+    allSpecializations: 'Все специализации',
+    selectLanguage: 'Выберите язык',
+    searching: 'Поиск...',
+    searchInRegion: 'Поиск в регионе',
+    autoFilterByRegion: 'Поиск автоматически ограничен вашим регионом',
+    findSpecialistDescription: 'Найдите подходящего специалиста в вашем регионе',
+    
+    // Переводы для DoctorProfilePage
+    doctorProfile: 'Профиль врача',
+    personalInfo: 'Личная информация',
+    medicalInfo: 'Медицинская информация',
+    priceAndRating: 'Стоимость и рейтинг',
+    availableLanguages: 'Владеет языками',
+    workExperience: 'Опыт работы',
+    reviews: 'Отзывы',
+    totalReviews: 'всего отзывов',
+    backToSearch: 'Назад к поиску',
+    requestConsultation: 'Записаться на консультацию',
+    noReviews: 'Отзывы отсутствуют',
+    reviewWithoutComment: 'Отзыв без комментария',
+    patient: 'Пациент',
+    years: 'лет',
+    year: 'год',
+    years2to4: 'года',
+    averageRating: 'Средний рейтинг',
+    costConsultation: 'Стоимость консультации',
+    fullName: 'ФИО',
+    specialty: 'Специальность',
+    city: 'Город',
+    district: 'Район',
+    phoneNumber: 'Номер телефона',
+    birthDate: 'Дата рождения',
+    gender: 'Пол',
+    male: 'Мужской',
+    female: 'Женский',
+    diploma: 'Диплом',
+    certificate: 'Сертификат',
+    education: 'Образование',
+    workPlace: 'Место работы',
+    position: 'Должность',
+    medicalLicense: 'Медицинская лицензия',
+    verifiedDoctor: 'Проверенный врач',
+    notSpecified: 'Не указано',
+    
+    // Переводы для ProfileSettingsPage
+    profileSettings: 'Настройки профиля',
+    userNotAuthorized: 'Пользователь не авторизован.',
+    profileNotCreated: 'Профиль еще не создан. Пожалуйста, заполните информацию.',
+    errorLoadingProfile: 'Ошибка при загрузке профиля. Попробуйте позже.',
+    cannotSaveProfile: 'Невозможно сохранить профиль. Неверная роль пользователя.',
+    profileSavedSuccessfully: 'Профиль успешно сохранен!',
+    errorSavingProfile: 'Ошибка при сохранении профиля. Попробуйте позже.',
+    backToHome: 'Назад на главную',
+    personalInformation: 'Личная информация',
+    professionalInformation: 'Профессиональная информация',
+    profilePhotoAndSettings: 'Фото профиля и настройки',
+    
+    // Переводы для HistoryPage
+    consultationHistory: 'История консультаций',
+    completed: 'Завершена',
+    active: 'Активна',
+    pending: 'Ожидает',
+    cancelled: 'Отменена',
+    unknown: 'Неизвестно',
+    failedToLoadHistory: 'Ошибка загрузки истории',
+    consultationsWith: 'Консультации с',
+    doctor: 'Врач',
+    patient: 'Пациент',
+    creationDate: 'Дата создания',
+    startTime: 'Время начала',
+    consultationNumber: 'Консультация №',
+    openConsultation: 'Открыть консультацию',
+    consultationStarted: 'Консультация начата',
+    consultationMessages: 'сообщений',
+    
+    // Переводы для форм LoginForm и RegisterForm
+    emailRequired: 'Введите email',
+    passwordRequired: 'Введите пароль',
+    invalidEmail: 'Неверный формат email',
+    loginError: 'Ошибка входа',
+    welcomeBack: 'Добро пожаловать!',
+    signInToContinue: 'Войдите, чтобы продолжить',
+    email: 'Email',
+    password: 'Пароль',
+    rememberMe: 'Запомнить меня',
+    signIn: 'Войти',
+    noAccount: 'Нет аккаунта?',
+    registerHere: 'Зарегистрируйтесь здесь',
+    signUp: 'Регистрация',
+    joinUs: 'Присоединяйтесь к нам!',
+    createAccount: 'Создайте аккаунт, чтобы начать',
+    firstName: 'Имя',
+    lastName: 'Фамилия',
+    confirmPassword: 'Подтвердите пароль',
+    role: 'Роль',
+    patient: 'Пациент',
+    doctor: 'Врач',
+    haveAccount: 'Уже есть аккаунт?',
+    loginHere: 'Войдите здесь',
+    passwordMismatch: 'Пароли не совпадают',
+    registrationError: 'Ошибка регистрации',
+    firstNameRequired: 'Введите имя',
+    lastNameRequired: 'Введите фамилию',
+    strongPassword: 'Используйте надежный пароль',
+    agreeToTerms: 'Согласен с условиями использования',
+    
+    // Переводы для футера
+    allRightsReserved: 'Все права защищены.',
+    privacyPolicy: 'Политика конфиденциальности',
+    termsOfUse: 'Условия использования',
+    contacts: 'Контакты',
+    
+    // Дополнительные переводы для HistoryPage  
+    consultations: 'Консультации',
+    payments: 'Платежи',
+    noConsultationsYet: 'У вас пока нет консультаций',
+    becomeDoctor: 'Стать врачом',
+    
+    // Переводы для форм профиля
+    personalInformationForm: 'Личная информация',
+    contactInformation: 'Контактная информация',
+    additionalInfo: 'Дополнительная информация',
+    photoAndSettings: 'Фото и настройки',
+    fullNameLabel: 'Полное имя',
+    fullNamePlaceholder: 'Введите ваше полное имя',
+    phoneLabel: 'Номер телефона',
+    phonePlaceholder: 'Введите номер телефона',
+    addressLabel: 'Адрес',
+    addressPlaceholder: 'Введите ваш адрес',
+    cityLabel: 'Город/Регион',
+    cityPlaceholder: 'Выберите город/регион',
+    districtLabel: 'Район',
+    districtPlaceholder: 'Выберите район',
+    medicalInfoLabel: 'Медицинская информация',
+    medicalInfoNotSpecified: 'Медицинская информация не указана',
+    medicalInfoPlaceholder: 'Расскажите о ваших хронических заболеваниях, аллергиях и другой важной медицинской информации',
+    profilePhoto: 'Фото профиля',
+    changePhoto: 'Изменить фото',
+    uploading: 'Загрузка...',
+    edit: 'Редактировать',
+    cancelEdit: 'Отменить',
+    saveProfile: 'Сохранить профиль',
+    saving: 'Сохранение...',
+    changePassword: 'Изменить пароль',
+    notificationSettings: 'Настройки уведомлений',
+    privacySettings: 'Настройки приватности',
+    deleteAccount: 'Удалить аккаунт',
+    
+    // Переводы специализаций врачей
+    therapist: 'Терапевт',
+    cardiologist: 'Кардиолог',
+    neurologist: 'Невролог',
+    surgeon: 'Хирург',
+    pediatrician: 'Педиатр',
+    ophthalmologist: 'Офтальмолог',
+    dentist: 'Стоматолог',
+    gynecologist: 'Гинеколог',
+    urologist: 'Уролог',
+    endocrinologist: 'Эндокринолог',
+    dermatologist: 'Дерматолог',
+    psychiatrist: 'Психиатр',
+    oncologist: 'Онколог',
+    otolaryngologist: 'Отоларинголог (ЛОР)',
+    orthopedist: 'Ортопед',
+    
+    // Дополнительные навигационные переводы
+    home: 'Главная',
+    findDoctor: 'Найти врача',
+    history: 'История',
+    adminPanel: 'Админ-панель',
+    paymentHistory: 'История платежей',
+    paymentHistoryComingSoon: 'История платежей будет доступна в ближайшее время',
+    workingOnFeature: 'Мы работаем над этой функцией',
+    consultationLanguagesNotSpecified: 'Языки консультаций не указаны',
+    
+    // Настройки уведомлений
+    notificationSettingsTitle: 'Настройки уведомлений',
+    browserNotifications: 'Браузерные уведомления',
+    browserNotificationsDesc: 'Получать уведомления в браузере когда сайт открыт',
+    appointmentReminders: 'Напоминания о консультациях',
+    appointmentRemindersDesc: 'Получать напоминания о предстоящих консультациях',
+    importantNotificationsInfo: 'Вы всегда будете получать важные системные уведомления, независимо от этих настроек.',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    
+    // Удаление аккаунта
+    deleteAccount: 'Удаление аккаунта',
+    deleteAccountTitle: 'Удаление аккаунта',
+    deleteAccountWarning: 'Внимание! Это действие необратимо.',
+    deleteAccountDescription: 'При удалении аккаунта:',
+    profileDataWillBeDeleted: 'Вся информация вашего профиля будет удалена',
+    accountRecoveryImpossible: 'Восстановление аккаунта будет невозможно',
+    confirmationRequired: 'Для подтверждения введите "удалить"',
+    deletePlaceholder: 'удалить',
+    deleteAccountButton: 'Удалить аккаунт',
+    deleteConfirmationError: 'Пожалуйста, введите слово "удалить" для подтверждения',
+    
+    // Переводы для страницы заявки врача
+    doctorApplicationTitle: 'Подача заявки на роль врача',
+    doctorApplicationDescription: 'Заполните форму и предоставьте необходимые документы',
+    backToSearch: 'Назад к поиску',
+    
+    // Переводы для dropdown menu пользователя
+    role: 'Роль',
+    profileSettings: 'Настройки профиля',
+    logout: 'Выйти',
+    verifiedDoctor: 'Проверенный врач',
+    
+    // Переводы для страницы профиля
+    myProfile: 'Мой профиль',
+    managePersonalData: 'Управляйте личными данными и настройками',
+    becomeDoctor: 'Стать врачом',
+    profileSavedSuccessfully: 'Профиль успешно сохранен!',
+    profileNotCreated: 'Профиль еще не создан. Пожалуйста, заполните информацию.',
+    errorLoadingProfile: 'Ошибка при загрузке профиля',
+    userNotAuthorized: 'Пользователь не авторизован',
+    cannotSaveProfile: 'Невозможно сохранить профиль',
+    profileNotFilledYet: 'Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.',
+    profileNotAvailableForRole: 'Для вашей роли профиль не предусмотрен в этом разделе.',
+    
+    // Переводы для PatientProfileForm
+    profileInformation: 'Информация профиля',
+    accountSettings: 'Настройки аккаунта',
+    notSpecified: 'Не указано',
+    phoneNotSpecified: 'Телефон не указан',
+    
+    // Переводы для DoctorApplicationPage
+    doctorQuestionnaire: 'Анкета врача',
+    applicationReviewTime: 'Ваша заявка будет рассмотрена в течение 1-3 рабочих дней',
+    importantInformation: 'Важная информация',
+    requiredDocuments: 'Необходимые документы:',
+    photoForProfile: 'Фотография (для профиля)',
+    diplomaScan: 'Скан диплома о медицинском образовании',
+    licenseScan: 'Скан лицензии/сертификата на медицинскую деятельность',
+    afterSubmissionInfo: 'После отправки заявки администрация проверит документы и примет решение.',
+    applicationData: 'Данные для заявки',
+    fillFormAndDocuments: 'Заполните форму ниже и предоставьте необходимые документы',
+    
+    // Переводы для формы заявки врача
+    selectSpecialization: 'Выберите вашу специализацию',
+    cityRegionLabel: 'Город/Регион',
+    practiceDistrictLabel: 'Район практики',
+    selectCityRegionPractice: 'Выберите город или регион вашей практики',
+    selectPracticeDistrict: 'Выберите район вашей практики',
+    selectCityFirst: 'Сначала выберите город',
+    consultationLanguages: 'Языки консультаций',
+    selectConsultationLanguages: 'Выберите языки, на которых вы проводите консультации',
+    workExperience: 'Опыт работы',
+    workExperiencePlaceholder: 'Например: 5 лет в городской клинике',
+    educationField: 'Образование',
+    educationPlaceholder: 'Укажите ваше образование, ВУЗ, годы обучения',
+    licenseNumber: 'Номер лицензии/сертификата',
+    licenseNumberPlaceholder: 'Например: 123456789',
+    additionalInformationField: 'Дополнительная информация',
+    additionalInfoPlaceholder: 'Укажите дополнительную информацию (необязательно)',
+    documentUpload: 'Загрузка документов',
+    photographField: 'Фотография',
+    clickToUpload: 'Нажмите для загрузки',
+    clickToChange: 'Нажмите, чтобы изменить',
+    photoForProfileDesc: 'Фото для профиля',
+    diplomaScanField: 'Скан диплома',
+    pdfJpgPng: 'PDF, JPG или PNG',
+    licenseScanField: 'Скан лицензии',
+    
+    // Переводы для футера
+    copyrightText: '© 2025 Soglom. Barcha huquqlar himoyalangan.',
+    privacyPolicyLink: 'Maxfiylik siyosati',
+    termsOfUseLink: 'Foydalanish shartlari',
+    contactsLink: 'Aloqa'
     },
     uz: {
     selectLanguage: 'Tilni tanlang',
@@ -944,7 +1234,297 @@ const translations = {
     messageCountInfo: '30 ta xabar (uzaytirish imkoniyati bilan)',
     noteToDoctor: 'Shifokor uchun izoh (ixtiyoriy)',
     notePlaceholder: 'Shifokor bilan muhokama qilmoqchi bo\'lgan alomatlar yoki savollaringizni tasvirlab bering...',
-    send: 'Yuborish'
+    send: 'Yuborish',
+    
+    // Переводы для SearchDoctorsPage
+    doctorAppointmentError: 'Shifokor bilan yozilishda xatolik yuz berdi. Shifokor profiliga o\'tishga harakat qiling.',
+    loginRequiredForAppointment: 'Konsultatsiyaga yozilish uchun tizimga kirish kerak.',
+    onlyPatientsCanBook: 'Faqat bemorlar konsultatsiyaga yozila oladi.',
+    doctorUnavailable: 'Afsuski, bu shifokor hozirda konsultatsiyalar uchun mavjud emas.',
+    notSpecified: 'Ko\'rsatilmagan',
+    chooseSpecialization: 'Mutaxassislikni tanlang',
+    anySpecialization: 'Barcha mutaxassisliklar',
+    chooseLanguage: 'Tilni tanlang',
+    allLanguages: 'Barcha tillar',
+    filtersAndSearch: 'Filtrlar va qidiruv',
+    specialization: 'Mutaxassislik',
+    language: 'Til',
+    clearFilters: 'Filtrlarni tozalash',
+    searchDoctor: 'Shifokor qidirish...',
+    totalDoctors: 'Jami shifokorlar',
+    costPerConsultation: 'Konsultatsiya narxi',
+    selectSpecialization: 'Mutaxassislikni tanlang',
+    allSpecializations: 'Barcha mutaxassisliklar',
+    selectLanguage: 'Tilni tanlang',
+    searching: 'Qidiruv...',
+    searchInRegion: 'Hududda qidiruv',
+    autoFilterByRegion: 'Qidiruv avtomatik ravishda sizning hududingiz bilan chegaralangan',
+    findSpecialistDescription: 'Sizning hududingizda mos mutaxassisni toping',
+    
+    // Переводы для DoctorProfilePage
+    doctorProfile: 'Shifokor profili',
+    personalInfo: 'Shaxsiy ma\'lumotlar',
+    medicalInfo: 'Tibbiy ma\'lumotlar',
+    priceAndRating: 'Narx va reyting',
+    availableLanguages: 'Bilgan tillari',
+    workExperience: 'Ish tajribasi',
+    reviews: 'Sharhlar',
+    totalReviews: 'jami sharhlar',
+    backToSearch: 'Qidiruvga qaytish',
+    requestConsultation: 'Konsultatsiyaga yozilish',
+    noReviews: 'Sharhlar yo\'q',
+    reviewWithoutComment: 'Izohsiz sharh',
+    patient: 'Bemor',
+    years: 'yil',
+    year: 'yil',
+    years2to4: 'yil',
+    averageRating: 'O\'rtacha reyting',
+    costConsultation: 'Konsultatsiya narxi',
+    fullName: 'F.I.Sh',
+    specialty: 'Mutaxassislik',
+    city: 'Shahar',
+    district: 'Tuman',
+    phoneNumber: 'Telefon raqami',
+    birthDate: 'Tug\'ilgan sana',
+    gender: 'Jinsi',
+    male: 'Erkak',
+    female: 'Ayol',
+    diploma: 'Diplom',
+    certificate: 'Sertifikat',
+    education: 'Ta\'lim',
+    workPlace: 'Ish joyi',
+    position: 'Lavozim',
+    medicalLicense: 'Tibbiy litsenziya',
+    verifiedDoctor: 'Tasdiqlangan shifokor',
+    notSpecified: 'Ko\'rsatilmagan',
+    
+    // Переводы для ProfileSettingsPage
+    profileSettings: 'Profil sozlamalari',
+    userNotAuthorized: 'Foydalanuvchi avtorizatsiya qilinmagan.',
+    profileNotCreated: 'Profil hali yaratilmagan. Iltimos, ma\'lumotlarni to\'ldiring.',
+    errorLoadingProfile: 'Profil yuklanishida xato. Keyinroq urinib ko\'ring.',
+    cannotSaveProfile: 'Profilni saqlash mumkin emas. Foydalanuvchi roli noto\'g\'ri.',
+    profileSavedSuccessfully: 'Profil muvaffaqiyatli saqlandi!',
+    errorSavingProfile: 'Profil saqlanishida xato. Keyinroq urinib ko\'ring.',
+    backToHome: 'Bosh sahifaga qaytish',
+    personalInformation: 'Shaxsiy ma\'lumotlar',
+    professionalInformation: 'Professional ma\'lumotlar',
+    profilePhotoAndSettings: 'Profil rasmi va sozlamalar',
+    
+    // Переводы для HistoryPage
+    consultationHistory: 'Konsultatsiyalar tarixi',
+    completed: 'Tugallangan',
+    active: 'Faol',
+    pending: 'Kutilmoqda',
+    cancelled: 'Bekor qilingan',
+    unknown: 'Noma\'lum',
+    failedToLoadHistory: 'Tarixni yuklashda xatolik',
+    consultationsWith: 'Konsultatsiyalar bilan',
+    doctor: 'Shifokor',
+    patient: 'Bemor',
+    creationDate: 'Yaratilgan sana',
+    startTime: 'Boshlangan vaqt',
+    consultationNumber: 'Konsultatsiya №',
+    openConsultation: 'Konsultatsiyani ochish',
+    consultationStarted: 'Konsultatsiya boshlandi',
+    consultationMessages: 'xabarlar',
+    
+    // Переводы для форм LoginForm и RegisterForm
+    emailRequired: 'Email kiriting',
+    passwordRequired: 'Parol kiriting',
+    invalidEmail: 'Email formati noto\'g\'ri',
+    loginError: 'Kirish xatosi',
+    welcomeBack: 'Xush kelibsiz!',
+    signInToContinue: 'Davom etish uchun kiring',
+    email: 'Email',
+    password: 'Parol',
+    rememberMe: 'Meni eslab qol',
+    signIn: 'Kirish',
+    noAccount: 'Hisob yo\'qmi?',
+    registerHere: 'Bu yerda ro\'yxatdan o\'ting',
+    signUp: 'Ro\'yxatdan o\'tish',
+    joinUs: 'Bizga qo\'shiling!',
+    createAccount: 'Boshlash uchun hisob yarating',
+    firstName: 'Ism',
+    lastName: 'Familiya',
+    confirmPassword: 'Parolni tasdiqlang',
+    role: 'Rol',
+    patient: 'Bemor',
+    doctor: 'Shifokor',
+    haveAccount: 'Hisobingiz bormi?',
+    loginHere: 'Bu yerda kiring',
+    passwordMismatch: 'Parollar mos kelmaydi',
+    registrationError: 'Ro\'yxatdan o\'tish xatosi',
+    firstNameRequired: 'Ism kiriting',
+    lastNameRequired: 'Familiya kiriting',
+    strongPassword: 'Ishonchli parol ishlating',
+    agreeToTerms: 'Foydalanish shartlariga roziman',
+    
+    // Переводы для футера
+    allRightsReserved: 'Barcha huquqlar himoyalangan.',
+    privacyPolicy: 'Maxfiylik siyosati',
+    termsOfUse: 'Foydalanish shartlari',
+    contacts: 'Aloqa',
+    
+    // Дополнительные переводы для HistoryPage  
+    consultations: 'Konsultatsiyalar',
+    payments: 'To\'lovlar',
+    noConsultationsYet: 'Sizda hali konsultatsiyalar yo\'q',
+    becomeDoctor: 'Shifokor bo\'lish',
+    
+    // Переводы для форм профиля
+    personalInformationForm: 'Shaxsiy ma\'lumotlar',
+    contactInformation: 'Aloqa ma\'lumotlari',
+    additionalInfo: 'Qo\'shimcha ma\'lumotlar',
+    photoAndSettings: 'Rasm va sozlamalar',
+    fullNameLabel: 'To\'liq ism',
+    fullNamePlaceholder: 'To\'liq ismingizni kiriting',
+    phoneLabel: 'Aloqa telefoni',
+    phonePlaceholder: 'Telefon raqamini kiriting',
+    addressLabel: 'Manzil',
+    addressPlaceholder: 'Manzilingizni kiriting',
+    cityLabel: 'Shahar/Hudud',
+    cityPlaceholder: 'Shahar/hududni tanlang',
+    districtLabel: 'Tuman',
+    districtPlaceholder: 'Tumanni tanlang',
+    medicalInfoLabel: 'Tibbiy ma\'lumotlar',
+    medicalInfoNotSpecified: 'Tibbiy ma\'lumotlar ko\'rsatilmagan',
+    medicalInfoPlaceholder: 'Surunkali kasalliklar, allergiyalar va boshqa muhim tibbiy ma\'lumotlar haqida ma\'lumot bering',
+    profilePhoto: 'Profil rasmi',
+    changePhoto: 'Rasmni o\'zgartirish',
+    uploading: 'Yuklanumoqda...',
+    edit: 'Tahrirlash',
+    cancelEdit: 'Bekor qilish',
+    saveProfile: 'Profilni saqlash',
+    saving: 'Saqlanmoqda...',
+    changePassword: 'Parolni o\'zgartirish',
+    notificationSettings: 'Bildirishnoma sozlamalari',
+    privacySettings: 'Maxfiylik sozlamalari',
+    deleteAccount: 'Hisobni o\'chirish',
+    
+    // Переводы специализаций врачей
+    therapist: 'Terapevt',
+    cardiologist: 'Kardiolog',
+    neurologist: 'Nevrolog',
+    surgeon: 'Jarroh',
+    pediatrician: 'Pediatr',
+    ophthalmologist: 'Oftalmolog',
+    dentist: 'Stomatolog',
+    gynecologist: 'Ginekolog',
+    urologist: 'Urolog',
+    endocrinologist: 'Endokrinolog',
+    dermatologist: 'Dermatolog',
+    psychiatrist: 'Psixiatr',
+    oncologist: 'Onkolog',
+    otolaryngologist: 'Otoloringolog (LOR)',
+    orthopedist: 'Ortoped',
+    
+    // Дополнительные навигационные переводы
+    home: 'Bosh sahifa',
+    findDoctor: 'Shifokor topish',
+    history: 'Tarix',
+    adminPanel: 'Admin panel',
+    paymentHistory: 'To\'lovlar tarixi',
+    paymentHistoryComingSoon: 'To\'lovlar tarixi yaqin orada mavjud bo\'ladi',
+    workingOnFeature: 'Biz ushbu funksiya ustida ishlayapmiz',
+    consultationLanguagesNotSpecified: 'Konsultatsiya tillari ko\'rsatilmagan',
+    
+    // Настройки уведомлений
+    notificationSettingsTitle: 'Bildirishnoma sozlamalari',
+    browserNotifications: 'Brauzer bildirishnomalari',
+    browserNotificationsDesc: 'Sayt ochiq bo\'lganda brauzerda bildirishnomalar olish',
+    appointmentReminders: 'Konsultatsiya eslatmalari',
+    appointmentRemindersDesc: 'Kelgusi konsultatsiyalar haqida eslatmalar olish',
+    importantNotificationsInfo: 'Siz har doim muhim tizim bildirishnomalarini olasiz, bu sozlamalardan qat\'i nazar.',
+    save: 'Saqlash',
+    cancel: 'Bekor qilish',
+    
+    // Удаление аккаунта
+    deleteAccount: 'Hisobni o\'chirish',
+    deleteAccountTitle: 'Hisobni o\'chirish',
+    deleteAccountWarning: 'Diqqat! Bu harakat qaytarilmas.',
+    deleteAccountDescription: 'Hisobni o\'chirishda:',
+    profileDataWillBeDeleted: 'Profilingizning barcha ma\'lumotlari o\'chiriladi',
+    accountRecoveryImpossible: 'Hisobni tiklash imkonsiz bo\'ladi',
+    confirmationRequired: 'Tasdiqlash uchun "o\'chirish" so\'zini kiriting',
+    deletePlaceholder: 'o\'chirish',
+    deleteAccountButton: 'Hisobni o\'chirish',
+    deleteConfirmationError: 'Iltimos, tasdiqlash uchun "o\'chirish" so\'zini kiriting',
+    
+    // Переводы для страницы заявки врача
+    doctorApplicationTitle: 'Shifokor roli uchun ariza berish',
+    doctorApplicationDescription: 'Formani to\'ldiring va zarur hujjatlarni taqdim eting',
+    backToSearch: 'Qidiruvga qaytish',
+    
+    // Переводы для dropdown menu пользователя
+    role: 'Rol',
+    profileSettings: 'Profil sozlamalari',
+    logout: 'Chiqish',
+    verifiedDoctor: 'Tasdiqlangan shifokor',
+    
+    // Переводы для страницы профиля
+    myProfile: 'Mening profilim',
+    managePersonalData: 'Shaxsiy ma\'lumotlar va sozlamalarni boshqaring',
+    becomeDoctor: 'Shifokor bo\'lish',
+    profileSavedSuccessfully: 'Profil muvaffaqiyatli saqlandi!',
+    profileNotCreated: 'Profil hali yaratilmagan. Iltimos, ma\'lumotlarni to\'ldiring.',
+    errorLoadingProfile: 'Profilni yuklashda xatolik',
+    userNotAuthorized: 'Foydalanuvchi avtorizatsiya qilinmagan',
+    cannotSaveProfile: 'Profilni saqlab bo\'lmaydi',
+    profileNotFilledYet: 'Sizning profilingiz hali to\'ldirilmagan. Iltimos, quyidagi ma\'lumotlarni to\'ldiring.',
+    profileNotAvailableForRole: 'Sizning rolingiz uchun bu bo\'limda profil nazarda tutilmagan.',
+    
+    // Переводы для PatientProfileForm
+    profileInformation: 'Profil ma\'lumotlari',
+    accountSettings: 'Hisob sozlamalari',
+    notSpecified: 'Ko\'rsatilmagan',
+    phoneNotSpecified: 'Telefon ko\'rsatilmagan',
+    
+    // Переводы для DoctorApplicationPage
+    doctorQuestionnaire: 'Shifokor anketi',
+    applicationReviewTime: 'Sizning arizangiz 1-3 ish kuni ichida ko\'rib chiqiladi',
+    importantInformation: 'Muhim ma\'lumot',
+    requiredDocuments: 'Kerakli hujjatlar:',
+    photoForProfile: 'Fotosurat (profil uchun)',
+    diplomaScan: 'Tibbiy ta\'lim diplomining skan nusxasi',
+    licenseScan: 'Tibbiy faoliyat litsenziyasi/sertifikatining skan nusxasi',
+    afterSubmissionInfo: 'Ariza yuborilgandan so\'ng ma\'muriyat hujjatlarni tekshiradi va qaror qabul qiladi.',
+    applicationData: 'Ariza ma\'lumotlari',
+    fillFormAndDocuments: 'Quyidagi formani to\'ldiring va zarur hujjatlarni taqdim eting',
+    
+    // Переводы для формы заявки врача
+    selectSpecialization: 'Mutaxassisligingizni tanlang',
+    cityRegionLabel: 'Shahar/Viloyat',
+    practiceDistrictLabel: 'Amaliyot tumani',
+    selectCityRegionPractice: 'Amaliyot olib boradigan shahar yoki viloyatingizni tanlang',
+    selectPracticeDistrict: 'Amaliyot olib boradigan tumaningizni tanlang',
+    selectCityFirst: 'Avval shaharni tanlang',
+    consultationLanguages: 'Konsultatsiya tillari',
+    selectConsultationLanguages: 'Konsultatsiya o\'tkazadigan tillaringizni tanlang',
+    workExperience: 'Ish tajribasi',
+    workExperiencePlaceholder: 'Masalan: Shahar klinikasida 5 yil',
+    educationField: 'Ta\'lim',
+    educationPlaceholder: 'Ta\'limingizni, OTMni, o\'qish yillarini ko\'rsating',
+    licenseNumber: 'Litsenziya/sertifikat raqami',
+    licenseNumberPlaceholder: 'Masalan: 123456789',
+    additionalInformationField: 'Qo\'shimcha ma\'lumot',
+    additionalInfoPlaceholder: 'Qo\'shimcha ma\'lumot kiriting (ixtiyoriy)',
+    documentUpload: 'Hujjatlarni yuklash',
+    photographField: 'Fotosurat',
+    clickToUpload: 'Yuklash uchun bosing',
+    clickToChange: 'O\'zgartirish uchun bosing',
+    photoForProfileDesc: 'Profil uchun foto',
+    diplomaScanField: 'Diploma skani',
+    pdfJpgPng: 'PDF, JPG yoki PNG',
+    licenseScanField: 'Litsenziya skani',
+    submitApplication: 'Ariza yuborish',
+    submittingApplication: 'Ariza yuborilmoqda...',
+    
+    // Переводы для футера
+    copyrightText: '© 2025 Soglom. Barcha huquqlar himoyalangan.',
+    privacyPolicyLink: 'Maxfiylik siyosati',
+    termsOfUseLink: 'Foydalanish shartlari',
+    contactsLink: 'Aloqa'
     },
     en: {
     selectLanguage: 'Select language',
@@ -1386,7 +1966,297 @@ const translations = {
     messageCountInfo: '30 messages (with extension option)',
     noteToDoctor: 'Note for doctor (optional)',
     notePlaceholder: 'Describe your symptoms or questions you would like to discuss with the doctor...',
-    send: 'Send'
+    send: 'Send',
+    
+    // Переводы для SearchDoctorsPage
+    doctorAppointmentError: 'Error booking with doctor. Try going to doctor profile.',
+    loginRequiredForAppointment: 'Login is required to book an appointment.',
+    onlyPatientsCanBook: 'Only patients can book appointments.',
+    doctorUnavailable: 'Unfortunately, this doctor is currently unavailable for consultations.',
+    notSpecified: 'Not specified',
+    chooseSpecialization: 'Choose specialization',
+    anySpecialization: 'Any specialization',
+    chooseLanguage: 'Choose language',
+    allLanguages: 'All languages',
+    filtersAndSearch: 'Filters and search',
+    specialization: 'Specialization',
+    language: 'Language',
+    clearFilters: 'Clear filters',
+    searchDoctor: 'Search doctor...',
+    totalDoctors: 'Total doctors',
+    costPerConsultation: 'Cost per consultation',
+    selectSpecialization: 'Choose specialization',
+    allSpecializations: 'All specializations',
+    selectLanguage: 'Choose language',
+    searching: 'Searching...',
+    searchInRegion: 'Search in region',
+    autoFilterByRegion: 'Search is automatically limited to your region',
+    findSpecialistDescription: 'Find the right specialist in your region',
+    
+    // Переводы для DoctorProfilePage
+    doctorProfile: 'Doctor Profile',
+    personalInfo: 'Personal Information',
+    medicalInfo: 'Medical Information',
+    priceAndRating: 'Price and Rating',
+    availableLanguages: 'Available Languages',
+    workExperience: 'Work Experience',
+    reviews: 'Reviews',
+    totalReviews: 'total reviews',
+    backToSearch: 'Back to Search',
+    requestConsultation: 'Request Consultation',
+    noReviews: 'No reviews',
+    reviewWithoutComment: 'Review without comment',
+    patient: 'Patient',
+    years: 'years',
+    year: 'year',
+    years2to4: 'years',
+    averageRating: 'Average rating',
+    costConsultation: 'Consultation cost',
+    fullName: 'Full name',
+    specialty: 'Specialty',
+    city: 'City',
+    district: 'District',
+    phoneNumber: 'Phone number',
+    birthDate: 'Birth date',
+    gender: 'Gender',
+    male: 'Male',
+    female: 'Female',
+    diploma: 'Diploma',
+    certificate: 'Certificate',
+    education: 'Education',
+    workPlace: 'Workplace',
+    position: 'Position',
+    medicalLicense: 'Medical license',
+    verifiedDoctor: 'Verified doctor',
+    notSpecified: 'Not specified',
+    
+    // Переводы для ProfileSettingsPage
+    profileSettings: 'Profile Settings',
+    userNotAuthorized: 'User not authorized.',
+    profileNotCreated: 'Profile not created yet. Please fill in the information.',
+    errorLoadingProfile: 'Error loading profile. Try again later.',
+    cannotSaveProfile: 'Cannot save profile. Invalid user role.',
+    profileSavedSuccessfully: 'Profile saved successfully!',
+    errorSavingProfile: 'Error saving profile. Try again later.',
+    backToHome: 'Back to Home',
+    personalInformation: 'Personal Information',
+    professionalInformation: 'Professional Information',
+    profilePhotoAndSettings: 'Profile Photo and Settings',
+    
+    // Переводы для HistoryPage
+    consultationHistory: 'Consultation History',
+    completed: 'Completed',
+    active: 'Active',
+    pending: 'Pending',
+    cancelled: 'Cancelled',
+    unknown: 'Unknown',
+    failedToLoadHistory: 'Failed to load history',
+    consultationsWith: 'Consultations with',
+    doctor: 'Doctor',
+    patient: 'Patient',
+    creationDate: 'Creation date',
+    startTime: 'Start time',
+    consultationNumber: 'Consultation #',
+    openConsultation: 'Open consultation',
+    consultationStarted: 'Consultation started',
+    consultationMessages: 'messages',
+    
+    // Переводы для форм LoginForm и RegisterForm
+    emailRequired: 'Enter email',
+    passwordRequired: 'Enter password',
+    invalidEmail: 'Invalid email format',
+    loginError: 'Login error',
+    welcomeBack: 'Welcome back!',
+    signInToContinue: 'Sign in to continue',
+    email: 'Email',
+    password: 'Password',
+    rememberMe: 'Remember me',
+    signIn: 'Sign In',
+    noAccount: 'No account?',
+    registerHere: 'Register here',
+    signUp: 'Sign Up',
+    joinUs: 'Join us!',
+    createAccount: 'Create an account to get started',
+    firstName: 'First name',
+    lastName: 'Last name',
+    confirmPassword: 'Confirm password',
+    role: 'Role',
+    patient: 'Patient',
+    doctor: 'Doctor',
+    haveAccount: 'Already have an account?',
+    loginHere: 'Login here',
+    passwordMismatch: 'Passwords do not match',
+    registrationError: 'Registration error',
+    firstNameRequired: 'Enter first name',
+    lastNameRequired: 'Enter last name',
+    strongPassword: 'Use a strong password',
+    agreeToTerms: 'I agree to the terms of use',
+    
+    // Переводы для футера
+    allRightsReserved: 'All rights reserved.',
+    privacyPolicy: 'Privacy Policy',
+    termsOfUse: 'Terms of Use',
+    contacts: 'Contacts',
+    
+    // Дополнительные переводы для HistoryPage  
+    consultations: 'Consultations',
+    payments: 'Payments',
+    noConsultationsYet: 'You have no consultations yet',
+    becomeDoctor: 'Become a Doctor',
+    
+    // Переводы для форм профиля
+    personalInformationForm: 'Personal Information',
+    contactInformation: 'Contact Information',
+    additionalInfo: 'Additional Information',
+    photoAndSettings: 'Photo and Settings',
+    fullNameLabel: 'Full Name',
+    fullNamePlaceholder: 'Enter your full name',
+    phoneLabel: 'Phone Number',
+    phonePlaceholder: 'Enter phone number',
+    addressLabel: 'Address',
+    addressPlaceholder: 'Enter your address',
+    cityLabel: 'City/Region',
+    cityPlaceholder: 'Select city/region',
+    districtLabel: 'District',
+    districtPlaceholder: 'Select district',
+    medicalInfoLabel: 'Medical Information',
+    medicalInfoNotSpecified: 'Medical information not specified',
+    medicalInfoPlaceholder: 'Tell us about your chronic diseases, allergies and other important medical information',
+    profilePhoto: 'Profile Photo',
+    changePhoto: 'Change Photo',
+    uploading: 'Uploading...',
+    edit: 'Edit',
+    cancelEdit: 'Cancel',
+    saveProfile: 'Save Profile',
+    saving: 'Saving...',
+    changePassword: 'Change Password',
+    notificationSettings: 'Notification Settings',
+    privacySettings: 'Privacy Settings',
+    deleteAccount: 'Delete Account',
+    
+    // Переводы специализаций врачей
+    therapist: 'Therapist',
+    cardiologist: 'Cardiologist',
+    neurologist: 'Neurologist',
+    surgeon: 'Surgeon',
+    pediatrician: 'Pediatrician',
+    ophthalmologist: 'Ophthalmologist',
+    dentist: 'Dentist',
+    gynecologist: 'Gynecologist',
+    urologist: 'Urologist',
+    endocrinologist: 'Endocrinologist',
+    dermatologist: 'Dermatologist',
+    psychiatrist: 'Psychiatrist',
+    oncologist: 'Oncologist',
+    otolaryngologist: 'Otolaryngologist (ENT)',
+    orthopedist: 'Orthopedist',
+    
+    // Дополнительные навигационные переводы
+    home: 'Home',
+    findDoctor: 'Find Doctor',
+    history: 'History',
+    adminPanel: 'Admin Panel',
+    paymentHistory: 'Payment History',
+    paymentHistoryComingSoon: 'Payment history will be available soon',
+    workingOnFeature: 'We are working on this feature',
+    consultationLanguagesNotSpecified: 'Consultation languages not specified',
+    
+    // Настройки уведомлений
+    notificationSettingsTitle: 'Notification Settings',
+    browserNotifications: 'Browser Notifications',
+    browserNotificationsDesc: 'Receive notifications in browser when site is open',
+    appointmentReminders: 'Appointment Reminders',
+    appointmentRemindersDesc: 'Receive reminders about upcoming consultations',
+    importantNotificationsInfo: 'You will always receive important system notifications, regardless of these settings.',
+    save: 'Save',
+    cancel: 'Cancel',
+    
+    // Удаление аккаунта
+    deleteAccount: 'Delete Account',
+    deleteAccountTitle: 'Delete Account',
+    deleteAccountWarning: 'Warning! This action is irreversible.',
+    deleteAccountDescription: 'When deleting account:',
+    profileDataWillBeDeleted: 'All your profile information will be deleted',
+    accountRecoveryImpossible: 'Account recovery will be impossible',
+    confirmationRequired: 'To confirm, enter "delete"',
+    deletePlaceholder: 'delete',
+    deleteAccountButton: 'Delete Account',
+    deleteConfirmationError: 'Please enter the word "delete" to confirm',
+    
+    // Переводы для страницы заявки врача
+    doctorApplicationTitle: 'Doctor Role Application',
+    doctorApplicationDescription: 'Fill out the form and provide necessary documents',
+    backToSearch: 'Back to Search',
+    
+    // Переводы для dropdown menu пользователя
+    role: 'Role',
+    profileSettings: 'Profile Settings',
+    logout: 'Logout',
+    verifiedDoctor: 'Verified Doctor',
+    
+    // Переводы для страницы профиля
+    myProfile: 'My Profile',
+    managePersonalData: 'Manage personal data and settings',
+    becomeDoctor: 'Become a Doctor',
+    profileSavedSuccessfully: 'Profile saved successfully!',
+    profileNotCreated: 'Profile not yet created. Please fill in the information.',
+    errorLoadingProfile: 'Error loading profile',
+    userNotAuthorized: 'User not authorized',
+    cannotSaveProfile: 'Cannot save profile',
+    profileNotFilledYet: 'Your profile is not yet filled out. Please fill in the information below.',
+    profileNotAvailableForRole: 'Profile is not provided for your role in this section.',
+    
+    // Переводы для PatientProfileForm
+    profileInformation: 'Profile Information',
+    accountSettings: 'Account Settings',
+    notSpecified: 'Not specified',
+    phoneNotSpecified: 'Phone not specified',
+    
+    // Переводы для DoctorApplicationPage
+    doctorQuestionnaire: 'Doctor Questionnaire',
+    applicationReviewTime: 'Your application will be reviewed within 1-3 business days',
+    importantInformation: 'Important Information',
+    requiredDocuments: 'Required documents:',
+    photoForProfile: 'Photograph (for profile)',
+    diplomaScan: 'Scan of medical education diploma',
+    licenseScan: 'Scan of medical practice license/certificate',
+    afterSubmissionInfo: 'After submitting the application, the administration will check the documents and make a decision.',
+    applicationData: 'Application Data',
+    fillFormAndDocuments: 'Fill out the form below and provide the necessary documents',
+    
+    // Переводы для формы заявки врача
+    selectSpecialization: 'Select your specialization',
+    cityRegionLabel: 'City/Region',
+    practiceDistrictLabel: 'Practice District',
+    selectCityRegionPractice: 'Select city or region of your practice',
+    selectPracticeDistrict: 'Select your practice district',
+    selectCityFirst: 'First select a city',
+    consultationLanguages: 'Consultation Languages',
+    selectConsultationLanguages: 'Select languages you conduct consultations in',
+    workExperience: 'Work Experience',
+    workExperiencePlaceholder: 'For example: 5 years in city clinic',
+    educationField: 'Education',
+    educationPlaceholder: 'Specify your education, university, years of study',
+    licenseNumber: 'License/Certificate Number',
+    licenseNumberPlaceholder: 'For example: 123456789',
+    additionalInformationField: 'Additional Information',
+    additionalInfoPlaceholder: 'Enter additional information (optional)',
+    documentUpload: 'Document Upload',
+    photographField: 'Photograph',
+    clickToUpload: 'Click to upload',
+    clickToChange: 'Click to change',
+    photoForProfileDesc: 'Photo for profile',
+    diplomaScanField: 'Diploma scan',
+    pdfJpgPng: 'PDF, JPG or PNG',
+    licenseScanField: 'License scan',
+    submitApplication: 'Submit Application',
+    submittingApplication: 'Submitting application...',
+    
+    // Переводы для футера
+    copyrightText: '© 2025 Soglom. All rights reserved.',
+    privacyPolicyLink: 'Privacy Policy',
+    termsOfUseLink: 'Terms of Use',
+    contactsLink: 'Contacts'
     }
   };
 
@@ -1425,9 +2295,16 @@ export const LanguageProvider = ({ children }) => {
     localStorage.setItem('preferred_language', languageCode);
   };
   
-  // Функция перевода
+  // Функция перевода с защитой от ошибок
   const t = (key) => {
-    return translations[currentLanguage]?.[key] || translations.ru[key] || key;
+    try {
+      if (!key) return '';
+      if (!translations || !currentLanguage) return key;
+      return translations[currentLanguage]?.[key] || translations.ru?.[key] || key;
+    } catch (error) {
+      console.error('Translation error:', error, 'for key:', key);
+      return key || '';
+    }
   };
   
   const value = {
@@ -1448,91 +2325,181 @@ export const LanguageProvider = ({ children }) => {
 const LanguageSelector = ({ variant = 'dropdown', className = '' }) => {
   const { currentLanguage, setLanguage, languages } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef(null);
   
   const currentLang = languages.find(lang => lang.code === currentLanguage) || languages[0];
   
-  if (variant === 'button') {
+  // Закрываем dropdown при клике вне компонента
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      // Небольшая задержка для предотвращения немедленного закрытия
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
+  
+      if (variant === 'button') {
     return (
-      <div className={`relative ${className}`}>
-        <Button
-          variant="light"
-          size="sm"
-          startContent={<FiGlobe size={16} />}
-          onPress={() => setIsOpen(!isOpen)}
-          className="text-sm"
-          style={{ color: brandColors.primary[600] }}
+      <div ref={containerRef} className={`relative ${className}`}>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {currentLang.nativeName}
-        </Button>
-        
-        {isOpen && (
-          <div 
-            className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg border z-50 min-w-[150px]"
-            style={{ borderColor: brandColors.neutral[200] }}
+          <Button
+            variant="light"
+            size="sm"
+            onPress={() => setIsOpen(!isOpen)}
+            className="text-sm text-gray-700 hover:text-blue-600 transition-colors duration-200 min-w-unit-16 h-8 px-2"
           >
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => {
-                  setLanguage(lang.code);
-                  setIsOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                  lang.code === currentLanguage ? 'font-medium' : ''
-                }`}
-                style={{ 
-                  color: lang.code === currentLanguage ? brandColors.primary[600] : brandColors.neutral[700],
-                  backgroundColor: lang.code === currentLanguage ? brandColors.primary[50] : 'transparent'
-                }}
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">{currentLang.flag}</span>
+              <span className="text-gray-700 font-medium text-xs sm:text-sm hidden xs:inline">{currentLang.nativeName}</span>
+              <motion.div
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center justify-between">
-                  <span>{lang.nativeName}</span>
-                  {lang.code === currentLanguage && (
-                    <span style={{ color: brandColors.primary[500] }}>✓</span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+                <FiChevronDown size={12} className="text-gray-500" />
+              </motion.div>
+            </div>
+          </Button>
+        </motion.div>
         
-        {/* Backdrop для закрытия dropdown */}
-        {isOpen && (
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
-          />
-        )}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200/60 z-[10000] min-w-[160px] sm:min-w-[180px] overflow-hidden backdrop-blur-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="py-2">
+                  {languages.map((lang, index) => (
+                    <motion.button
+                      key={lang.code}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => {
+                        setLanguage(lang.code);
+                        setIsOpen(false);
+                      }}
+                      className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 text-sm hover:bg-blue-50 transition-all duration-200 flex items-center gap-2.5 sm:gap-3 ${
+                        lang.code === currentLanguage ? 'bg-blue-50/80' : ''
+                      }`}
+                    >
+                      <span className="text-lg">{lang.flag}</span>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-800">{lang.nativeName}</div>
+                        <div className="text-xs text-gray-500">{lang.name}</div>
+                      </div>
+                      {lang.code === currentLanguage && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="w-2 h-2 bg-blue-500 rounded-full"
+                        />
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
   
+  // Красивый dropdown вариант для мобильного меню
   return (
-    <Select
-      size="sm"
-      selectedKeys={[currentLanguage]}
-      onSelectionChange={(keys) => {
-        const selected = Array.from(keys)[0];
-        if (selected) {
-          setLanguage(selected);
-        }
-      }}
-      startContent={<FiGlobe size={16} />}
-      className={className}
-      classNames={{
-        trigger: "h-10",
-        value: "text-sm"
-      }}
-      placeholder="Select language"
-    >
-      {languages.map((lang) => (
-        <SelectItem key={lang.code} value={lang.code}>
-          {lang.nativeName}
-        </SelectItem>
-      ))}
-    </Select>
-  );
-};
+    <div ref={containerRef} className={`relative ${className}`}>
+      <motion.div
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
+          className="w-full flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-xl hover:border-blue-300/60 hover:bg-blue-50/50 transition-all duration-300 shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <FiGlobe size={18} className="text-blue-600" />
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{currentLang.flag}</span>
+              <span className="text-gray-700 font-medium">{currentLang.nativeName}</span>
+            </div>
+          </div>
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <FiChevronDown size={16} className="text-gray-500" />
+          </motion.div>
+        </button>
+      </motion.div>
+      
+      <AnimatePresence>
+        {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200/60 z-[10000] overflow-hidden backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="py-2">
+                {languages.map((lang, index) => (
+                  <motion.button
+                    key={lang.code}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => {
+                      setLanguage(lang.code);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-all duration-200 flex items-center gap-3 ${
+                      lang.code === currentLanguage ? 'bg-blue-50/80' : ''
+                    }`}
+                  >
+                    <span className="text-lg">{lang.flag}</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-800">{lang.nativeName}</div>
+                      <div className="text-xs text-gray-500">{lang.name}</div>
+                    </div>
+                    {lang.code === currentLanguage && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-2 h-2 bg-blue-500 rounded-full"
+                      />
+                    )}
+                  </motion.button>
+                                  ))}
+                </div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
 export default LanguageSelector;
 export { LanguageSelector }; 

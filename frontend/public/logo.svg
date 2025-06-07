@@ -1,0 +1,121 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Внешнее кольцо с градиентом -->
+  <circle
+    cx="24"
+    cy="24"
+    r="23"
+    fill="url(#outerGradient)"
+    stroke="url(#strokeGradient)"
+    stroke-width="1.5"
+  />
+  
+  <!-- Внутренний круг -->
+  <circle
+    cx="24"
+    cy="24"
+    r="18"
+    fill="url(#innerGradient)"
+    opacity="0.9"
+  />
+  
+  <!-- Стетоскоп -->
+  <g transform="translate(12, 8)">
+    <!-- Трубка стетоскопа -->
+    <path
+      d="M4 8 C4 4, 8 0, 12 0 C16 0, 20 4, 20 8 L20 16 C20 20, 16 24, 12 24"
+      stroke="url(#tubeGradient)"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      fill="none"
+    />
+    
+    <!-- Левое ухо стетоскопа -->
+    <circle
+      cx="4"
+      cy="8"
+      r="3"
+      fill="url(#earGradient)"
+      stroke="#1E40AF"
+      stroke-width="1"
+    />
+    
+    <!-- Правое ухо стетоскопа -->
+    <circle
+      cx="20"
+      cy="8"
+      r="3"
+      fill="url(#earGradient)"
+      stroke="#1E40AF"
+      stroke-width="1"
+    />
+    
+    <!-- Головка стетоскопа -->
+    <circle
+      cx="12"
+      cy="24"
+      r="4"
+      fill="url(#stethoscopeGradient)"
+      stroke="#1E40AF"
+      stroke-width="1.5"
+    />
+    
+    <!-- Внутренний круг головки -->
+    <circle
+      cx="12"
+      cy="24"
+      r="2"
+      fill="url(#headGradient)"
+    />
+  </g>
+  
+
+  
+  <!-- Градиенты -->
+  <defs>
+    <linearGradient id="outerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="35%" stop-color="#6366F1" />
+      <stop offset="70%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+    
+    <linearGradient id="innerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" />
+      <stop offset="50%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#C084FC" />
+    </linearGradient>
+    
+    <linearGradient id="strokeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF" />
+      <stop offset="50%" stop-color="#7C2D12" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+    
+    <!-- Градиент для трубки стетоскопа -->
+    <linearGradient id="tubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#60A5FA" />
+    </linearGradient>
+    
+    <!-- Градиент для ушей стетоскопа -->
+    <radialGradient id="earGradient" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#F3F4F6" />
+      <stop offset="70%" stop-color="#E5E7EB" />
+      <stop offset="100%" stop-color="#D1D5DB" />
+    </radialGradient>
+    
+    <!-- Градиент для головки стетоскопа -->
+    <radialGradient id="stethoscopeGradient" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#F8FAFC" />
+      <stop offset="50%" stop-color="#E2E8F0" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </radialGradient>
+    
+    <radialGradient id="headGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F87171" />
+      <stop offset="100%" stop-color="#EF4444" />
+    </radialGradient>
+  </defs>
+</svg> 

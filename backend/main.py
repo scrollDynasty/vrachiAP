@@ -18,7 +18,7 @@ from fastapi import (
     Header,
     Request,
 )  # Добавляем WebSocket и WebSocketDisconnect
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.security import (
     OAuth2PasswordRequestForm,
     OAuth2PasswordBearer,
@@ -95,7 +95,7 @@ from auth import (
 )
 
 # URL фронтенда для редиректов
-FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL = "https://soglom.com"
 
 # Импортируем pydantic модели для валидации данных запросов и ответов
 from schemas import (
@@ -1276,6 +1276,132 @@ async def google_auth_api():
     # Перенаправляем клиента на страницу авторизации Google
     return RedirectResponse(url=redirect_url)
 
+# Добавляем POST endpoint для Google OAuth через API
+@app.post("/api/auth/google", response_model=Token)
+async def google_auth_api_post(data: GoogleAuthRequest, db: DbDependency):
+    """
+    Аутентификация через Google OAuth (API версия).
+    Принимает код авторизации от клиента и обменивает его на данные пользователя.
+    Если пользователь существует, выполняет вход, иначе регистрирует нового.
+    """
+    try:
+        print(f"Google Auth API POST: Получен запрос с кодом длиной {len(data.code)} символов")
+        # Получаем данные пользователя от Google API
+        google_user_data = await verify_google_token(data.code)
+        
+        # Проверяем, что получили email
+        if not google_user_data.get("email"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Не удалось получить email из Google аккаунта"
+            )
+        
+        # Ищем пользователя по email в базе данных
+        user_email = google_user_data.get("email")
+        print(f"Google Auth API POST: Пользователь {user_email} аутентифицирован через Google OAuth")
+        db_user = db.query(User).filter(User.email == user_email).first()
+        
+        # Если пользователь не существует, создаем нового
+        if db_user is None:
+            print(f"Google Auth API POST: Creating new user for {user_email}")
+            
+            # Создаем нового пользователя с данными от Google
+            db_user = User(
+                email=user_email,
+                full_name=google_user_data.get("name", ""),
+                is_active=True,  # Google подтверждает email, поэтому сразу активируем
+                auth_provider="google",  # Указываем, что это Google аутентификация
+                role="patient"  # По умолчанию назначаем роль пациента
+            )
+            
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            
+            print(f"Google Auth API POST: Created new user {user_email} with ID {db_user.id}")
+            print(f"Google Auth API POST: Registration successful for {user_email}")
+        else:
+            # Если пользователь уже существует, проверяем auth_provider
+            if db_user.auth_provider != "google":
+                # Обновляем auth_provider на "google"
+                db_user.auth_provider = "google"
+                db.commit()
+                print(f"Google Auth API POST: Updated auth provider to Google for {user_email}")
+            
+            print(f"Google Auth API POST: Login successful for {user_email}")
+        
+        # Определяем время жизни токена
+        expires_delta = None
+        if hasattr(data, 'expires_in_days') and data.expires_in_days:
+            # Если указаны дни, создаем timedelta с указанным количеством дней
+            expires_delta = timedelta(days=data.expires_in_days)
+            print(f"Google Auth API POST: Установлен срок действия токена {data.expires_in_days} дней")
+        else:
+            # Иначе используем стандартное время жизни
+            expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        # Создаем JWT токен для пользователя
+        access_token = create_access_token(
+            data={"sub": db_user.email, "id": db_user.id, "role": db_user.role}, 
+            expires_delta=expires_delta
+        )
+        
+        print(f"Google Auth API POST: Created token for user {db_user.email} (ID: {db_user.id})")
+        
+        # Проверяем наличие непрочитанных уведомлений для пользователя
+        unread_notifications = db.query(Notification).filter(
+            Notification.user_id == db_user.id,
+            Notification.is_viewed == False
+        ).count()
+        
+        if unread_notifications > 0:
+            print(f"Google Auth API POST: User {user_email} has {unread_notifications} unread notifications")
+            
+        # Проверяем, заполнен ли профиль пользователя
+        has_profile = False
+        if db_user.role == "patient":
+            profile = db.query(PatientProfile).filter(PatientProfile.user_id == db_user.id).first()
+            has_profile = profile is not None and profile.full_name is not None
+        elif db_user.role == "doctor":
+            profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == db_user.id).first()
+            has_profile = profile is not None and profile.full_name is not None
+        
+        response_data = {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "user_id": db_user.id,
+            "user_email": db_user.email,
+            "user_role": db_user.role
+        }
+        
+        # Если профиль не заполнен, добавляем флаг для клиента
+        if not has_profile:
+            response_data["need_profile"] = True
+        
+        # Не устанавливаем куки, а возвращаем токен напрямую
+        # Клиент сам сохранит токен в localStorage
+        print(f"Google Auth API POST: Отправляем токен в ответе (первые 10 символов: {access_token[:10]}...)")
+        response = JSONResponse(content=response_data)
+        
+        # Устанавливаем заголовки CORS
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Expose-Headers"] = "Content-Type, Authorization, Set-Cookie, X-CSRF-Token"
+        
+        return response
+    except HTTPException as e:
+        # Логируем ошибку для отладки
+        print(f"Google Auth API POST: HTTP error - {e.status_code} {e.detail}")
+        raise
+    except Exception as e:
+        # Логируем непредвиденную ошибку
+        print(f"Google Auth API POST: Unexpected error - {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Произошла ошибка при аутентификации через Google"
+        )
+
 # Добавляем GET endpoint для Google OAuth без /api префикса
 @app.get("/auth/google")
 async def google_auth_direct():
@@ -2247,6 +2373,105 @@ async def get_user_profile_by_id(
         "user_email": user.email,
         "created_at": user.created_at,
     }
+
+
+# Модель для обновления профиля администратором
+class AdminProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_address: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    medical_info: Optional[str] = None  # для пациентов
+    specialization: Optional[str] = None  # для врачей
+    experience: Optional[str] = None  # для врачей
+    education: Optional[str] = None  # для врачей
+    cost_per_consultation: Optional[int] = None  # для врачей
+
+
+# Эндпоинт для обновления профиля пользователя администратором
+@app.put(
+    "/admin/users/{user_id}/profile",
+    response_model=Union[PatientProfileResponse, DoctorProfileResponse, dict],
+)
+async def update_user_profile_by_admin(
+    user_id: int,
+    profile_data: AdminProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """
+    Обновляет профиль пользователя (для администраторов).
+    """
+    # Проверяем, существует ли пользователь
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+
+    # Получаем профили пациента и врача
+    patient_profile = db.query(PatientProfile).filter(PatientProfile.user_id == user.id).first()
+    doctor_profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == user.id).first() if user.role == "doctor" else None
+
+    # Создаем профиль пациента, если его нет
+    if not patient_profile:
+        patient_profile = PatientProfile(user_id=user.id)
+        db.add(patient_profile)
+        db.flush()
+
+    # Обновляем общие поля в профиле пациента
+    if profile_data.full_name is not None:
+        patient_profile.full_name = profile_data.full_name
+    if profile_data.contact_phone is not None:
+        patient_profile.contact_phone = profile_data.contact_phone
+    if profile_data.contact_address is not None:
+        patient_profile.contact_address = profile_data.contact_address
+    if profile_data.city is not None:
+        patient_profile.city = profile_data.city
+    if profile_data.district is not None:
+        patient_profile.district = profile_data.district
+    if profile_data.medical_info is not None:
+        patient_profile.medical_info = profile_data.medical_info
+
+    # Если пользователь - врач, обновляем профиль врача
+    if user.role == "doctor":
+        # Создаем профиль врача, если его нет
+        if not doctor_profile:
+            doctor_profile = DoctorProfile(user_id=user.id)
+            db.add(doctor_profile)
+            db.flush()
+
+        # Обновляем общие поля в профиле врача из профиля пациента
+        doctor_profile.full_name = patient_profile.full_name
+        doctor_profile.contact_phone = patient_profile.contact_phone
+        doctor_profile.contact_address = patient_profile.contact_address
+        doctor_profile.city = patient_profile.city
+        doctor_profile.district = patient_profile.district
+
+        # Обновляем специфичные для врача поля
+        if profile_data.specialization is not None:
+            doctor_profile.specialization = profile_data.specialization
+        if profile_data.experience is not None:
+            doctor_profile.experience = profile_data.experience
+        if profile_data.education is not None:
+            doctor_profile.education = profile_data.education
+        if profile_data.cost_per_consultation is not None:
+            doctor_profile.cost_per_consultation = profile_data.cost_per_consultation
+
+    db.commit()
+
+    # Возвращаем обновленный профиль
+    if user.role == "doctor" and doctor_profile:
+        doctor_profile.user = user
+        doctor_profile.created_at = user.created_at
+        doctor_profile.auth_provider = user.auth_provider
+        return doctor_profile
+    else:
+        patient_profile.user = user
+        patient_profile.created_at = user.created_at
+        patient_profile.auth_provider = user.auth_provider
+        return patient_profile
 
 
 # Модель для изменения роли пользователя
@@ -4652,6 +4877,10 @@ async def get_websocket_token(
     Создает и возвращает специальный токен для WebSocket соединения.
     Токен сохраняется в базе данных и имеет ограниченный срок действия.
     """
+    """
+    Создает и возвращает специальный токен для WebSocket соединения.
+    Токен сохраняется в базе данных и имеет ограниченный срок действия.
+    """
     try:
         # Удаляем устаревшие токены для этого пользователя
         expired_tokens = db.query(WebSocketToken).filter(
@@ -4703,6 +4932,18 @@ async def get_websocket_token(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Произошла ошибка при создании токена. Пожалуйста, попробуйте позже."
         )
+
+# Добавляем alias endpoint без /api префикса для совместимости
+@app.get("/ws-token", response_model=dict)
+async def get_websocket_token_alias(
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    """
+    Alias для /api/ws-token endpoint для обратной совместимости.
+    """
+    return await get_websocket_token(current_user, db, request)
 
 # Эндпоинт для получения публичного профиля Пациента по ID пользователя Пациента. Не требует авторизации.
 @app.get("/patients/{user_id}/profile", response_model=PatientProfileResponse)
@@ -5125,24 +5366,43 @@ async def get_consultation_messages_bulk(
 # Добавляем новый маршрут для процесса Google OAuth с прямой авторизацией
 @app.get("/auth/google/callback")
 async def google_auth_callback(
-    code: str, 
     db: DbDependency,
+    code: Optional[str] = None,
     error: Optional[str] = None,
 ):
     """
     Обработчик обратного вызова Google OAuth.
     Получает код авторизации напрямую от Google и обрабатывает его,
-    затем перенаправляет пользователя на фронтенд с токеном
+    затем перенаправляет пользователя на фронтенд с токеном.
     """
     # Если получена ошибка от Google, перенаправляем на страницу входа с ошибкой
     if error:
         frontend_error_url = f"{FRONTEND_URL}/login?error={urllib.parse.quote(error)}"
         return RedirectResponse(url=frontend_error_url)
+        
+    # Если нет кода - это может быть запрос с токеном в хеше, отдаем React приложение
+    if not code:
+        return HTMLResponse(content="""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Авторизация</title>
+            <script>
+                // Перенаправляем на React приложение, сохраняя хеш
+                window.location.href = '/';
+            </script>
+        </head>
+        <body>
+            <p>Обработка авторизации...</p>
+        </body>
+        </html>
+        """)
     
     try:
         # Используем ту же функцию, что и в основном методе аутентификации,
         # но с переопределением redirect_uri на бэкенд-URL
-        backend_redirect_uri = "https://soglom.com:8000/auth/google/callback"
+        backend_redirect_uri = "https://soglom.com/auth/google/callback"
         
         # Получаем данные пользователя от Google API с использованием пользовательского redirect_uri
         token_url = "https://oauth2.googleapis.com/token"
@@ -5301,6 +5561,169 @@ async def google_auth_callback(
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Авторизация успешна</title>
+            <style>
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    overflow: hidden;
+                }}
+                
+                .container {{
+                    text-align: center;
+                    color: white;
+                    max-width: 400px;
+                    padding: 40px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                    border-radius: 20px;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+                    animation: fadeInUp 0.8s ease-out;
+                }}
+                
+                @keyframes fadeInUp {{
+                    from {{
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }}
+                    to {{
+                        opacity: 1;
+                        transform: translateY(0);
+                    }}
+                }}
+                
+                .success-icon {{
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    background: #4CAF50;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px;
+                    animation: pulse 2s infinite;
+                    position: relative;
+                }}
+                
+                .success-icon::before {{
+                    content: '✓';
+                    font-size: 36px;
+                    color: white;
+                    font-weight: bold;
+                }}
+                
+                @keyframes pulse {{
+                    0% {{
+                        transform: scale(1);
+                        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+                    }}
+                    70% {{
+                        transform: scale(1.05);
+                        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+                    }}
+                    100% {{
+                        transform: scale(1);
+                        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+                    }}
+                }}
+                
+                h1 {{
+                    margin: 0 0 10px;
+                    font-size: 28px;
+                    font-weight: 600;
+                    opacity: 0;
+                    animation: fadeIn 1s ease-out 0.3s forwards;
+                }}
+                
+                .subtitle {{
+                    font-size: 16px;
+                    margin-bottom: 30px;
+                    opacity: 0.9;
+                    opacity: 0;
+                    animation: fadeIn 1s ease-out 0.6s forwards;
+                }}
+                
+                .loading-container {{
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 10px;
+                    margin: 20px 0;
+                    opacity: 0;
+                    animation: fadeIn 1s ease-out 0.9s forwards;
+                }}
+                
+                .spinner {{
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    border-top-color: white;
+                    animation: spin 1s ease-in-out infinite;
+                }}
+                
+                @keyframes spin {{
+                    to {{ transform: rotate(360deg); }}
+                }}
+                
+                .loading-text {{
+                    font-size: 14px;
+                    color: rgba(255, 255, 255, 0.9);
+                }}
+                
+                @keyframes fadeIn {{
+                    to {{
+                        opacity: 1;
+                    }}
+                }}
+                
+                .debug-info {{
+                    margin-top: 20px;
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.7);
+                    opacity: 0;
+                    animation: fadeIn 1s ease-out 1.2s forwards;
+                }}
+                
+                /* Animated background particles */
+                .particles {{
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    z-index: -1;
+                }}
+                
+                .particle {{
+                    position: absolute;
+                    display: block;
+                    pointer-events: none;
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.2);
+                    animation: float 4s ease-in-out infinite;
+                }}
+                
+                @keyframes float {{
+                    0%, 100% {{
+                        transform: translateY(0px) rotate(0deg);
+                        opacity: 1;
+                    }}
+                    50% {{
+                        transform: translateY(-20px) rotate(180deg);
+                        opacity: 0.5;
+                    }}
+                }}
+            </style>
             <script>
                 // Функция для безопасного сохранения токена с повторными попытками
                 function saveTokenSecurely(token) {{
@@ -5334,27 +5757,59 @@ async def google_auth_callback(
                     return savedToken === token;
                 }}
                 
-                // Сохраняем токен в localStorage и проверяем результат
-                const token = '{access_token}';
-                const saveResult = saveTokenSecurely(token);
+                // Функция для создания анимированных частиц
+                function createParticles() {{
+                    const particlesContainer = document.querySelector('.particles');
+                    const particleCount = 20;
+                    
+                    for (let i = 0; i < particleCount; i++) {{
+                        const particle = document.createElement('span');
+                        particle.className = 'particle';
+                        particle.style.left = Math.random() * 100 + '%';
+                        particle.style.top = Math.random() * 100 + '%';
+                        particle.style.animationDelay = Math.random() * 4 + 's';
+                        particle.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                        particlesContainer.appendChild(particle);
+                    }}
+                }}
                 
-                console.log('🔑 Token save result:', saveResult);
-                
-                // Перенаправляем на нужную страницу через небольшую задержку
-                setTimeout(function() {{
-                    window.location.href = '{FRONTEND_URL}/auth/google/callback?token={access_token}&need_profile={str(not has_profile).lower()}';
-                }}, 300);
+                // Запускаем анимацию после загрузки страницы
+                document.addEventListener('DOMContentLoaded', function() {{
+                    createParticles();
+                    
+                    // Сохраняем токен в localStorage и проверяем результат
+                    const token = '{access_token}';
+                    const saveResult = saveTokenSecurely(token);
+                    
+                    console.log('🔑 Token save result:', saveResult);
+                    
+                    // Обновляем статус на странице
+                    const debugElement = document.getElementById('debug');
+                    if (debugElement) {{
+                        debugElement.textContent = 'Токен ' + (localStorage.getItem('auth_token') ? 'сохранен' : 'не сохранен');
+                    }}
+                    
+                    // Перенаправляем на нужную страницу через небольшую задержку
+                    setTimeout(function() {{
+                        window.location.href = '{FRONTEND_URL}/auth/google/callback?token={access_token}&need_profile={str(not has_profile).lower()}';
+                    }}, 2000);
+                }});
             </script>
         </head>
         <body>
-            <h1>Авторизация успешна!</h1>
-            <p>Выполняется перенаправление...</p>
-            <p id="debug"></p>
-            <script>
-                // Дополнительная проверка для отладки
-                document.getElementById('debug').textContent = 
-                    'Токен ' + (localStorage.getItem('auth_token') ? 'сохранен' : 'не сохранен');
-            </script>
+            <div class="particles"></div>
+            <div class="container">
+                <div class="success-icon"></div>
+                <h1>Авторизация успешна!</h1>
+                <p class="subtitle">Добро пожаловать в vrachiAPP</p>
+                
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                    <span class="loading-text">Выполняется перенаправление...</span>
+                </div>
+                
+                <div class="debug-info" id="debug">Проверяем сохранение данных...</div>
+            </div>
         </body>
         </html>
         """
@@ -5409,7 +5864,15 @@ async def websocket_notifications_endpoint(
 ):
     # Проверяем авторизацию через токен
     print(f"[WebSocket Notifications] Попытка подключения пользователя {user_id}")
+    print(f"[WebSocket Notifications] URL path: {websocket.url.path}")
+    print(f"[WebSocket Notifications] Client host: {websocket.client.host if websocket.client else 'Unknown'}")
     print(f"[WebSocket Notifications] Токен получен: {'Да' if token else 'Нет'}")
+    
+    # Проверяем что user_id валидный
+    if user_id is None or user_id <= 0:
+        print(f"[WebSocket Notifications] Отклонено: недействительный user_id: {user_id}")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Недействительный ID пользователя")
+        return
     
     if token is None:
         print(f"[WebSocket Notifications] Отклонено: отсутствует токен авторизации")
@@ -6020,4 +6483,35 @@ async def send_admin_notification(
     
     # Возвращаем количество созданных уведомлений
     return {"count": len(created_notifications)}
-    
+    # =============================================================================
+# ALIAS ENDPOINTS ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+# =============================================================================
+
+# Alias для /notifications -> /api/notifications
+@app.get("/notifications", response_model=NotificationList)
+async def get_notifications_alias(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Alias для /api/notifications для обратной совместимости"""
+    return await get_api_notifications(db, current_user)
+
+# Alias для /consultations -> /api/consultations  
+@app.get("/consultations", response_model=List[ConsultationResponse], tags=["consultations"])
+async def get_consultations_alias(
+    status: Optional[str] = Query(
+        None, description="Фильтр по статусу: pending, active, completed, cancelled"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Alias для /api/consultations для обратной совместимости"""
+    return await get_consultations(status, db, current_user)
+
+# Alias для /consultations/unread -> /api/consultations/unread
+@app.get("/consultations/unread", response_model=UnreadMessagesResponse, tags=["consultations"])
+async def get_unread_messages_alias(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Alias для /api/consultations/unread для обратной совместимости"""
+    return await get_unread_messages(db, current_user) 

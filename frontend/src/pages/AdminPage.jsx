@@ -10,6 +10,8 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@nextu
 import useAuthStore from '../stores/authStore';
 import notificationService from '../services/notificationService';
 import { useTranslation } from '../components/LanguageSelector.jsx';
+import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions';
+import { translateRegion, translateDistrict, getDistrictNameById } from '../components/RegionTranslations';
 
 // Импортируем API_BASE_URL для использования в путях к файлам
 const API_BASE_URL = 'https://soglom.com';
@@ -33,6 +35,11 @@ function AdminPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [userProfileLoading, setUserProfileLoading] = useState(false);
   const [newRole, setNewRole] = useState("");
+  
+  // Состояния для редактирования профиля
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({});
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   // Состояние для просмотра деталей заявки
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -306,6 +313,54 @@ function AdminPage() {
     }
   };
   
+  // Функция для начала редактирования профиля
+  const startEditingProfile = () => {
+    setEditedProfile({...userProfile});
+    setIsEditingProfile(true);
+  };
+  
+  // Функция для отмены редактирования профиля
+  const cancelEditingProfile = () => {
+    setEditedProfile({});
+    setIsEditingProfile(false);
+  };
+  
+  // Функция для сохранения изменений профиля
+  const saveProfileChanges = async () => {
+    if (!selectedUser || !editedProfile) return;
+    
+    try {
+      setIsSavingProfile(true);
+      
+      // Отправляем обновленные данные профиля
+      await api.put(`/admin/users/${selectedUser.id}/profile`, editedProfile);
+      
+      // Обновляем локальные данные
+      setUserProfile(editedProfile);
+      
+      // Выходим из режима редактирования
+      setIsEditingProfile(false);
+      setEditedProfile({});
+      
+      // Обновляем список пользователей
+      fetchUsers();
+      
+      setIsSavingProfile(false);
+    } catch (err) {
+      console.error('Failed to save profile changes:', err);
+      setUsersError('Ошибка при сохранении изменений профиля. Пожалуйста, попробуйте позже.');
+      setIsSavingProfile(false);
+    }
+  };
+  
+  // Функция для обновления поля в редактируемом профиле
+  const updateProfileField = (field, value) => {
+    setEditedProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
   // Функция для отображения статуса заявки
   const renderStatus = (status) => {
     switch (status) {
@@ -390,7 +445,7 @@ function AdminPage() {
               </TableCell>
               <TableCell>{user.full_name || "-"}</TableCell>
               <TableCell>{user.contact_phone || "-"}</TableCell>
-              <TableCell>{getDistrictName(user.district)}</TableCell>
+              <TableCell>{user.district ? getDistrictNameById(user.district, user.city, 'ru') : "-"}</TableCell>
               <TableCell>{formatDate(user.created_at) || "-"}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
@@ -492,25 +547,7 @@ function AdminPage() {
     }
       };
     
-  // Функция для преобразования номера района в название
-  const getDistrictName = (district) => {
-    const districtsMap = {
-      "1": "Алмазарский район",
-      "2": "Бектемирский район", 
-      "3": "Мирабадский район",
-      "4": "Мирзо-Улугбекский район",
-      "5": "Сергелийский район",
-      "6": "Учтепинский район",
-      "7": "Чиланзарский район",
-      "8": "Шайхантаурский район",
-      "9": "Юнусабадский район",
-      "10": "Яккасарайский район",
-      "11": "Яшнабадский район"
-    };
-    
-    if (!district) return "-";
-    return districtsMap[district.toString()] || district;
-  };
+
     
     return (
     <div className="py-12 px-6 sm:px-8 lg:px-10 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-[calc(100vh-100px)]">
@@ -1215,81 +1252,210 @@ function AdminPage() {
                     {userProfile && (
                       <Card>
                         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                          <h3 className="text-lg font-semibold">Профиль пользователя</h3>
-                        </CardHeader>
-                        <CardBody>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Общие поля для всех профилей */}
-                            <div>
-                              <p className="text-sm text-gray-500">Полное имя</p>
-                              <p className="font-medium">{userProfile.full_name || "-"}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Телефон</p>
-                              <p className="font-medium">{userProfile.contact_phone || "-"}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Район</p>
-                              <p>{getDistrictName(userProfile.district)}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Адрес</p>
-                              <p>{userProfile.contact_address || "-"}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Способ входа</p>
-                              <Chip
-                                color={selectedUser?.auth_provider === "google" ? "primary" : "default"}
+                          <div className="flex justify-between items-center w-full">
+                            <h3 className="text-lg font-semibold">Профиль пользователя</h3>
+                            {!isEditingProfile && (
+                              <Button
+                                color="primary"
                                 variant="flat"
+                                size="sm"
+                                onPress={startEditingProfile}
                               >
-                                {selectedUser?.auth_provider === "google" ? "Google" : "Email/Пароль"}
-                              </Chip>
-                            </div>
-                            
-                            {/* Поля только для пациентов */}
-                            {selectedUser?.role === 'patient' && (
-                              <div className="col-span-2">
-                                <p className="text-sm text-gray-500">Медицинская информация</p>
-                                <p className="whitespace-pre-wrap bg-gray-50 p-2 rounded mt-1">
-                                  {userProfile.medical_info || "-"}
-                                </p>
-                              </div>
-                            )}
-                            
-                            {/* Поля только для врачей */}
-                            {selectedUser?.role === 'doctor' && (
-                              <>
-                                <div>
-                                  <p className="text-sm text-gray-500">Специализация</p>
-                                  <p className="font-medium">{userProfile.specialization || "-"}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-gray-500">Стоимость консультации</p>
-                                  <p className="font-medium">{userProfile.cost_per_consultation || "-"} ₽</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-gray-500">Опыт работы</p>
-                                  <p>{userProfile.experience || "-"}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-gray-500">Верификация</p>
-                                  <Chip color={userProfile.is_verified ? "success" : "warning"} variant="flat">
-                                    {userProfile.is_verified ? "Верифицирован" : "Не верифицирован"}
-                                  </Chip>
-                                </div>
-                                <div className="col-span-2">
-                                  <p className="text-sm text-gray-500">Образование</p>
-                                  <p className="whitespace-pre-wrap bg-gray-50 p-2 rounded mt-1">
-                                    {userProfile.education || "-"}
-                                  </p>
-                                </div>
-                                <div className="col-span-2">
-                                  <p className="text-sm text-gray-500">Районы практики</p>
-                                  <p>{userProfile.practice_areas || "-"}</p>
-                                </div>
-                              </>
+                                Редактировать
+                              </Button>
                             )}
                           </div>
+                        </CardHeader>
+                        <CardBody>
+                          {isEditingProfile ? (
+                            <div className="space-y-4">
+                              {/* Форма редактирования */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Общие поля для всех профилей */}
+                                <Input
+                                  label="Полное имя"
+                                  value={editedProfile.full_name || ""}
+                                  onValueChange={(value) => updateProfileField('full_name', value)}
+                                />
+                                <Input
+                                  label="Телефон"
+                                  value={editedProfile.contact_phone || ""}
+                                  onValueChange={(value) => updateProfileField('contact_phone', value)}
+                                />
+                                <Select
+                                  label="Город"
+                                  selectedKeys={editedProfile.city ? [editedProfile.city] : []}
+                                  onSelectionChange={(keys) => {
+                                    const city = Array.from(keys)[0];
+                                    updateProfileField('city', city);
+                                    updateProfileField('district', ''); // Сбрасываем район при смене города
+                                  }}
+                                >
+                                  {getRegions().map((region) => (
+                                    <SelectItem key={region} value={region}>
+                                      {translateRegion(region, 'ru')}
+                                    </SelectItem>
+                                  ))}
+                                </Select>
+                                <Select
+                                  label="Район"
+                                  selectedKeys={editedProfile.district ? [editedProfile.district] : []}
+                                  onSelectionChange={(keys) => {
+                                    const district = Array.from(keys)[0];
+                                    updateProfileField('district', district);
+                                  }}
+                                  isDisabled={!editedProfile.city}
+                                >
+                                  {editedProfile.city && getDistrictsByRegion(editedProfile.city).map((district, index) => (
+                                    <SelectItem key={district} value={district}>
+                                      {translateDistrict(district, 'ru')}
+                                    </SelectItem>
+                                  ))}
+                                </Select>
+                                <div className="col-span-2">
+                                  <Input
+                                    label="Адрес"
+                                    value={editedProfile.contact_address || ""}
+                                    onValueChange={(value) => updateProfileField('contact_address', value)}
+                                  />
+                                </div>
+                                
+                                {/* Поля только для пациентов */}
+                                {selectedUser?.role === 'patient' && (
+                                  <div className="col-span-2">
+                                    <Textarea
+                                      label="Медицинская информация"
+                                      value={editedProfile.medical_info || ""}
+                                      onValueChange={(value) => updateProfileField('medical_info', value)}
+                                      rows={3}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Поля только для врачей */}
+                                {selectedUser?.role === 'doctor' && (
+                                  <>
+                                    <Input
+                                      label="Специализация"
+                                      value={editedProfile.specialization || ""}
+                                      onValueChange={(value) => updateProfileField('specialization', value)}
+                                    />
+                                    <Input
+                                      type="number"
+                                      label="Стоимость консультации"
+                                      value={editedProfile.cost_per_consultation || ""}
+                                      onValueChange={(value) => updateProfileField('cost_per_consultation', value)}
+                                    />
+                                    <Input
+                                      label="Опыт работы"
+                                      value={editedProfile.experience || ""}
+                                      onValueChange={(value) => updateProfileField('experience', value)}
+                                    />
+                                    <div className="col-span-2">
+                                      <Textarea
+                                        label="Образование"
+                                        value={editedProfile.education || ""}
+                                        onValueChange={(value) => updateProfileField('education', value)}
+                                        rows={3}
+                                      />
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              
+                              {/* Кнопки сохранения/отмены */}
+                              <div className="flex gap-2 mt-4">
+                                <Button
+                                  color="primary"
+                                  onPress={saveProfileChanges}
+                                  isLoading={isSavingProfile}
+                                >
+                                  Сохранить
+                                </Button>
+                                <Button
+                                  color="danger"
+                                  variant="flat"
+                                  onPress={cancelEditingProfile}
+                                  isDisabled={isSavingProfile}
+                                >
+                                  Отмена
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Просмотр профиля */}
+                              <div>
+                                <p className="text-sm text-gray-500">Полное имя</p>
+                                <p className="font-medium">{userProfile.full_name || "-"}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Телефон</p>
+                                <p className="font-medium">{userProfile.contact_phone || "-"}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Город</p>
+                                <p className="font-medium">{userProfile.city ? translateRegion(userProfile.city, 'ru') : "-"}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Район</p>
+                                <p className="font-medium">{userProfile.district ? getDistrictNameById(userProfile.district, userProfile.city, 'ru') : "-"}</p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-sm text-gray-500">Адрес</p>
+                                <p className="font-medium">{userProfile.contact_address || "-"}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Способ входа</p>
+                                <Chip
+                                  color={selectedUser?.auth_provider === "google" ? "primary" : "default"}
+                                  variant="flat"
+                                >
+                                  {selectedUser?.auth_provider === "google" ? "Google" : "Email/Пароль"}
+                                </Chip>
+                              </div>
+                              
+                              {/* Поля только для пациентов */}
+                              {selectedUser?.role === 'patient' && (
+                                <div className="col-span-2">
+                                  <p className="text-sm text-gray-500">Медицинская информация</p>
+                                  <p className="whitespace-pre-wrap bg-gray-50 p-2 rounded mt-1">
+                                    {userProfile.medical_info || "-"}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {/* Поля только для врачей */}
+                              {selectedUser?.role === 'doctor' && (
+                                <>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Специализация</p>
+                                    <p className="font-medium">{userProfile.specialization || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Стоимость консультации</p>
+                                    <p className="font-medium">{userProfile.cost_per_consultation || "-"} ₽</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Опыт работы</p>
+                                    <p className="font-medium">{userProfile.experience || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Верификация</p>
+                                    <Chip color={userProfile.is_verified ? "success" : "warning"} variant="flat">
+                                      {userProfile.is_verified ? "Верифицирован" : "Не верифицирован"}
+                                    </Chip>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <p className="text-sm text-gray-500">Образование</p>
+                                    <p className="whitespace-pre-wrap bg-gray-50 p-2 rounded mt-1">
+                                      {userProfile.education || "-"}
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </CardBody>
                       </Card>
                     )}

@@ -15,6 +15,7 @@ import { toast } from 'react-toastify';
 import AvatarWithFallback from '../components/AvatarWithFallback';
 import MedicalLoader from '../components/MedicalLoader';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../components/LanguageSelector';
 
 // Анимационные варианты
 const fadeIn = {
@@ -40,6 +41,8 @@ const staggerContainer = {
 // Страница для просмотра и редактирования настроек профиля пользователя (Пациента или Врача)
 // Отображается по маршруту /profile (защищен ProtectedRoute)
 function ProfileSettingsPage() {
+  const { t } = useTranslation();
+  
   // Состояние для данных профиля (загруженных с бэкенда)
   // Может хранить либо PatientProfileResponse, либо DoctorProfileResponse, либо null.
   const [profileData, setProfileData] = useState(null);
@@ -65,7 +68,7 @@ function ProfileSettingsPage() {
     // ProtectedRoute уже должен был это проверить, но на всякий случай.
     if (!isAuthenticated || !user) {
          setIsLoading(false);
-         setError("Пользователь не авторизован."); // Это сообщение, вероятно, никогда не будет видно из-за ProtectedRoute
+         setError(t('userNotAuthorized')); // Это сообщение, вероятно, никогда не будет видно из-за ProtectedRoute
          return;
      }
 
@@ -90,7 +93,7 @@ function ProfileSettingsPage() {
         // Устанавливаем соответствующее сообщение об ошибке загрузки
         // Обрабатываем специфический статус 404 (профиль не найден)
         if (err.response && err.response.status === 404) {
-            setError("Профиль еще не создан. Пожалуйста, заполните информацию."); // Специальное сообщение для 404
+            setError(t('profileNotCreated')); // Специальное сообщение для 404
             setProfileData(null); // Убеждаемся, что profileData null, если профиль не найден
             
             // Проверяем, есть ли сохраненные данные профиля из регистрации
@@ -143,7 +146,7 @@ function ProfileSettingsPage() {
               }
             }
         } else {
-            setError("Ошибка при загрузке профиля. Попробуйте позже."); // Общее сообщение для других ошибок
+            setError(t('errorLoadingProfile')); // Общее сообщение для других ошибок
             setProfileData(null);
         }
 
@@ -170,7 +173,7 @@ function ProfileSettingsPage() {
      // Проверяем, что пользователь авторизован и его роль определена
      if (!user || !(user.role === 'patient' || user.role === 'doctor')) {
          console.error("Attempted to save profile for user with invalid role or not authenticated.");
-         setError("Невозможно сохранить профиль. Неверная роль пользователя.");
+         setError(t('cannotSaveProfile'));
          setIsSaving(false);
          return;
      }
@@ -280,8 +283,8 @@ function ProfileSettingsPage() {
                      <div>
                        <h2 className="text-xl font-semibold">{profileData?.full_name || user?.email || "Пользователь"}</h2>
                        <p className="text-sm text-gray-500">
-                         {user?.role === 'patient' ? 'Пациент' : 
-                          user?.role === 'doctor' ? 'Врач' : 'Пользователь'}
+                        {user?.role === 'patient' ? t('patient') : 
+                        user?.role === 'doctor' ? t('doctor') : t('user')}
                        </p>
                      </div>
                    </div>
@@ -302,7 +305,7 @@ function ProfileSettingsPage() {
                      </div>
                    </motion.div>
 
-                   {profileData === null && error === "Профиль еще не создан. Пожалуйста, заполните информацию." && (
+                   {profileData === null && error === t('profileNotCreated') && (
                      <motion.div 
                        variants={slideUp}
                        className="mb-6 bg-blue-50 text-blue-700 p-5 rounded-lg border border-blue-200"
@@ -311,7 +314,7 @@ function ProfileSettingsPage() {
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                          </svg>
-                         <p className="font-medium">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
+                         <p className="font-medium">{t('profileNotFilledYet')}</p>
                        </div>
                      </motion.div>
                    )}
@@ -340,7 +343,7 @@ function ProfileSettingsPage() {
 
                      {user.role !== 'patient' && user.role !== 'doctor' && (
                        <div className="text-center py-4">
-                         <p className="text-gray-600">Для вашей роли профиль не предусмотрен в этом разделе.</p>
+                         <p className="text-gray-600">{t('profileNotAvailableForRole')}</p>
                        </div>
                      )}
                    </motion.div>
@@ -509,9 +512,9 @@ function ProfileSettingsPage() {
             className="text-center mb-6 sm:mb-8 lg:mb-10"
           >
             <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2 sm:mb-3 px-4">
-              Мой профиль
+              {t('myProfile')}
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 px-4">Управляйте личными данными и настройками</p>
+            <p className="text-sm sm:text-base text-gray-600 px-4">{t('managePersonalData')}</p>
           </motion.div>
           
           <motion.div variants={slideUp}>
@@ -560,12 +563,12 @@ function ProfileSettingsPage() {
                   </motion.div>
                   <div className="text-center sm:text-left">
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1">
-                      {profileData?.full_name || user?.email || "Пользователь"}
+                      {profileData?.full_name || user?.email || t('user')}
                     </h2>
                     <p className="text-sm text-gray-500 font-medium">
-                      {user?.role === 'patient' ? 'Пациент' : 
-                       user?.role === 'doctor' ? 'Врач' : 
-                       user?.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                      {user?.role === 'patient' ? t('patient') : 
+                       user?.role === 'doctor' ? t('doctor') : 
+                       user?.role === 'admin' ? t('admin') : t('user')}
                     </p>
                   </div>
                 </div>
@@ -586,7 +589,7 @@ function ProfileSettingsPage() {
                         </svg>
                       }
                     >
-                      Стать врачом
+                      {t('becomeDoctor')}
                     </Button>
                   )}
                   
@@ -605,7 +608,7 @@ function ProfileSettingsPage() {
                         </svg>
                       }
                     >
-                      Админ-панель
+                      {t('adminPanel')}
                     </Button>
                   )}
                 </div>
@@ -631,12 +634,12 @@ function ProfileSettingsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </motion.div>
-                      <p className="font-medium text-sm sm:text-base">Профиль успешно сохранен!</p>
+                      <p className="font-medium text-sm sm:text-base">{t('profileSavedSuccessfully')}</p>
                     </div>
                   </motion.div>
                 )}
                 
-                {error && error !== "Профиль еще не создан. Пожалуйста, заполните информацию." && (
+                {error && error !== t('profileNotCreated') && (
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -675,7 +678,7 @@ function ProfileSettingsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </motion.div>
-                      <p className="font-medium text-sm sm:text-base">Ваш профиль еще не заполнен. Пожалуйста, заполните информацию ниже.</p>
+                      <p className="font-medium text-sm sm:text-base">{t('profileNotFilledYet')}</p>
                     </div>
                   </motion.div>
                 )}
@@ -705,7 +708,7 @@ function ProfileSettingsPage() {
 
                   {user.role !== 'patient' && user.role !== 'doctor' && (
                     <div className="text-center py-4">
-                      <p className="text-gray-600">Для вашей роли профиль не предусмотрен в этом разделе.</p>
+                      <p className="text-gray-600">{t('profileNotAvailableForRole')}</p>
                     </div>
                   )}
                 </motion.div>

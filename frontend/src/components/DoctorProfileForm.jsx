@@ -7,6 +7,7 @@ import { notificationsApi } from '../api';
 import { uploadAvatar } from '../api';
 import AvatarWithFallback from './AvatarWithFallback';
 import { useTranslation } from './LanguageSelector';
+import { translateRegion, translateDistrict, getDistrictNameById } from './RegionTranslations';
 import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions'; // Импортируем систему регионов
 
 // Анимационные варианты для элементов
@@ -31,7 +32,7 @@ const staggerFormContainer = {
 };
 
 function DoctorProfileForm({ profile, onSave, isLoading, error }) {
-   const { t } = useTranslation();
+   const { t, currentLanguage } = useTranslation();
    const [full_name, setFullName] = useState('');
    const [specialization, setSpecialization] = useState('');
    const [experience_years, setExperienceYears] = useState('');
@@ -126,7 +127,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             setExperienceYears(expYears);
          }
          
-         setEducation(profile.education || '');
+         setEducation((profile.education && profile.education !== 'нету') ? profile.education : '');
          setCity(profile.city || '');
          setDistrict(profile.district || profile.practice_areas || '');
          setIsEditing(false);
@@ -316,7 +317,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             setExperienceYears(expYears);
          }
          
-         setEducation(profile.education || '');
+         setEducation((profile.education && profile.education !== 'нету') ? profile.education : '');
          setCity(profile.city || '');
          setDistrict(profile.district || profile.practice_areas || '');
       }
@@ -988,8 +989,8 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           {/* Район практики (перемещен сюда) */}
                                           <div className="relative group">
                                              <Input
-                                                label="Район практики"
-                                                value={district || 'Не указано'}
+                                                label={t('practiceDistrict')}
+                                                value={district ? getDistrictNameById(district, city, currentLanguage) : t('notSpecified')}
                                                 readOnly
                                                 variant="bordered"
                                                 isDisabled={true}
@@ -1034,8 +1035,8 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           {/* Город/Регион (только для просмотра) */}
                                           <div className="relative group">
                                              <Input
-                                                label="Город/Регион"
-                                                value={city || 'Не указано'}
+                                                label={t('cityRegion')}
+                                                value={city ? translateRegion(city, currentLanguage) : t('notSpecified')}
                                                 readOnly
                                                 variant="bordered"
                                                 isDisabled={true}
@@ -1119,7 +1120,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.994-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                                    </svg>
-                                                   Языки консультаций не указаны
+                                                   {t('consultationLanguagesNotSpecified')}
                                                 </div>
                                              )}
                                           </div>

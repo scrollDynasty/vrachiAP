@@ -25,8 +25,9 @@ const EmailVerificationRequired = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Если у пользователя активирован аккаунт (email подтвержден) или аутентификация через Google (is_active=true по умолчанию)
-  if (user.is_active) {
+  // Если у пользователя активирован аккаунт (email подтвержден) или аутентификация через Google
+  // Google пользователи всегда должны проходить без email verification
+  if (user.is_active || user.auth_provider === 'google') {
     return <Outlet />;
   }
 

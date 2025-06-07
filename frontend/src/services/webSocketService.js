@@ -203,11 +203,19 @@ class WebSocketService {
         return null;
       }
       
+      // Дополнительная проверка на undefined как строку
+      if (userId === 'undefined' || userId === undefined || userId === null) {
+        console.error('[WebSocketService] ID пользователя недействителен (undefined/null):', userId);
+        this.connectionLocks[connectionKey] = false;
+        if (onStatusChange) onStatusChange('error', 'Недействительный ID пользователя');
+        return null;
+      }
+      
       // Используем относительный URL для WebSocket через прокси Vite
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/notifications/${userId}?token=${token}`;
       
-      console.log(`[WebSocketService] Создаю новое WebSocket соединение: ${wsUrl.split('?')[0]}?token=***`);
+      console.log(`[WebSocketService] Создаю новое WebSocket соединение для user ${userId}: ${wsUrl.split('?')[0]}?token=***`);
       
       // Создаем новое соединение
       const socket = new WebSocket(wsUrl);

@@ -9,7 +9,31 @@ import RequestConsultationModal from '../components/RequestConsultationModal';
 import { useTranslation } from '../components/LanguageSelector';
 import { motion } from 'framer-motion';
 import { useMediaQuery } from 'react-responsive';
-import { availableLanguages } from '../constants/uzbekistanRegions';
+import { availableLanguages, translateLanguage } from '../constants/uzbekistanRegions';
+import { translateRegion, translateDistrict, getDistrictNameById } from '../components/RegionTranslations';
+
+// Функция для перевода специализаций
+const translateSpecialization = (specialization, t) => {
+  const specializationMap = {
+    'Терапевт': t('therapist'),
+    'Кардиолог': t('cardiologist'),
+    'Невролог': t('neurologist'),
+    'Хирург': t('surgeon'),
+    'Педиатр': t('pediatrician'),
+    'Офтальмолог': t('ophthalmologist'),
+    'Стоматолог': t('dentist'),
+    'Гинеколог': t('gynecologist'),
+    'Уролог': t('urologist'),
+    'Эндокринолог': t('endocrinologist'),
+    'Дерматолог': t('dermatologist'),
+    'Психиатр': t('psychiatrist'),
+    'Онколог': t('oncologist'),
+    'Отоларинголог (ЛОР)': t('otolaryngologist'),
+    'Ортопед': t('orthopedist')
+  };
+  
+  return specializationMap[specialization] || specialization;
+};
 
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
@@ -73,7 +97,7 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const isMobile = useMediaQuery({ maxWidth: 767 });
   
   // Определяем какой вариант использовать
@@ -113,24 +137,24 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
     // Проверка наличия ID врача
     if (!doctor.user_id && !doctor.id) {
       console.error("Ошибка: отсутствует ID врача для записи на консультацию");
-      alert("Произошла ошибка при попытке записи к врачу. Попробуйте перейти в профиль врача.");
+      alert(t('doctorAppointmentError'));
       return;
     }
     
     if (!canRequestConsultation()) {
       if (!user) {
-        alert("Для записи на консультацию необходимо войти в систему.");
+        alert(t('loginRequiredForAppointment'));
         navigate('/login');
         return;
       }
       
       if (user.role !== 'patient') {
-        alert("Только пациенты могут записываться на консультации.");
+        alert(t('onlyPatientsCanBook'));
         return;
       }
       
       if (!doctor.is_active) {
-        alert("К сожалению, этот врач в данный момент недоступен для консультаций.");
+        alert(t('doctorUnavailable'));
         return;
       }
     }
@@ -191,7 +215,7 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
                     {doctor.full_name || 'Врач'}
                   </h3>
                   <p className="text-sm text-indigo-600 font-medium mb-2">
-                    {doctor.specialization}
+                    {translateSpecialization(doctor.specialization, t)}
                   </p>
                   
                   {doctor.is_verified && (
@@ -218,7 +242,7 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <span className="truncate">
-                    {doctor.city || 'Не указано'}
+                    {doctor.city || t('notSpecified')}
                   </span>
                 </div>
 
@@ -343,7 +367,7 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
                 <div className="flex-1">
                   <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 mb-2">{doctor.full_name || 'Имя не указано'}</h3>
                   <div className="flex items-center flex-wrap gap-2">
-                    <Chip color="primary" variant="flat" size="md" className="font-medium">{doctor.specialization}</Chip>
+                    <Chip color="primary" variant="flat" size="md" className="font-medium">{translateSpecialization(doctor.specialization, t)}</Chip>
                     {doctor.is_verified && (
                       <Chip color="success" variant="flat" size="sm">{t('verifiedDoctor')}</Chip>
                     )}
@@ -412,8 +436,8 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
                     <p className="text-xs text-gray-500 font-medium">{t('location')}</p>
                     <p className="text-sm font-medium text-gray-700">
                       {(doctor.city && doctor.country) 
-                        ? `${doctor.city}, ${doctor.country}` 
-                        : getDistrictName(doctor.district) || t('notSpecified')
+                        ? `${translateRegion(doctor.city, currentLanguage)}, ${doctor.country}` 
+                        : (doctor.district ? getDistrictNameById(doctor.district, doctor.city, currentLanguage) : t('notSpecified'))
                       }
                     </p>
                   </div>
@@ -498,7 +522,7 @@ function SearchDoctorsPage() {
   const [specializations, setSpecializations] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [patientCity, setPatientCity] = useState(''); // Город пациента для автоматической фильтрации
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   
   // Состояния для данных
   const [doctors, setDoctors] = useState([]);
@@ -775,7 +799,7 @@ function SearchDoctorsPage() {
                   <SelectItem key="" value="">{t('allSpecializations')}</SelectItem>
                   {specializations.map((spec) => (
                     <SelectItem key={spec} value={spec}>
-                      {spec}
+                      {translateSpecialization(spec, t)}
                     </SelectItem>
                   ))}
                 </Select>
@@ -795,7 +819,7 @@ function SearchDoctorsPage() {
                   <SelectItem key="" value="">{t('allLanguages')}</SelectItem>
                   {availableLanguages.map((lang) => (
                     <SelectItem key={lang} value={lang}>
-                      {lang}
+                      {translateLanguage(lang, currentLanguage)}
                     </SelectItem>
                   ))}
                 </Select>

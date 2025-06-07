@@ -8,6 +8,7 @@ import { uploadAvatar } from '../api'; // Импортируем функцию 
 import AvatarWithFallback from './AvatarWithFallback';
 import { useTranslation } from './LanguageSelector'; // Импортируем наш компонент для аватара
 import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions'; // Импортируем систему регионов
+import { translateRegion, translateDistrict, getDistrictNameById } from './RegionTranslations'; // Импортируем функции перевода
 
 // Анимационные варианты для элементов
 const fadeIn = {
@@ -31,7 +32,7 @@ const staggerFormContainer = {
 };
 
 const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
-   const { t } = useTranslation();
+   const { t, currentLanguage } = useTranslation();
    // Состояния для полей формы
    const [full_name, setFullName] = useState('');
    const [contact_phone, setContactPhone] = useState('');
@@ -77,6 +78,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
    const [availableRegions, setAvailableRegions] = useState([]);
    const [availableDistricts, setAvailableDistricts] = useState([]);
 
+
+
    // При монтировании компонента получаем данные пользователя, включая аватар
    useEffect(() => {
       if (profile) {
@@ -87,7 +90,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setContactAddress(profile.contact_address || '');
          setCity(profile.city || '');
          setDistrict(profile.district || '');
-         setMedicalInfo(profile.medical_info || '');
+         setMedicalInfo((profile.medical_info && profile.medical_info !== 'нету') ? profile.medical_info : '');
          
          // Получаем аватар пользователя
          const loadUserAvatar = async () => {
@@ -149,7 +152,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setContactAddress(profile.contact_address || '');
          setCity(profile.city || '');
          setDistrict(profile.district || '');
-         setMedicalInfo(profile.medical_info || '');
+         setMedicalInfo((profile.medical_info && profile.medical_info !== 'нету') ? profile.medical_info : '');
          
          // Проверяем способ аутентификации пользователя
          if (profile.auth_provider) {
@@ -262,7 +265,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          contact_address: contact_address || null,
          city: city || null,
          district: district || null,
-         medical_info: medicalInfo || null
+         medical_info: (medicalInfo && medicalInfo !== 'нету' && medicalInfo.trim() !== '') ? medicalInfo : null
       };
 
       onSave(profileData);
@@ -287,7 +290,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setContactAddress(profile.contact_address || '');
          setCity(profile.city || '');
          setDistrict(profile.district || '');
-         setMedicalInfo(profile.medical_info || '');
+         setMedicalInfo((profile.medical_info && profile.medical_info !== 'нету') ? profile.medical_info : '');
       }
       setIsEditing(false);
       setFormLocalError(null);
@@ -773,7 +776,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                      </svg>
-                     <span>{contact_phone || 'Телефон не указан'}</span>
+                     <span>{contact_phone || t('phoneNotSpecified')}</span>
                   </div>
                </motion.div>
             )}
@@ -786,7 +789,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                className="relative mb-4 inline-block"
             >
                <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {isEditing ? t('editProfile') : t('profileInfo')}
+                  {isEditing ? t('editProfile') : t('profileInformation')}
                </h3>
                <motion.div 
                   className="absolute -bottom-1 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full w-full"
@@ -887,9 +890,9 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Полное имя</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">{t('fullNameLabel')}</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{full_name || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{full_name || t('notSpecified')}</p>
                                  </div>
                                  
                                  <div className="space-y-2">
@@ -899,9 +902,9 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Контактный телефон</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">{t('phoneLabel')}</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{contact_phone || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{contact_phone || t('notSpecified')}</p>
                                  </div>
 
                                  <div className="space-y-2">
@@ -911,9 +914,9 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Район</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">{t('district')}</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{district || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{getDistrictNameById(district, city, currentLanguage)}</p>
                                  </div>
                               </motion.div>
                               
@@ -931,9 +934,9 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Адрес</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">{t('addressLabel')}</h4>
                                     </div>
-                                    <p className="text-medium pl-11 font-medium">{contact_address || 'Не указано'}</p>
+                                    <p className="text-medium pl-11 font-medium">{contact_address || t('notSpecified')}</p>
                                  </div>
                                  
                                  <div className="space-y-2">
@@ -944,7 +947,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                           </svg>
                                        </div>
-                                       <h4 className="text-sm font-semibold text-blue-600">Город/Регион</h4>
+                                       <h4 className="text-sm font-semibold text-blue-600">{t('cityRegion')}</h4>
                                     </div>
                                     <p className="text-medium pl-11 font-medium">{city || 'Не указано'}</p>
                                  </div>
@@ -965,10 +968,10 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                        </svg>
                                     </div>
-                                    <h4 className="text-sm font-semibold text-blue-600">Медицинская информация</h4>
+                                    <h4 className="text-sm font-semibold text-blue-600">{t('medicalInfoLabel')}</h4>
                                  </div>
                                  <div className="pl-11 mt-2 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                                    <p className="text-medium whitespace-pre-line">{medicalInfo || 'Медицинская информация не указана'}</p>
+                                    <p className="text-medium whitespace-pre-line">{medicalInfo || t('medicalInfoNotSpecified')}</p>
                                  </div>
                               </div>
                            </motion.div>
@@ -1011,7 +1014,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   >
                      <Input
                         label={t('fullName')}
-                        placeholder="Введите ваше ФИО"
+                        placeholder={t('fullNamePlaceholder')}
                         value={full_name}
                         onChange={(e) => setFullName(e.target.value)}
                         variant="bordered"
@@ -1043,7 +1046,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   >
                      <Input
                         label={t('contactPhone')}
-                        placeholder="Введите ваш телефон"
+                        placeholder={t('phonePlaceholder')}
                         value={contact_phone}
                         onChange={(e) => setContactPhone(e.target.value)}
                         variant="bordered"
@@ -1074,8 +1077,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      className="relative group"
                   >
                      <Select
-                        label="Город/Регион"
-                        placeholder="Выберите город или регион"
+                        label={t('cityLabel')}
+                        placeholder={t('cityPlaceholder')}
                         selectedKeys={city ? [city] : []}
                         onChange={handleCityChange}
                         variant="bordered"
@@ -1094,7 +1097,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      >
                         {availableRegions.map((region) => (
                            <SelectItem key={region} value={region}>
-                              {region}
+                              {translateRegion(region, currentLanguage)}
                            </SelectItem>
                         ))}
                      </Select>
@@ -1112,7 +1115,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   >
                      <Select
                         label={t('district')}
-                        placeholder={city ? "Выберите район" : "Сначала выберите город"}
+                        placeholder={city ? t('districtPlaceholder') : "Сначала выберите город"}
                         selectedKeys={district ? [district] : []}
                         onChange={handleDistrictChange}
                         variant="bordered"
@@ -1131,7 +1134,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      >
                         {availableDistricts.map((district) => (
                            <SelectItem key={district} value={district}>
-                              {district}
+                              {translateDistrict(district, currentLanguage)}
                            </SelectItem>
                         ))}
                      </Select>
@@ -1149,8 +1152,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   className="relative group"
                >
                   <Textarea
-                     label="Контактный адрес"
-                     placeholder="Введите ваш адрес"
+                     label={t('addressLabel')}
+                     placeholder={t('addressPlaceholder')}
                      value={contact_address}
                      onChange={(e) => setContactAddress(e.target.value)}
                      variant="bordered"
@@ -1182,7 +1185,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                >
                   <Textarea
                      label={t('medicalInfo')}
-                     placeholder="Укажите важную медицинскую информацию (аллергии, хронические заболевания и т.д.)"
+                     placeholder={t('medicalInfoPlaceholder')}
                      value={medicalInfo}
                      onChange={(e) => setMedicalInfo(e.target.value)}
                      variant="bordered"
@@ -1227,7 +1230,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            </svg>
                         )}
                      >
-                        {isLoading ? 'Сохранение...' : 'Сохранить профиль'}
+                        {isLoading ? t('saving') : t('saveProfile')}
                      </Button>
                   </motion.div>
                   
@@ -1248,7 +1251,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                               </svg>
                            }
                         >
-                           Отмена
+                           {t('cancelEdit')}
                         </Button>
                      </motion.div>
                   )}
@@ -1280,7 +1283,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                            </svg>
-                           <span className="text-sm sm:text-base font-medium">Настройки аккаунта</span>
+                           <span className="text-sm sm:text-base font-medium">{t('accountSettings')}</span>
                         </motion.div>
                      </div>
                   </div>
@@ -1314,7 +1317,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                         >
                            <div className="text-left">
-                              <span className="font-medium text-sm sm:text-base block mb-1">Сменить пароль</span>
+                              <span className="font-medium text-sm sm:text-base block mb-1">{t('changePassword')}</span>
                               <p className="text-xs sm:text-tiny text-default-500">Обновите пароль для безопасности</p>
                            </div>
                         </Button>
@@ -1340,7 +1343,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         className="justify-start hover:bg-blue-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                      >
                         <div>
-                           <span className="font-medium">Настройка уведомлений</span>
+                           <span className="font-medium">{t('notificationSettings')}</span>
                         </div>
                      </Button>
                   </motion.div>
@@ -1364,7 +1367,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         className="justify-start hover:bg-danger-50 transition-colors w-full py-4 sm:py-3 min-h-[56px] sm:min-h-[48px] rounded-lg"
                      >
                         <div>
-                           <span className="font-medium">Удалить аккаунт</span>
+                           <span className="font-medium">{t('deleteAccount')}</span>
                         </div>
                      </Button>
                   </motion.div>
@@ -1512,7 +1515,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            isDisabled={isChangingPassword}
                            className="font-medium"
                         >
-                           Отмена
+                           {t('cancel')}
                         </Button>
                         <Button 
                            color="primary" 
@@ -1521,7 +1524,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                            isDisabled={!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 8}
                            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md font-medium"
                         >
-                           Изменить пароль
+                           {t('changePassword')}
                         </Button>
                      </ModalFooter>
                   </>
@@ -1534,7 +1537,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             <ModalContent>
                <ModalHeader className="relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-t-lg"></div>
-                  <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Настройки уведомлений</h2>
+                  <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{t('notificationSettingsTitle')}</h2>
                </ModalHeader>
                <ModalBody>
                   <div className="space-y-6 py-2">
@@ -1544,8 +1547,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                      >
                         <div>
-                           <h3 className="text-medium font-medium text-blue-800">Браузерные уведомления</h3>
-                           <p className="text-small text-blue-600">Получать уведомления в браузере когда сайт открыт</p>
+                           <h3 className="text-medium font-medium text-blue-800">{t('browserNotifications')}</h3>
+                           <p className="text-small text-blue-600">{t('browserNotificationsDesc')}</p>
                         </div>
                         <Switch 
                            isSelected={pushNotifications}
@@ -1564,8 +1567,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                      >
                         <div>
-                           <h3 className="text-medium font-medium text-indigo-800">Напоминания о консультациях</h3>
-                           <p className="text-small text-indigo-600">Получать напоминания о предстоящих консультациях</p>
+                           <h3 className="text-medium font-medium text-indigo-800">{t('appointmentReminders')}</h3>
+                           <p className="text-small text-indigo-600">{t('appointmentRemindersDesc')}</p>
                         </div>
                         <Switch 
                            isSelected={appointmentReminders}
@@ -1584,7 +1587,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                            </svg>
                            <p className="text-sm text-blue-700">
-                              Вы всегда будете получать важные системные уведомления, независимо от этих настроек.
+                              {t('importantNotificationsInfo')}
                            </p>
                         </div>
                      </div>
@@ -1598,7 +1601,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      isDisabled={isLoadingNotificationSettings}
                      className="font-medium"
                   >
-                     Отмена
+                     {t('cancel')}
                   </Button>
                   <Button 
                      color="primary" 
@@ -1606,7 +1609,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      isLoading={isLoadingNotificationSettings}
                      className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md font-medium"
                   >
-                     Сохранить
+                     {t('save')}
                   </Button>
                </ModalFooter>
             </ModalContent>
@@ -1617,7 +1620,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             <ModalContent>
                <ModalHeader className="relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-danger to-danger-500 rounded-t-lg"></div>
-                  <h2 className="text-xl text-danger font-semibold">Удаление аккаунта</h2>
+                  <h2 className="text-xl text-danger font-semibold">{t('deleteAccountTitle')}</h2>
                </ModalHeader>
                <ModalBody>
                   <div className="space-y-4">
@@ -1632,12 +1635,12 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                            </svg>
                            <div>
-                              <h3 className="font-medium text-lg text-danger mb-2">Внимание! Это действие необратимо.</h3>
-                              <p className="text-sm text-danger-700">При удалении аккаунта:</p>
+                              <h3 className="font-medium text-lg text-danger mb-2">{t('deleteAccountWarning')}</h3>
+                              <p className="text-sm text-danger-700">{t('deleteAccountDescription')}</p>
                               <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-danger-700">
-                                 <li>Вся информация вашего профиля будет удалена</li>
+                                 <li>{t('profileDataWillBeDeleted')}</li>
                                  <li>{t('consultationHistoryWillBeUnavailable')}</li>
-                                 <li>Восстановление аккаунта будет невозможно</li>
+                                 <li>{t('accountRecoveryImpossible')}</li>
                               </ul>
                            </div>
                         </div>
@@ -1647,11 +1650,11 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      
                      <div className="p-4 bg-danger-50/50 rounded-lg">
                         <label className="block text-sm font-medium text-danger-700 mb-2">
-                           Для подтверждения введите "удалить"
+                           {t('confirmationRequired')}
                         </label>
                         <Input
                            type="text"
-                           placeholder="удалить"
+                           placeholder={t('deletePlaceholder')}
                            variant="bordered"
                            color="danger"
                            id="delete-confirmation"
@@ -1670,24 +1673,24 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                      onClick={() => setDeleteAccountModalOpen(false)}
                      className="font-medium"
                   >
-                     Отмена
+                     {t('cancel')}
                   </Button>
                   <Button 
                      color="danger" 
                      className="bg-gradient-to-r from-danger-500 to-red-500 text-white shadow-md font-medium"
                      onClick={() => {
                         const confirmation = document.getElementById('delete-confirmation').value;
-                        if (confirmation === 'удалить') {
+                        if (confirmation === t('deletePlaceholder')) {
                            handleDeleteAccount();
                         } else {
-                           toast.error('Пожалуйста, введите слово "удалить" для подтверждения', {
+                           toast.error(t('deleteConfirmationError'), {
                               position: 'top-right',
                               autoClose: 3000
                            });
                         }
                      }}
                   >
-                     Удалить аккаунт
+                     {t('deleteAccountButton')}
                   </Button>
                </ModalFooter>
             </ModalContent>

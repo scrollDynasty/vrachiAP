@@ -297,4 +297,48 @@ export const availableLanguages = [
   'киргизский',
   'таджикский',
   'туркменский'
-]; 
+];
+
+// Переводы языков на разные языки (языки показываются на своем языке)
+const languageTranslations = {
+  'русский': {
+    ru: 'русский',
+    uz: 'rus tili',
+    en: 'Russian'
+  },
+  'узбекский': {
+    ru: 'узбекский',
+    uz: 'o\'zbek tili',
+    en: 'Uzbek'
+  },
+  'английский': {
+    ru: 'английский',
+    uz: 'ingliz tili',
+    en: 'English'
+  },
+  'казахский': {
+    ru: 'казахский',
+    uz: 'qozoq tili',
+    en: 'Kazakh'
+  },
+  'киргизский': {
+    ru: 'киргизский',
+    uz: 'qirg\'iz tili',
+    en: 'Kyrgyz'
+  },
+  'таджикский': {
+    ru: 'таджикский',
+    uz: 'tojik tili',
+    en: 'Tajik'
+  },
+  'туркменский': {
+    ru: 'туркменский',
+    uz: 'turkman tili',
+    en: 'Turkmen'
+  }
+};
+
+// Функция для перевода языка
+export const translateLanguage = (language, currentLang) => {
+  return languageTranslations[language]?.[currentLang] || language;
+}; 

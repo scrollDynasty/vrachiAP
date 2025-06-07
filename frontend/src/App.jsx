@@ -24,7 +24,7 @@ import Header from './components/Header'
 // Импортируем компонент WebSocket-уведомлений
 import NotificationWebSocket from './components/NotificationWebSocket'
 // Импортируем провайдер для языков
-import { LanguageProvider } from './components/LanguageSelector'
+import { LanguageProvider, useTranslation } from './components/LanguageSelector'
 // Импортируем провайдер для toast-уведомлений
 import { Toaster } from 'react-hot-toast'
 
@@ -39,6 +39,24 @@ import MedicalLoader from './components/MedicalLoader'
 // Импортируем основные стили
 import './index.scss'
 import soundService from './services/soundService' // Импортируем soundService
+
+// Компонент футера
+function Footer() {
+  const { t } = useTranslation();
+  
+  return (
+    <footer className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200 py-6 text-center text-gray-600 text-sm">
+      <div className="container mx-auto">
+        <p>© {new Date().getFullYear()} Soglom. {t('allRightsReserved')}</p>
+        <div className="mt-2 flex justify-center gap-4">
+          <a href="#" className="hover:text-primary transition-colors">{t('privacyPolicy')}</a>
+          <a href="#" className="hover:text-primary transition-colors">{t('termsOfUse')}</a>
+          <a href="#" className="hover:text-primary transition-colors">{t('contacts')}</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
   // Главный компонент приложения, который настраивает роутинг и общую структуру
 function App() {
@@ -336,18 +354,7 @@ function App() {
       </main>
       
       {/* Футер приложения (показываем только если пользователь аутентифицирован и нет ошибок) */}
-      {isAuthenticated && user && !error && (
-        <footer className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200 py-6 text-center text-gray-600 text-sm">
-          <div className="container mx-auto">
-            <p>© {new Date().getFullYear()} Soglom. Все права защищены.</p>
-            <div className="mt-2 flex justify-center gap-4">
-              <a href="#" className="hover:text-primary transition-colors">Политика конфиденциальности</a>
-              <a href="#" className="hover:text-primary transition-colors">Условия использования</a>
-              <a href="#" className="hover:text-primary transition-colors">Контакты</a>
-            </div>
-          </div>
-        </footer>
-      )}
+      {isAuthenticated && user && !error && <Footer />}
       </div>
     </LanguageProvider>
   )

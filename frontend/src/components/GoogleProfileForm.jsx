@@ -15,10 +15,13 @@ import {
 } from '@nextui-org/react';
 import api from '../api';
 import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions';
+import { translateDistrict } from './RegionTranslations';
+import { useTranslation } from './LanguageSelector';
 import useAuthStore from '../stores/authStore';
 import AvatarWithFallback from './AvatarWithFallback';
 
 const GoogleProfileForm = ({ onCompleted }) => {
+  const { t, currentLanguage } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [regions, setRegions] = useState([]);
@@ -389,7 +392,7 @@ const GoogleProfileForm = ({ onCompleted }) => {
                   >
                     {districts.map((district) => (
                       <SelectItem key={district} value={district} textValue={district}>
-                        {district}
+                        {translateDistrict(district, currentLanguage)}
                       </SelectItem>
                     ))}
                   </Select>
