@@ -274,7 +274,7 @@ function HistoryPage() {
                   <div className="flex-grow">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                       <div>
-                        <div className="text-sm text-gray-600 mb-1">Сообщения:</div>
+                        <div className="text-sm text-gray-600 mb-1">{t('messages')}:</div>
                         <div className="flex items-center gap-2">
                           <div className="px-3 py-1 bg-gray-100 rounded-full text-sm">
                             {consultation.message_count} / {consultation.message_limit}
@@ -283,10 +283,10 @@ function HistoryPage() {
                           {consultation.message_count > 0 && consultation.status === 'active' && (
                             hasUnreadMessages(consultation.id) ? (
                               <Badge content={getUnreadCount(consultation.id)} color="danger" variant="flat" size="sm">
-                                <span className="text-xs text-danger font-medium">Новые сообщения</span>
+                                <span className="text-xs text-danger font-medium">{t('newMessages')}</span>
                               </Badge>
                             ) : (
-                              <span className="text-xs text-success font-medium">Есть сообщения</span>
+                              <span className="text-xs text-success font-medium">{t('hasMessages')}</span>
                             )
                           )}
                         </div>
@@ -296,7 +296,7 @@ function HistoryPage() {
                         className="mt-3 md:mt-0 bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm text-white px-4 py-2 rounded-full flex items-center gap-1 cursor-pointer hover:shadow-md transition-all"
                         onClick={() => goToConsultation(consultation.id)}
                       >
-                        <span>{hasUnreadMessages(consultation.id) ? "Прочитать" : "Открыть чат"}</span>
+                        <span>{hasUnreadMessages(consultation.id) ? t('readChat') : t('openChat')}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                         </svg>

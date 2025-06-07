@@ -6390,7 +6390,7 @@ async def mark_all_api_notifications_read(
     for notification in notifications:
         notification.is_viewed = True
         
-        # Добавляем в список отправленных через WebSocket
+        # Добавляем в список отпраcat вленных через WebSocket
         if current_user.id not in sent_notifications:
             sent_notifications[current_user.id] = set()
         sent_notifications[current_user.id].add(notification.id)

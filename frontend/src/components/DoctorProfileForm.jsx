@@ -661,7 +661,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                         <div className="mb-8 text-center">
                <motion.div variants={slideUp} className="relative mb-6 inline-block">
                   <h2 className="text-2xl sm:text-3xl md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                     Настройки профиля врача
+                     {t('doctorProfileSettings')}
                   </h2>
                   <motion.div 
                      className="absolute -bottom-1 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full w-full"
@@ -689,7 +689,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                            </svg>
                         }
                      >
-                        <span className="text-blue-800 font-medium">Ваш профиль зафиксирован администратором</span>
+                        <span className="text-blue-800 font-medium">{t('yourProfileFixed')}</span>
                      </Chip>
                   </motion.div>
                )}
@@ -810,9 +810,9 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                  </svg>
                               </div>
-                              <h3 className="text-base sm:text-medium font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Безопасность</h3>
+                              <h3 className="text-base sm:text-medium font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">{t('security')}</h3>
                            </div>
-                           <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-5 pl-13 sm:pl-11">Управление паролем и настройками безопасности вашего аккаунта</p>
+                           <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-5 pl-13 sm:pl-11">{t('passwordSecuritySettings')}</p>
                            
                            <div className="mt-auto">
                               {/* Кнопки настроек */}
@@ -922,7 +922,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                        transition={{ delay: 0.1 }}
                                     >
                                        <h3 className="text-xl font-semibold mb-5 bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                                          Информация о враче
+                                          {t('doctorInfo')}
                                        </h3>
                                     </motion.div>
                                     
@@ -939,8 +939,8 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                              </svg>
                                           </div>
                                           <div>
-                                             <p className="text-sm font-medium text-blue-800 mb-1">Примечание:</p>
-                                             <p className="text-sm text-blue-700">Основная информация о враче (ФИО, специализация, образование, опыт и район практики) берется из одобренной заявки и не может быть изменена. Стоимость консультации устанавливается администратором.</p>
+                                             <p className="text-sm font-medium text-blue-800 mb-1">{t('note', 'Примечание')}:</p>
+                                             <p className="text-sm text-blue-700">{t('mainDoctorInfo')}</p>
                                           </div>
                                        </div>
                                     </motion.div>
@@ -955,7 +955,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           {/* ФИО (только для просмотра) */}
                                           <div className="relative group">
                                              <Input
-                                                label="ФИО"
+                                                label={t('fullName')}
                                                 value={full_name}
                                                 readOnly
                                                 variant="bordered"
@@ -1013,7 +1013,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                           {/* Опыт работы (только для просмотра) */}
                                           <div className="relative group">
                                              <Input
-                                                label="Опыт работы (лет)"
+                                                label={t('workExperience')}
                                                 value={experience_years}
                                                 readOnly
                                                 variant="bordered"
@@ -1026,7 +1026,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                                 }
                                                 endContent={
                                                    <div className="pointer-events-none flex items-center">
-                                                      <span className="text-default-400 text-small">лет</span>
+                                                      <span className="text-default-400 text-small">{t('years')}</span>
                                                    </div>
                                                 }
                                              />
@@ -1090,7 +1090,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                                              </svg>
-                                             Языки консультаций
+                                             {t('consultationLanguages')}
                                           </label>
                                           <div className="flex flex-wrap gap-2 p-3 border-2 border-gray-200 rounded-xl bg-gray-50 min-h-[60px] items-start">
                                              {profile?.languages && profile.languages.length > 0 ? (
@@ -1154,7 +1154,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                              </svg>
                                           }
                                        >
-                                          {isLoading ? <Spinner size="sm" /> : "Сохранить изменения"}
+                                          {isLoading ? <Spinner size="sm" /> : t('saveChanges')}
                                        </Button>
                                     </motion.div>
                                     <motion.div
@@ -1173,7 +1173,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                                              </svg>
                                           }
                                        >
-                                          Отмена
+                                          {t('cancel')}
                                        </Button>
                                     </motion.div>
                                  </motion.div>
@@ -1192,7 +1192,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                <ModalHeader className="flex flex-col gap-1 relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-t-lg"></div>
                   <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                     Изменение пароля
+                     {t('changePassword')}
                   </h2>
                </ModalHeader>
                <ModalBody>
@@ -1216,7 +1216,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                         {!isGoogleAccount && (
                            <div className="relative group">
                               <Input
-                                 label="Текущий пароль"
+                                 label={t('currentPassword')}
                                  type="password"
                                  value={currentPassword}
                                  onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1237,7 +1237,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                         
                         <div className="relative group">
                            <Input
-                              label="Новый пароль"
+                              label={t('newPassword')}
                               type="password"
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
@@ -1269,7 +1269,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                         
                         <div className="relative group">
                            <Input
-                              label="Подтверждение пароля"
+                              label={t('confirmPassword')}
                               type="password"
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}

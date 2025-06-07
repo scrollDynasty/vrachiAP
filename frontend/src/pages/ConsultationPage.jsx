@@ -455,7 +455,7 @@ function ConsultationPage() {
               className="mt-4"
               onPress={() => navigate('/history')}
             >
-              Вернуться к истории
+              {t('backToHistory')}
             </Button>
           </CardBody>
         </Card>
@@ -464,7 +464,7 @@ function ConsultationPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-semibold mb-2">
-                Консультация #{consultation.id}
+                {t('consultationNumber')} #{consultation.id}
               </h1>
               <p className="text-gray-600">
                 {new Date(consultation.created_at).toLocaleString()}
@@ -477,7 +477,7 @@ function ConsultationPage() {
               onPress={() => navigate('/history')}
               startContent={<i className="fas fa-arrow-left"></i>}
             >
-              К истории
+              {t('toHistory')}
             </Button>
           </div>
           

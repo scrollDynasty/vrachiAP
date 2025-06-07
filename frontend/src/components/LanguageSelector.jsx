@@ -298,6 +298,24 @@ const translations = {
     noDoctorReviews: 'У этого врача пока нет отзывов',
     beFirstToReview: 'Будьте первым, кто оставит отзыв после консультации',
     
+    // Переводы для настроек профиля врача
+    doctorProfileSettings: 'Настройки профиля врача',
+    yourProfileFixed: 'Ваш профиль зафиксирован администратором',
+    mainDoctorInfo: 'Основная информация о враче (ФИО, специализация, образование, опыт и район практики) берется из одобренной заявки и не может быть изменена. Стоимость консультации устанавливается администратором.',
+    consultationCost: 'Стоимость консультации устанавливается администратором',
+    consultationLanguagesNotSpecified: 'Языки консультаций не указаны',
+    note: 'Примечание',
+    
+    // Переводы для чата консультации
+    openChat: 'Открыть чат',
+    readChat: 'Прочитать',
+    consultationNumber: 'Консультация',
+    toHistory: 'К истории',
+    backToHistory: 'Вернуться к истории',
+    messages: 'Сообщения',
+    newMessages: 'Новые сообщения',
+    hasMessages: 'Есть сообщения',
+    
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Найдите подходящего специалиста для консультации',
     searchInRegion: 'Поиск в регионе',
@@ -1081,6 +1099,24 @@ const translations = {
     noDoctorReviews: 'Bu shifokor haqida hali sharhlar yo\'q',
     beFirstToReview: 'Konsultatsiyadan keyin sharh qoldirgan birinchi kishi bo\'ling',
     
+    // Переводы для настроек профиля врача
+    doctorProfileSettings: 'Shifokor profilini sozlash',
+    yourProfileFixed: 'Shifokor profili adminstrator tomonidan bloklandi',
+    mainDoctorInfo: 'Shifokor haqida asosiy ma\'lumotlar (Ism, mutaxassislik, ta\'lim, ish tajribasi va shifokor amaliyot hududini) adminstrator tomonidan qabul qilingan arizadan olinadi va o\'zgartirib bo\'lmaydi. Konsultatsiya narxi adminstrator tomonidan belgilanadi.',
+    consultationCost: 'Konsultatsiya narxi adminstrator tomonidan belgilanadi',
+    consultationLanguagesNotSpecified: 'Konsultatsiya tillari ko\'rsatilmagan',
+    note: 'Izoh',
+    
+    // Переводы для чата консультации
+    openChat: 'Chatni ochish',
+    readChat: 'Chatni o\'qish',
+    consultationNumber: 'Konsultatsiya',
+    toHistory: 'Konsultatsiyalar tarixiga',
+    backToHistory: 'Konsultatsiyalar tarixiga qaytish',
+    messages: 'Xabarlar',
+    newMessages: 'Yangi xabarlar',
+    hasMessages: 'Xabarlar bor',
+    
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Konsultatsiya uchun mos mutaxassisni toping',
     searchInRegion: 'Hududda qidiruv',
@@ -1812,6 +1848,24 @@ const translations = {
     doctorPracticeRegion: 'Doctor practice region',
     noDoctorReviews: 'This doctor has no reviews yet',
     beFirstToReview: 'Be the first to leave a review after consultation',
+    
+    // Translations for doctor profile settings
+    doctorProfileSettings: 'Doctor Profile Settings',
+    yourProfileFixed: 'Your profile is fixed by administrator',
+    mainDoctorInfo: 'Basic doctor information (full name, specialization, education, experience and practice area) is taken from the approved application and cannot be changed. Consultation cost is set by administrator.',
+    consultationCost: 'Consultation cost is set by administrator',
+    consultationLanguagesNotSpecified: 'Consultation languages not specified',
+    note: 'Note',
+    
+    // Translations for consultation chat
+    openChat: 'Open Chat',
+    readChat: 'Read Chat',
+    consultationNumber: 'Consultation',
+    toHistory: 'To History',
+    backToHistory: 'Back to History',
+    messages: 'Messages',
+    newMessages: 'New Messages',
+    hasMessages: 'Has Messages',
     
     // Переводы для SearchDoctorsPage
     findSpecialistDescription: 'Find the right specialist for consultation',
