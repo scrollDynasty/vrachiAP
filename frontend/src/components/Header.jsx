@@ -65,7 +65,6 @@ function Header() {
     // Добавляем слушатель события для обновления изображения профиля
     const handleProfileImageUpdate = (event) => {
       const { profileImage } = event.detail;
-      console.log('Header: Получено событие обновления аватарки:', profileImage);
       setProfileImage(profileImage);
     };
     
@@ -95,18 +94,14 @@ function Header() {
       // Проверяем разрешения на браузерные уведомления
       if ('Notification' in window) {
         if (Notification.permission === 'default') {
-          console.log('[Header] Запрашиваем разрешения на браузерные уведомления');
           try {
             const permission = await Notification.requestPermission();
-            console.log('[Header] Результат запроса разрешений:', permission);
           } catch (error) {
             console.error('[Header] Ошибка при запросе разрешений:', error);
           }
         } else {
-          console.log('[Header] Статус разрешений на уведомления:', Notification.permission);
         }
       } else {
-        console.log('[Header] Браузер не поддерживает уведомления');
       }
     };
     
@@ -115,14 +110,12 @@ function Header() {
     // Слушаем кастомные события от NotificationWebSocket для добавления уведомлений
     const handleNewNotification = (event) => {
       const notification = event.detail;
-      console.log('[Header] Получено новое уведомление через событие:', notification);
       
       // Добавляем уведомление в локальный список, если его еще нет
       setNotifications(prev => {
         // Проверяем, нет ли уже такого уведомления
         const exists = prev.some(n => n.id === notification.id);
         if (exists) {
-          console.log('[Header] Уведомление уже существует в списке');
           return prev;
         }
         
@@ -133,14 +126,12 @@ function Header() {
       // Проигрываем звук (дублируется с NotificationWebSocket, но это нормально для надежности)
       try {
         soundService.playNotification();
-        console.log('[Header] Звук уведомления проигран');
       } catch (error) {
         console.error('[Header] Ошибка воспроизведения звука:', error);
       }
       
       // НЕ отправляем браузерное уведомление отсюда - это делается в NotificationWebSocket
       // Это предотвращает дублирование push-уведомлений
-      console.log('[Header] Браузерное уведомление будет отправлено из NotificationWebSocket');
       
       // Обновляем счетчик непрочитанных уведомлений
       setUnreadCount(prev => prev + 1);
@@ -155,7 +146,6 @@ function Header() {
     
     // Очищаем интервалы при размонтировании
     return () => {
-      console.log('[Header] Очистка при размонтировании или изменении пользователя');
       
       if (notificationInterval) clearInterval(notificationInterval);
       if (chatInterval) clearInterval(chatInterval);

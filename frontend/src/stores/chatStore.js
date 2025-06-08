@@ -60,27 +60,17 @@ const useChatStore = create(
       // Fetch unread message counts from the server
       fetchUnreadCounts: async () => {
         try {
-          console.log('Получение непрочитанных сообщений');
           
           // Сначала пробуем использовать API-эндпоинт для непрочитанных сообщений
           try {
-            console.log('Отправка запроса к /api/consultations/unread');
             const unreadResponse = await api.get('/api/consultations/unread');
-            
-            console.log('Получен ответ от /api/consultations/unread:', {
-              status: unreadResponse.status,
-              headers: unreadResponse.headers,
-              dataType: typeof unreadResponse.data,
-              hasUnreadCounts: !!unreadResponse.data?.unread_counts,
-            });
             
             if (unreadResponse.status === 200 && unreadResponse.data) {
               // Получаем данные из нового формата ответа API
               const unreadData = unreadResponse.data.unread_counts;
               
-              // Дополнительная проверка типа данных
+              // Проверка наличия данных
               if (!unreadData) {
-                console.error('Ошибка: unread_counts отсутствует в ответе API', unreadResponse.data);
                 throw new Error('Неверный формат данных: unread_counts отсутствует');
               }
               
@@ -99,10 +89,8 @@ const useChatStore = create(
                   totalUnread: totalCount 
                 });
                 
-                console.log('Данные о непрочитанных сообщениях получены через API:', normalizedData, 'Всего:', totalCount);
                 return normalizedData;
               } else {
-                console.error('Ошибка: неверный формат данных unread_counts', unreadData);
                 throw new Error('Неверный формат данных: unread_counts не является объектом');
               }
             } else {
@@ -110,23 +98,7 @@ const useChatStore = create(
               throw new Error('Неверный ответ от сервера');
             }
           } catch (apiError) {
-            console.error('Не удалось получить непрочитанные сообщения через API:', apiError);
-            console.error('Детали ошибки:', {
-              message: apiError.message,
-              response: apiError.response ? {
-                status: apiError.response.status,
-                data: apiError.response.data
-              } : 'Нет ответа'
-            });
-            
-            // Если это ошибка 422, значит, проблемы с валидацией данных
-            if (apiError.response && apiError.response.status === 422) {
-              console.warn('Получена ошибка валидации 422. Возможно, проблема с форматом ответа.');
-            }
-            
-            // Логируем состояние авторизации
-            console.log('Используются HTTP-only cookies для авторизации, проверьте инструменты разработчика');
-            
+            console.warn('API для получения непрочитанных сообщений недоступен, используем резервный метод');
             // Используем резервный метод
             throw apiError;
           }
@@ -138,7 +110,7 @@ const useChatStore = create(
           const consultations = consultationsResponse.data || [];
           
           if (!Array.isArray(consultations)) {
-            console.error('Ошибка: consultations не является массивом', consultations);
+            console.warn('Полученные консультации не являются массивом');
             return get().unreadMessages;
           }
           
@@ -189,24 +161,9 @@ const useChatStore = create(
             });
           }
           
-          console.log('Обновлены данные о непрочитанных сообщениях через загрузку консультаций:', unreadData, 'Всего:', totalUnread);
           return unreadData;
         } catch (error) {
-          // Более подробное логирование ошибок
-          if (error.response) {
-            // Ошибка от сервера
-            console.error('Failed to fetch unread message counts - server error:', 
-              error.response.status, error.response.data);
-          } else if (error.request) {
-            // Запрос был сделан, но ответ не получен
-            console.error('Failed to fetch unread message counts - no response received:', 
-              error.request);
-          } else {
-            // Что-то еще пошло не так
-            console.error('Failed to fetch unread message counts:', error.message);
-          }
-          
-          // Не меняем текущее состояние при ошибке
+          console.error('Не удалось загрузить счетчики непрочитанных сообщений:', error.message);
           return get().unreadMessages;
         }
       }

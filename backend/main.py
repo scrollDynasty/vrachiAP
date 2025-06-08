@@ -6010,7 +6010,6 @@ async def google_auth_callback(
             <script>
                 // Функция для безопасного сохранения токена с повторными попытками
                 function saveTokenSecurely(token) {{
-                    console.log('Saving token to localStorage, length:', token.length);
                     
                     // Очищаем старый токен
                     localStorage.removeItem('auth_token');
@@ -6021,20 +6020,16 @@ async def google_auth_callback(
                     // Проверяем, что токен сохранился правильно
                     const savedToken = localStorage.getItem('auth_token');
                     if (!savedToken || savedToken !== token) {{
-                        console.error('Token was not saved correctly, retrying...');
                         
                         // Вторая попытка через таймаут
                         setTimeout(function() {{
                             localStorage.setItem('auth_token', token);
-                            console.log('Second attempt to save token completed');
                             
                             // Проверка второй попытки
                             const secondSave = localStorage.getItem('auth_token');
-                            console.log('Token in localStorage after second attempt:', 
                                 secondSave ? secondSave.substring(0, 15) + '...' : 'null');
                         }}, 100);
                     }} else {{
-                        console.log('Token saved successfully to localStorage');
                     }}
                     
                     return savedToken === token;
@@ -6064,7 +6059,6 @@ async def google_auth_callback(
                     const token = '{access_token}';
                     const saveResult = saveTokenSecurely(token);
                     
-                    console.log('🔑 Token save result:', saveResult);
                     
                     // Обновляем статус на странице
                     const debugElement = document.getElementById('debug');

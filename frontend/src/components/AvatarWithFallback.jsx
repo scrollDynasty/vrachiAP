@@ -45,20 +45,16 @@ const AvatarWithFallback = forwardRef(({
     if (src.startsWith('/') && !src.startsWith('http')) {
       // Преобразуем относительный путь в абсолютный URL
       const newSrc = `http://127.0.0.1:8000${src}${noCacheParam}`;
-      console.log('[AvatarWithFallback] URL аватара с параметром от кеширования:', newSrc);
       setFullSrc(newSrc);
     } else {
       // Если путь уже абсолютный, добавляем параметр nocache
       const newSrc = src.includes('?') ? `${src}&nocache=${Date.now()}` : `${src}${noCacheParam}`;
-      console.log('[AvatarWithFallback] URL аватара с параметром от кеширования:', newSrc);
       setFullSrc(newSrc);
     }
   }, [src]);
   
   // Обработчик ошибки загрузки изображения
   const handleError = (e) => {
-    console.error('[AvatarWithFallback] Ошибка загрузки аватара:', fullSrc);
-    console.error('[AvatarWithFallback] Объект ошибки:', e);
     setImageError(true);
   };
   

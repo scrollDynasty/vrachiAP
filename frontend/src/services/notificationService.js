@@ -33,7 +33,6 @@ class NotificationService {
     this.permission = this.getPermission();
     
     if (this.permission === 'granted') {
-      console.log('[NotificationService] Разрешение на уведомления уже предоставлено');
       return {
         success: true,
         permission: 'granted',
@@ -44,13 +43,11 @@ class NotificationService {
     
     try {
       // Запрашиваем разрешение
-      console.log('[NotificationService] Запрашиваем разрешение на браузерные уведомления...');
       const permission = await Notification.requestPermission();
       
       this.permission = permission;
       
       if (permission === 'granted') {
-        console.log('[NotificationService] ✅ Разрешение на браузерные уведомления получено');
         return {
           success: true,
           permission: 'granted',
@@ -87,7 +84,6 @@ class NotificationService {
   
   // Отправляем браузерное уведомление
   async send(title, options = {}) {
-    console.log('[NotificationService] Попытка отправить уведомление:', { title, options });
     
     if (!this.isSupported) {
       console.debug('[NotificationService] Браузерные уведомления не поддерживаются');
@@ -96,11 +92,9 @@ class NotificationService {
     
     // Обновляем текущий статус разрешения
     this.permission = this.getPermission();
-    console.log('[NotificationService] Текущий статус разрешения:', this.permission);
     
     // Проверяем и запрашиваем разрешение при необходимости
     if (this.permission !== 'granted') {
-      console.log('[NotificationService] Разрешение не предоставлено, запрашиваем...');
       const permissionResult = await this.requestPermission();
       if (!permissionResult.success || permissionResult.permission !== 'granted') {
         console.debug('[NotificationService] Нет разрешения на показ уведомлений:', permissionResult);
@@ -123,13 +117,11 @@ class NotificationService {
         ...options
       };
       
-      console.log('[NotificationService] 📢 Создаем браузерное уведомление:', { title, notificationOptions });
       
       const notification = new Notification(title, notificationOptions);
       
       // Обработчики событий
       notification.onclick = (event) => {
-        console.log('[NotificationService] Пользователь кликнул на уведомление');
         
         // Фокусируем окно браузера
         if (window) {
@@ -146,11 +138,9 @@ class NotificationService {
       };
       
       notification.onshow = () => {
-        console.log('[NotificationService] ✅ Уведомление показано:', title);
       };
       
       notification.onclose = () => {
-        console.log('[NotificationService] Уведомление закрыто:', title);
       };
       
       notification.onerror = (error) => {
@@ -164,7 +154,6 @@ class NotificationService {
         }, options.duration || 5000);
       }
       
-      console.log('[NotificationService] ✅ Браузерное уведомление создано успешно');
       return { success: true, notification };
     } catch (error) {
       console.error('[NotificationService] Ошибка при создании уведомления:', error);

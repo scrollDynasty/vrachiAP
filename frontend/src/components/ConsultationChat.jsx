@@ -35,7 +35,6 @@ const setupApiInterceptors = () => {
         });
         
         if (shouldSuppress) {
-          console.log(`[API] Подавлена ошибка 404 для ${error.config.url}`);
           // Возвращаем "пустой" успешный ответ
           return Promise.resolve({ 
             status: 200, 
@@ -60,7 +59,6 @@ const getItem = (key) => {
   try {
     return localStorage.getItem(key);
   } catch (e) {
-    console.error('Ошибка при чтении из localStorage:', e);
     return null;
   }
 };
@@ -74,10 +72,8 @@ const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) =>
   const [selectedImage, setSelectedImage] = useState(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
-  // Отладочный вывод для проверки вложений
-  if (message.attachments && message.attachments.length > 0) {
-    console.log('[ChatMessage] Сообщение с вложениями:', message.id, message.attachments);
-  }
+  // Проверяем наличие вложений
+  const hasAttachments = message.attachments && message.attachments.length > 0;
   
   // Функция для открытия изображения в модальном окне
   const openImageModal = (attachment) => {
@@ -102,7 +98,7 @@ const ChatMessage = ({ message, currentUserId, patientAvatar, doctorAvatar }) =>
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Ошибка при скачивании файла:', error);
+      // Ошибка скачивания файла
     }
   };
   
@@ -389,7 +385,6 @@ const SafeRender = ({ children, fallback }) => {
 
   useEffect(() => {
     const errorHandler = (error) => {
-      console.error('[SafeRender] Поймана ошибка:', error);
       setHasError(true);
       return true;
     };
@@ -545,7 +540,6 @@ function ConsultationChat({
   // Получаем WebSocket-токен с сервера напрямую
   const getWebSocketToken = async () => {
     try {
-      console.log('[Chat] Запрос WebSocket токена с сервера');
       
       // Запрашиваем специальный токен для WebSocket соединения
       const response = await api.get('/api/ws-token');
@@ -553,18 +547,16 @@ function ConsultationChat({
       if (response && response.status === 200 && response.data) {
         if (response.data.token) {
           const token = response.data.token;
-          console.log('[Chat] WebSocket токен успешно получен с сервера:', token.substring(0, 10) + '...');
           return token;
         } else {
-          console.warn('[Chat] API вернул ответ, но токен отсутствует:', response.data);
+          // API вернул ответ, но токен отсутствует
         }
       } else {
-        console.warn('[Chat] Неверный формат ответа при получении WebSocket токена:', response);
+        // Неверный формат ответа при получении WebSocket токена
       }
       
       return null;
     } catch (error) {
-      console.error('[Chat] Ошибка при запросе WebSocket токена:', error);
       return null;
     }
   };
@@ -607,16 +599,15 @@ function ConsultationChat({
           temp_id: tempId
         }));
         
-        console.log(`[WebSocket] Сообщение отправлено: ${content.trim()}`);
       } else {
-        console.error('[WebSocket] Соединение не установлено');
+        // WebSocket соединение не установлено
         toast.error(t('connectionLost'));
         
         // Удаляем временное сообщение
         setMessages(prevMessages => prevMessages.filter(m => m.id !== tempId));
       }
     } catch (error) {
-      console.error('[Chat] Ошибка при отправке сообщения:', error);
+      // Ошибка при отправке сообщения
       toast.error(t('messageSendFailed'));
       
       // Удаляем временное сообщение
@@ -634,11 +625,9 @@ function ConsultationChat({
       
       // Пробуем загрузить историю сообщений через REST API сразу
       try {
-        console.log(`[Chat] Загрузка истории сообщений через REST API для консультации ${consultationId}`);
         const messagesResponse = await api.get(`/api/consultations/${consultationId}/messages`);
         
         if (messagesResponse.data && Array.isArray(messagesResponse.data)) {
-          console.log(`[Chat] Получено ${messagesResponse.data.length} сообщений через REST API`);
           
           // Сортируем сообщения по времени
           const sortedMessages = messagesResponse.data.sort((a, b) => {
@@ -653,15 +642,13 @@ function ConsultationChat({
           // Прокручиваем к последнему сообщению после небольшой задержки
           setTimeout(scrollToBottom, 100);
         } else {
-          console.log(`[Chat] Не удалось получить сообщения через REST API или список пуст`);
         }
       } catch (restError) {
-        console.error(`[Chat] Ошибка при загрузке сообщений через REST API:`, restError);
+        // Ошибка при загрузке сообщений через REST API
       }
       
       // Инициализируем WebSocket соединение
       if (!wsInitializedRef.current) {
-        console.log(`[Chat] Создание нового WebSocket соединения для консультации ${consultationId}`);
         
         // Запрашиваем токен для WebSocket и создаем соединение
         const wsConnection = await webSocketService.getConsultationConnection(
@@ -671,10 +658,9 @@ function ConsultationChat({
         );
         
         if (wsConnection) {
-          console.log('[Chat] WebSocket соединение успешно установлено');
           wsInitializedRef.current = true;
         } else {
-          console.warn('[WebSocket] Не удалось установить WebSocket соединение');
+          // Не удалось установить WebSocket соединение
           toast.error(t('connectionError'), {
             id: 'ws-connection-error',
             duration: 4000
@@ -682,10 +668,9 @@ function ConsultationChat({
           updateConnectionStatus('error', t('connectionError'));
         }
       } else {
-        console.log(`[Chat] WebSocket соединение для консультации ${consultationId} уже инициализировано`);
       }
     } catch (error) {
-      console.error('[Chat] Ошибка при инициализации чата:', error);
+      // Ошибка при инициализации чата
       toast.error(t('chatLoadError'));
     } finally {
       setIsSending(false);
@@ -699,7 +684,6 @@ function ConsultationChat({
       return;
     }
     
-    console.log(`[Chat] Инициализация чата для консультации ${consultationId}, статус: ${consultation.status}`);
     
     // Сбрасываем флаги при инициализации
     isUnmounting.current = false;
@@ -713,7 +697,6 @@ function ConsultationChat({
 
     // При размонтировании компонента закрываем WebSocket и очищаем интервалы
     return () => {
-      console.log(`[Chat] Размонтирование компонента чата для консультации ${consultationId}`);
       
       // Устанавливаем флаг размонтирования
       isUnmounting.current = true;
@@ -723,7 +706,6 @@ function ConsultationChat({
       
       // Явно закрываем соединение консультации
       if (consultationId && webSocketService) {
-        console.log(`[Chat] Закрываем WebSocket соединение для консультации ${consultationId}`);
         webSocketService.closeConsultationConnection(consultationId);
       }
       
@@ -742,12 +724,10 @@ function ConsultationChat({
       
       // Не логируем ping/pong сообщения каждый раз
       if (data.type !== 'pong') {
-        console.log('[WebSocket] Получено сообщение:', data.type);
       }
       
       // Если пришло сообщение о добавлении отзыва, сразу обновляем состояние
       if (data.type === 'review_added') {
-        console.log('[WebSocket] Получено уведомление о добавлении отзыва');
         // Уведомляем родительский компонент
         if (onConsultationUpdated) {
           onConsultationUpdated();
@@ -757,7 +737,7 @@ function ConsultationChat({
       
       messageHandler(data);
     } catch (error) {
-      console.error('[WebSocket] Ошибка разбора сообщения:', error, event.data);
+      // Ошибка разбора WebSocket сообщения
     }
   };
 
@@ -770,7 +750,6 @@ function ConsultationChat({
   useEffect(() => {
     // Если лимит достигнут, консультация активна, и пользователь - пациент
     if (isMessageLimitReached && consultation?.status === 'active' && isPatient) {
-      console.log('[Chat] Лимит сообщений достигнут, запускаем автоматическое завершение');
       
       // Показываем предупреждение
       toast.error(`${t('messageLimitReached')} (${patientMessageCount}/${consultation.message_limit})`, {
@@ -793,44 +772,39 @@ function ConsultationChat({
       if (!consultation) return;
       
       try {
-        console.log('[Chat] Загрузка аватаров пользователей');
         
         // Загружаем аватар врача
         try {
           const doctorResponse = await api.get(`/doctors/${consultation.doctor_id}/profile`);
           if (doctorResponse.data && doctorResponse.data.user && doctorResponse.data.user.avatar_path) {
-            console.log('[Chat] Загружен аватар врача:', doctorResponse.data.user.avatar_path);
             setDoctorAvatar(doctorResponse.data.user.avatar_path);
           } else {
             // Пробуем второй вариант без user вложенности
             if (doctorResponse.data && doctorResponse.data.avatar_path) {
-              console.log('[Chat] Загружен аватар врача (альтернативный путь):', doctorResponse.data.avatar_path);
               setDoctorAvatar(doctorResponse.data.avatar_path);
             }
           }
         } catch (doctorError) {
-          console.error('[Chat] Ошибка при загрузке аватара врача:', doctorError);
+          // Ошибка при загрузке аватара врача
         }
         
         // Загружаем аватар пациента
         try {
           const patientResponse = await api.get(`/patients/${consultation.patient_id}/profile`);
           if (patientResponse.data && patientResponse.data.user && patientResponse.data.user.avatar_path) {
-            console.log('[Chat] Загружен аватар пациента:', patientResponse.data.user.avatar_path);
             setPatientAvatar(patientResponse.data.user.avatar_path);
           } else {
             // Пробуем второй вариант без user вложенности
             if (patientResponse.data && patientResponse.data.avatar_path) {
-              console.log('[Chat] Загружен аватар пациента (альтернативный путь):', patientResponse.data.avatar_path);
               setPatientAvatar(patientResponse.data.avatar_path);
             }
           }
         } catch (patientError) {
-          console.error('[Chat] Ошибка при загрузке аватара пациента:', patientError);
+          // Ошибка при загрузке аватара пациента
         }
         
       } catch (error) {
-        console.error('[Chat] Ошибка при загрузке аватаров:', error);
+        // Ошибка при загрузке аватаров
       }
     };
     
@@ -839,7 +813,6 @@ function ConsultationChat({
 
   // Функция для проверки статуса соединения и обновления UI
   const updateConnectionStatus = (status, message = null) => {
-    console.log(`[WebSocket] Статус соединения изменился: ${status}`);
     setConnectionStatus(status);
     
     if (status === 'error' || status === 'disconnected') {
@@ -869,7 +842,6 @@ function ConsultationChat({
     
     try {
       // Сначала пробуем через WebSocket
-      console.log("[Chat] Запускаем завершение консультации");
       
       // Получаем WebSocket соединение из сервиса
       const wsConnection = await webSocketService.getConsultationConnection(
@@ -880,7 +852,6 @@ function ConsultationChat({
       
       // Проверяем соединение WebSocket
       if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-        console.log("[Chat] WebSocket соединение активно, отправляем запрос на завершение");
         
         // Отправляем запрос на завершение через WebSocket
         wsConnection.send(JSON.stringify({
@@ -891,7 +862,6 @@ function ConsultationChat({
         
         // Запускаем таймер для запасного варианта через HTTP API
         const fallbackTimer = setTimeout(async () => {
-          console.log("[Chat] Сработал таймаут WebSocket, пробуем HTTP API");
           
           try {
             // Пробуем завершить через HTTP API
@@ -905,7 +875,7 @@ function ConsultationChat({
               onConsultationUpdated(result);
             }
           } catch (apiError) {
-            console.error("[Chat] Не удалось завершить консультацию через HTTP API:", apiError);
+            // Не удалось завершить консультацию через HTTP API
             toast.dismiss('complete-consultation');
             toast.error(t('completionFailed'));
           }
@@ -936,7 +906,7 @@ function ConsultationChat({
               }
             }
           } catch (e) {
-            console.error('[Chat] Ошибка при обработке сообщения WebSocket:', e);
+            // Ошибка при обработке сообщения WebSocket
           }
         };
         
@@ -947,7 +917,6 @@ function ConsultationChat({
         return;
       } else {
         // Если WebSocket не работает, сразу пробуем через HTTP
-        console.log("[Chat] WebSocket соединение не активно, пробуем HTTP API");
         
         // Пробуем завершить через HTTP API
         const result = await consultationsApi.completeConsultation(consultationId);
@@ -961,7 +930,7 @@ function ConsultationChat({
         }
       }
     } catch (error) {
-      console.error("[Chat] Ошибка при завершении консультации:", error);
+      // Ошибка при завершении консультации
       toast.dismiss('complete-consultation');
       toast.error(t('completionFailed'));
     }
@@ -974,7 +943,6 @@ function ConsultationChat({
       return;
     }
     
-    console.log('[Chat] Выполняем автоматическое завершение консультации');
     
     // Показываем уведомление
     toast.loading(t('finalizingConsultation'), {id: 'auto-complete-consultation'});
@@ -988,7 +956,7 @@ function ConsultationChat({
     
     // Проверяем WebSocket соединение
     if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
-      console.error('[Chat] Нет соединения WebSocket для завершения консультации');
+      // Нет соединения WebSocket для завершения консультации
       toast.error(t('serverConnectionFailed'), {id: 'auto-complete-consultation'});
       return;
     }
@@ -1015,7 +983,7 @@ function ConsultationChat({
             resolve(data.consultation);
           }
         } catch (e) {
-          console.error('[WebSocket] Ошибка при обработке ответа на завершение консультации:', e);
+          // Ошибка при обработке ответа на завершение консультации
         }
       };
       
@@ -1042,7 +1010,6 @@ function ConsultationChat({
         reason: 'Достигнут лимит сообщений'
       }));
       
-      console.log("[WebSocket] Запрос на автоматическое завершение консультации отправлен");
     });
     
     // Обрабатываем результат
@@ -1061,7 +1028,6 @@ function ConsultationChat({
         }
       })
       .catch((error) => {
-        console.error("[Chat] Ошибка при автоматическом завершении консультации:", error);
       });
   };
 
@@ -1073,7 +1039,6 @@ function ConsultationChat({
     }
     
     // Логируем изменение статуса соединения
-    console.log(`[WebSocket] Статус соединения изменился: ${connectionStatus}`);
   }, [connectionStatus]);
   
   // Проверка здоровья WebSocket соединения
@@ -1091,7 +1056,6 @@ function ConsultationChat({
       if ((lastSyncTime && now - lastSyncTime > 40000) || 
           (socketRef.current && socketRef.current.readyState !== WebSocket.OPEN)) {
         
-        console.log('[WebSocket] Проверка здоровья соединения: соединение не активно');
         
         // Если соединение всё ещё существует, но не в состоянии OPEN, закрываем его
         if (socketRef.current && socketRef.current.readyState !== WebSocket.OPEN) {
@@ -1108,15 +1072,12 @@ function ConsultationChat({
         // Запускаем процесс переподключения
         scheduleReconnect();
       } else {
-        console.log('[WebSocket] Проверка здоровья соединения: соединение активно');
         
         // Отправляем пинг для проверки соединения
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
           try {
             socketRef.current.send(JSON.stringify({ type: 'ping' }));
-            console.log('[WebSocket] Отправлен ping в рамках проверки здоровья');
           } catch (error) {
-            console.error('[WebSocket] Ошибка при отправке ping:', error);
             setConnectionStatus('disconnected');
             scheduleReconnect();
           }
@@ -1138,17 +1099,14 @@ function ConsultationChat({
         case 'pong':
           // Обновляем время последнего пинга
           setLastSyncTime(new Date());
-          console.log('[WebSocket] Ping успешен, соединение активно');
           break;
           
         case 'message':
           // Получено новое сообщение
           const newMessage = data.message;
-          console.log('[WebSocket] Получено новое сообщение');
           
           // Строгая проверка дублирования
           if (processedMessageIds.has(newMessage.id)) {
-            console.log('[WebSocket] Сообщение уже обработано, пропускаем:', newMessage.id);
             return;
           }
           
@@ -1170,7 +1128,6 @@ function ConsultationChat({
               if (!exists) {
                 return [...prevMessages, newMessage];
               }
-              console.log('[WebSocket] Сообщение уже существует в списке:', newMessage.id);
               return prevMessages;
             });
           }
@@ -1183,11 +1140,9 @@ function ConsultationChat({
             // Подсчитываем сообщения от пациента
             const patientMessageCount = messages.filter(m => m.sender_id === user?.id).length + 1;
             
-            console.log(`[Chat] Сообщений от пациента: ${patientMessageCount}/${consultation.message_limit}`);
             
             // Если достигнут лимит сообщений, автоматически завершаем консультацию
             if (patientMessageCount >= consultation.message_limit && consultation.status === 'active') {
-              console.log('[Chat] Достигнут лимит сообщений. Автоматическое завершение консультации.');
               
               // Показываем предупреждение
               toast.error(t('messageLimitReached'), {
@@ -1210,7 +1165,6 @@ function ConsultationChat({
         case 'messages_bulk':
           // Получена история сообщений
           const receivedMessages = data.messages || [];
-          console.log(`[WebSocket] Получена история сообщений: ${receivedMessages.length} сообщений`);
           
           if (receivedMessages.length > 0) {
             // Сортируем сообщения по времени
@@ -1231,7 +1185,6 @@ function ConsultationChat({
         case 'read_receipt':
           // Сообщение прочитано
           const messageId = data.message_id;
-          console.log('[WebSocket] Сообщение отмечено как прочитанное:', messageId);
           
           // Обновляем статус прочтения в сообщениях
           setMessages(prevMessages => 
@@ -1243,7 +1196,6 @@ function ConsultationChat({
           
         case 'status_update':
           // Обновление статуса консультации
-          console.log('[WebSocket] Обновление статуса консультации:', data.consultation?.status);
           
           if (data.consultation && data.consultation.status) {
             // Обновляем статус консультации в родительском компоненте
@@ -1257,7 +1209,6 @@ function ConsultationChat({
             
             // Обрабатываем статус "completed" - консультация завершена
             if (data.consultation.status === 'completed') {
-              console.log('[Chat] Консультация завершена через WebSocket');
               
               // Уведомляем родительский компонент об изменении
               if (onConsultationUpdated) {
@@ -1270,14 +1221,12 @@ function ConsultationChat({
               
               // НЕ показываем модальное окно отзыва здесь - это делает ConsultationPage
               // Просто уведомляем о завершении
-              console.log('[Chat] Консультация завершена, родительский компонент должен обработать показ отзыва');
             }
           }
           break;
           
         case 'review_added':
           // Получено уведомление о добавлении отзыва
-          console.log('[WebSocket] Получено уведомление о добавлении отзыва для консультации:', data.consultation_id || consultationId);
           
           // Обновляем статус отзыва (данный код дублирует логику в handleWebSocketMessage, но оставляем для надежности)
           setIsCompleteModalOpen(true);
@@ -1285,7 +1234,6 @@ function ConsultationChat({
           
         case 'consultation_data':
           // Получены полные данные консультации
-          console.log('[WebSocket] Получены полные данные консультации');
           
           // Устанавливаем сообщения из bulk-ответа
           if (data.messages && Array.isArray(data.messages)) {
@@ -1293,7 +1241,6 @@ function ConsultationChat({
               return new Date(a.sent_at) - new Date(b.sent_at);
             });
             
-            console.log(`[WebSocket] Получено ${sortedMessages.length} сообщений из bulk-ответа`);
             setMessages(sortedMessages);
             
             // Обновляем время последней синхронизации
@@ -1310,15 +1257,12 @@ function ConsultationChat({
           
         case 'error':
           // Сообщение об ошибке от сервера
-          console.error('[WebSocket] Ошибка от сервера:', data.message);
           toast.error(data.message || t('unknownError'));
           break;
           
         default:
-          console.log('[WebSocket] Получено сообщение другого типа:', data.type);
       }
     } catch (error) {
-      console.error('[WebSocket] Ошибка при обработке сообщения:', error);
     }
   };
 
@@ -1326,14 +1270,12 @@ function ConsultationChat({
   const scheduleReconnect = () => {
     // Если отключены переподключения или компонент размонтирован - не пытаемся переподключаться
     if (disableReconnect.current || isUnmounting.current) {
-      console.log('[WebSocket] Переподключение отменено: компонент размонтирован или переподключение отключено');
       return;
     }
     
     // Увеличиваем счетчик попыток переподключения
     setReconnectAttempts(prev => {
       const newCount = prev + 1;
-      console.log(`[WebSocket] Запланировано переподключение (попытка ${newCount})`);
       
       // Экспоненциальная задержка с верхним пределом 2 минуты
       // Base * 2^attempt с ограничением максимума
@@ -1345,7 +1287,6 @@ function ConsultationChat({
       const jitter = (Math.random() * 0.2 - 0.1) * exponentialDelay; // ±10% случайное смещение
       const delay = Math.round(exponentialDelay + jitter);
       
-      console.log(`[WebSocket] Задержка перед следующей попыткой: ${delay}ms`);
       
       // Если максимальное количество попыток не достигнуто - планируем переподключение
       if (newCount <= maxReconnectAttempts) {
@@ -1358,10 +1299,8 @@ function ConsultationChat({
         reconnectTimeoutRef.current = setTimeout(() => {
           // Проверяем, что компонент не размонтирован и переподключение не отключено
           if (!isUnmounting.current && !disableReconnect.current) {
-            console.log(`[WebSocket] Выполняем попытку переподключения ${newCount}`);
             initWebSocket();
           } else {
-            console.log('[WebSocket] Переподключение отменено: компонент размонтирован или переподключение отключено');
           }
         }, delay);
       } else {
@@ -1386,12 +1325,10 @@ function ConsultationChat({
     
     if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
       try {
-        console.log('[WebSocket] Отправка запроса на пометку всех сообщений как прочитанных');
         wsConnection.send(JSON.stringify({
           type: 'mark_read'
         }));
       } catch (error) {
-        console.error('[WebSocket] Ошибка при отправке пометки прочтения:', error);
       }
     }
   };
@@ -1418,7 +1355,6 @@ function ConsultationChat({
           )
         );
       } catch (error) {
-        console.error('[WebSocket] Ошибка при отправке статуса прочтения:', error);
       }
     }
   };
@@ -1461,7 +1397,6 @@ function ConsultationChat({
         }, 500);
       }
     } catch (error) {
-      console.error('Ошибка при отправке сообщения:', error);
       toast.error(t('messageSendFailed'));
       
       // Возвращаем текст в поле ввода при ошибке
@@ -1525,7 +1460,6 @@ function ConsultationChat({
         
         const uploadedFiles = await Promise.all(uploadPromises);
         
-        console.log('Файлы загружены, данные:', uploadedFiles);
         
         // Отправляем сообщение с полными данными файлов
         await consultationsApi.sendMessageWithFiles(
@@ -1546,7 +1480,6 @@ function ConsultationChat({
       setTimeout(scrollToBottom, 100);
       
     } catch (error) {
-      console.error('Ошибка при отправке сообщения с файлами:', error);
       toast.error(t('uploadError'));
     } finally {
       setIsUploading(false);
@@ -1664,7 +1597,6 @@ function ConsultationChat({
                     // Дополнительная проверка перед открытием
                     const reviewKey = `review_added_${consultationId}`;
                     if (localStorage.getItem(reviewKey) === 'true') {
-                      console.log('[Chat] Отзыв уже существует, не открываем модальное окно');
                       return;
                     }
                     
@@ -1686,10 +1618,7 @@ function ConsultationChat({
                   variant="light"
                   className="hover:bg-danger-100 transition-all duration-300"
                   onPress={() => {
-                    console.log('[Chat] Нажата кнопка "Завершить"');
-                    console.log('[Chat] Текущий статус модального окна:', isCompleteModalOpen);
                     setIsCompleteModalOpen(true);
-                    console.log('[Chat] Новый статус модального окна:', true);
                   }}
                 >
                   Завершить
@@ -1897,7 +1826,6 @@ function ConsultationChat({
         <Modal 
           isOpen={isCompleteModalOpen} 
           onClose={() => {
-            console.log('[Chat] Закрытие модального окна без завершения консультации');
             setIsCompleteModalOpen(false);
           }}
           className="z-50"
@@ -1919,7 +1847,6 @@ function ConsultationChat({
                 color="default" 
                 variant="light" 
                 onPress={() => {
-                  console.log('[Chat] Отмена завершения консультации');
                   setIsCompleteModalOpen(false);
                 }}
               >
@@ -1928,7 +1855,6 @@ function ConsultationChat({
               <Button 
                 color="danger" 
                 onPress={() => {
-                  console.log('[Chat] Подтверждение завершения консультации');
                   completeConsultation();
                 }}
               >
@@ -1940,7 +1866,6 @@ function ConsultationChat({
       </SafeRender>
     );
   } catch (error) {
-    console.error('[Chat] Ошибка при рендеринге компонента:', error);
     // Сохраняем ошибку в состоянии для следующего рендера
     setRenderError(error);
     

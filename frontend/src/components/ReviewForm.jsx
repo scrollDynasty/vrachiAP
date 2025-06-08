@@ -67,7 +67,6 @@ function ReviewForm({ isOpen, onClose, consultationId, onReviewSubmitted, doctor
       // Дополнительная проверка - не отправлен ли отзыв уже
       const reviewKey = `review_added_${consultationId}`;
       if (localStorage.getItem(reviewKey) === 'true') {
-        console.log('Отзыв уже был отправлен ранее');
         toast.success(t('reviewAlreadySent'));
         
         if (onReviewSubmitted) {

@@ -26,6 +26,9 @@ const GoogleProfileForm = ({ onCompleted }) => {
   const [error, setError] = useState(null);
   const [regions, setRegions] = useState([]);
   const [districts, setDistricts] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isLoadingDistricts, setIsLoadingDistricts] = useState(false);
   
   // Получаем текущего пользователя из стора
   const user = useAuthStore(state => state.user);
@@ -44,6 +47,7 @@ const GoogleProfileForm = ({ onCompleted }) => {
   useEffect(() => {
     const regions = getRegions();
     setRegions(regions);
+    setCities(regions); // Используем регионы как города
   }, []);
 
   // Обновляем районы при изменении города/региона
@@ -97,28 +101,8 @@ const GoogleProfileForm = ({ onCompleted }) => {
     setLoading(true);
     setError(null);
     
-    // Добавляем подробное логирование
-    console.log('GoogleProfileForm: Начинаю отправку формы с данными:', formData);
-    
-    // Проверяем наличие заголовка авторизации
-    const hasAuthHeader = !!api.defaults.headers.common['Authorization'];
-    console.log('GoogleProfileForm: Заголовок авторизации установлен:', hasAuthHeader);
-    
-    if (!hasAuthHeader) {
-      console.log('GoogleProfileForm: Пробую получить токен из localStorage и установить его');
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        console.log('GoogleProfileForm: Заголовок авторизации установлен вручную');
-      } else {
-        console.error('GoogleProfileForm: Токен не найден в localStorage!');
-      }
-    }
-    
     try {
-      console.log('GoogleProfileForm: Отправляю POST запрос на /users/me/google-profile');
-      
-      // Явно добавляем заголовок авторизации в запрос
+      // Получаем токен для авторизации
       const token = localStorage.getItem('auth_token');
       const config = token ? {
         headers: {
@@ -127,86 +111,42 @@ const GoogleProfileForm = ({ onCompleted }) => {
         }
       } : undefined;
       
-      console.log('GoogleProfileForm: Конфигурация запроса:', config);
-      
       const response = await api.post('/users/me/google-profile', formData, config);
       
-      console.log('GoogleProfileForm: Успешный ответ от сервера:', response);
-      console.log('GoogleProfileForm: Статус ответа:', response.status);
-      console.log('GoogleProfileForm: Данные ответа:', response.data);
-      
-      // Обновляем информацию о пользователе в сторе и сбрасываем флаг needsProfileUpdate
+      // Обновляем информацию о пользователе в сторе
       if (user) {
-        console.log('GoogleProfileForm: Обновляю данные пользователя в сторе');
-        
-        // Используем функцию обновления стора напрямую
-        useAuthStore.setState(state => {
-          console.log('GoogleProfileForm: Текущее состояние store перед обновлением:', state);
-          
-          return {
-            ...state,
-            user: {
-              ...user,
-              role: formData.role,
-              is_active: true
-            },
-            needsProfileUpdate: false // Явно указываем, что профиль обновлен
-          };
-        });
-        
-        // Дополнительная проверка обновления store
-        setTimeout(() => {
-          console.log('GoogleProfileForm: Состояние store после обновления:', {
-            needsProfileUpdate: false,
-            userRole: formData.role,
-            isActive: true
-          });
-        }, 100);
-        
-        console.log('GoogleProfileForm: Данные пользователя обновлены в сторе');
-        console.log('GoogleProfileForm: Установлено needsProfileUpdate = false');
+        useAuthStore.setState(state => ({
+          ...state,
+          user: {
+            ...user,
+            role: formData.role,
+            is_active: true
+          },
+          needsProfileUpdate: false
+        }));
       }
       
-      // Принудительно обновляем пользовательские данные через API
+      // Получаем обновленные данные пользователя
       try {
-        console.log('GoogleProfileForm: Запрашиваю обновленные данные пользователя');
         const userResponse = await api.get('/users/me', config);
         if (userResponse.status === 200) {
-          console.log('GoogleProfileForm: Получены обновленные данные пользователя:', userResponse.data);
-          
-          // Обновляем пользователя в store с новыми данными
           useAuthStore.setState(state => ({
             ...state,
             user: userResponse.data,
             needsProfileUpdate: false
           }));
-          
-          console.log('GoogleProfileForm: Пользовательские данные обновлены из API');
         }
       } catch (userError) {
-        console.error('GoogleProfileForm: Ошибка при получении обновленных данных пользователя:', userError);
+        console.error('Ошибка при получении обновленных данных пользователя:', userError);
       }
       
-      // Вызываем колбэк завершения с задержкой, чтобы store успел обновиться
+      // Вызываем колбэк завершения
       if (onCompleted) {
-        console.log('GoogleProfileForm: Вызываю callback onCompleted с небольшой задержкой');
-        
-        // Добавляем небольшую задержку перед вызовом callback
         setTimeout(() => {
           onCompleted(response.data);
         }, 500);
       }
     } catch (error) {
-      console.error('GoogleProfileForm: Ошибка при сохранении профиля:', error);
-      
-      if (error.response) {
-        console.error('GoogleProfileForm: Статус ошибки:', error.response.status);
-        console.error('GoogleProfileForm: Данные ошибки:', error.response.data);
-      } else if (error.request) {
-        console.error('GoogleProfileForm: Ошибка запроса (нет ответа от сервера):', error.request);
-      } else {
-        console.error('GoogleProfileForm: Сообщение об ошибке:', error.message);
-      }
       
       setError(error.response?.data?.detail || 'Не удалось сохранить профиль. Пожалуйста, попробуйте снова.');
     } finally {
@@ -362,8 +302,8 @@ const GoogleProfileForm = ({ onCompleted }) => {
                     }
                   >
                     {cities.map((cityItem) => (
-                      <SelectItem key={cityItem.value} value={cityItem.value} textValue={cityItem.label}>
-                        {cityItem.label}
+                      <SelectItem key={cityItem.value || cityItem} value={cityItem.value || cityItem} textValue={cityItem.label || cityItem}>
+                        {cityItem.label || cityItem}
                       </SelectItem>
                     ))}
                   </Select>

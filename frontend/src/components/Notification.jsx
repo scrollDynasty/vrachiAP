@@ -19,7 +19,6 @@ function NotificationPermissionHandler() {
     try {
       const permission = await Notification.requestPermission();
       setPermissionState(permission);
-      console.log('Статус разрешения уведомлений:', permission);
     } catch (error) {
       console.error('Ошибка при запросе разрешения на уведомления:', error);
     }
@@ -112,7 +111,6 @@ function DoctorApplicationNotification({ application, onClose }) {
   // Автоматическое скрытие уведомления через 15 секунд
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('Автоматическое закрытие уведомления через 15 секунд, ID:', application.id);
       if (onClose) {
         onClose();
       }
@@ -167,7 +165,6 @@ function DoctorApplicationNotification({ application, onClose }) {
   
   // Простая функция для обработки закрытия
   const handleCloseClick = () => {
-    console.log('Закрываем уведомление с ID:', application.id);
     if (onClose) {
       onClose();
     }
@@ -278,7 +275,6 @@ function ApplicationStatusTracker() {
       setLoading(true);
       const data = await notificationsApi.checkDoctorApplicationUpdates();
       
-      console.log('Получены обновления заявок:', data);
       
       // Проверяем, что data - это массив перед использованием
       if (!Array.isArray(data)) {
@@ -352,7 +348,6 @@ function ApplicationStatusTracker() {
   
   // Обработчик закрытия уведомления
   const handleDismissNotification = async (applicationId) => {
-    console.log('Закрытие уведомления с ID:', applicationId);
     
     // Удаляем уведомление из текущего списка при закрытии
     setApplications(prev => prev.filter(app => Number(app.id) !== Number(applicationId)));
@@ -360,7 +355,6 @@ function ApplicationStatusTracker() {
     // Отправляем на сервер информацию о том, что пользователь просмотрел уведомление
     try {
       await notificationsApi.markAsViewed(applicationId);
-      console.log(`Уведомление ${applicationId} отмечено как просмотренное на сервере`);
     } catch (error) {
       console.error('Ошибка при отметке уведомления как просмотренного:', error);
     }

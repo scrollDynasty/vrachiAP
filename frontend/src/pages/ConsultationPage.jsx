@@ -61,7 +61,7 @@ function ConsultationPage() {
             setPatientName(patientProfileResponse.data.full_name);
           }
         } catch (patientError) {
-          console.log('Не удалось загрузить профиль пациента:', patientError);
+          // Не удалось загрузить профиль пациента
           // Если не получилось загрузить профиль через /users/{id}/profile
           // Пробуем другой эндпоинт
           try {
@@ -70,16 +70,16 @@ function ConsultationPage() {
               setPatientName(patientUserResponse.data.full_name);
             }
           } catch (adminError) {
-            console.log('Не удалось загрузить профиль пациента через админ API:', adminError);
+            // Не удалось загрузить профиль пациента через админ API
           }
         }
       } catch (profileError) {
-        console.error('Ошибка загрузки профилей:', profileError);
+        // Ошибка загрузки профилей
       }
       
       return response.data;
     } catch (error) {
-      console.error('Error fetching consultation:', error);
+      // Ошибка получения консультации
       
       const errorMessage = error.response?.data?.detail || 
         'Не удалось загрузить данные консультации.';
@@ -102,7 +102,7 @@ function ConsultationPage() {
       // Проверяем localStorage - если отзыв уже был добавлен ранее
       const reviewKey = `review_added_${consultationId}`;
       if (localStorage.getItem(reviewKey) === 'true') {
-        console.log('Отзыв уже был добавлен ранее (из localStorage в ConsultationPage)');
+        // Отзыв уже был добавлен ранее
         setHasReview(true);
         setIsReviewModalOpen(false); // Принудительно закрываем модальное окно
         return;
@@ -118,7 +118,7 @@ function ConsultationPage() {
         // Сохраняем в localStorage для будущих проверок
         localStorage.setItem(reviewKey, 'true');
         sessionStorage.setItem(reviewKey, 'true');
-        console.log('Отзыв найден в БД, сохранено в localStorage');
+        // Отзыв найден в БД, сохранено в localStorage
       }
       
     } catch (error) {
@@ -126,7 +126,7 @@ function ConsultationPage() {
       if (error.response?.status === 404) {
         setHasReview(false);
       } else {
-        console.error('Error checking review:', error);
+        // Ошибка проверки отзыва
       }
     }
   };
@@ -161,9 +161,9 @@ function ConsultationPage() {
         await api.post(`/api/consultations/${consultationId}/notify`, {
           message: 'Врач начал консультацию. Вы можете начать общение.'
         });
-        console.log('Уведомление о начале консультации отправлено пациенту');
+        // Уведомление о начале консультации отправлено пациенту
       } catch (notifyError) {
-        console.error('Ошибка отправки уведомления:', notifyError);
+        // Ошибка отправки уведомления
         // Не показываем ошибку пользователю, это некритичная операция
       }
       
@@ -178,7 +178,7 @@ function ConsultationPage() {
         sessionStorage.removeItem(firstRequestTimeKey);
         sessionStorage.removeItem(lastActivityKey);
       } catch (storageError) {
-        console.warn('Ошибка при очистке счетчиков запросов:', storageError);
+        // Ошибка при очистке счетчиков запросов
       }
       
       // Принудительно обновляем компонент чата с небольшой задержкой
@@ -190,7 +190,7 @@ function ConsultationPage() {
       // Закрываем индикатор загрузки
       toast.dismiss();
       
-      console.error('Error starting consultation:', error);
+      // Ошибка начала консультации
       
       const errorMessage = error.response?.data?.detail || 
         'Не удалось начать консультацию.';
@@ -250,7 +250,7 @@ function ConsultationPage() {
       }, 2000);
       
     } catch (error) {
-      console.error('Error submitting review:', error);
+      // Ошибка отправки отзыва
       
       const errorMessage = error.response?.data?.detail || 
         'Не удалось отправить отзыв.';
@@ -278,7 +278,6 @@ function ConsultationPage() {
         // Принудительно проверяем наличие отзыва в localStorage
         const reviewKey = `review_added_${consultationId}`;
         if (localStorage.getItem(reviewKey) === 'true') {
-          console.log('Отзыв уже существует в localStorage, устанавливаем hasReview = true');
           setHasReview(true);
           setIsReviewModalOpen(false); // Закрываем модальное окно, если оно открыто
           return;
@@ -288,7 +287,6 @@ function ConsultationPage() {
         try {
           const response = await api.get(`/api/consultations/${consultationId}/review`);
           if (response.data && response.data.id) {
-            console.log('Повторная проверка API: отзыв существует');
             localStorage.setItem(reviewKey, 'true');
             sessionStorage.setItem(reviewKey, 'true');
             setHasReview(true);
@@ -296,7 +294,6 @@ function ConsultationPage() {
           }
         } catch (error) {
           if (error.response?.status !== 404) {
-            console.error('Ошибка при повторной проверке отзыва:', error);
           }
         }
       }, 1000);
@@ -307,8 +304,6 @@ function ConsultationPage() {
   
   // Функция обработки обновления консультации
   const handleConsultationUpdated = useCallback(async () => {
-    console.log('ConsultationPage: Получен запрос на обновление консультации');
-    
     try {
       // Загружаем свежие данные консультации
       const refreshedConsultation = await fetchConsultation();
@@ -319,14 +314,11 @@ function ConsultationPage() {
       }
       
     } catch (error) {
-      console.error('Ошибка при обновлении консультации:', error);
     }
   }, [consultationId]);
 
   // Функция обработки успешной отправки отзыва  
   const handleReviewSubmitted = useCallback(() => {
-    console.log('ConsultationPage: Отзыв успешно отправлен, обновляем состояние');
-    
     // Сразу обновляем состояние
     setHasReview(true);
     setIsReviewModalOpen(false);
@@ -342,7 +334,6 @@ function ConsultationPage() {
         await fetchConsultation();
         await checkReview(); // Дополнительная проверка
       } catch (error) {
-        console.error('Ошибка при обновлении данных после отзыва:', error);
       }
     }, 500);
     
@@ -357,18 +348,10 @@ function ConsultationPage() {
     const hasReviewInLocalStorage = localStorage.getItem(reviewKey) === 'true';
     const reviewShownRecently = sessionStorage.getItem(reviewShownKey) === 'true';
     
-    console.log('Проверка перед автоматическим открытием модального окна:', {
-      hasReview,
-      hasReviewInLocalStorage,
-      reviewShownRecently,
-      isPatient,
-      status: consultation?.status,
-      isModalOpen: isReviewModalOpen
-    });
+    // Проверка перед автоматическим открытием модального окна
     
     // Если консультация завершена, но отзыв уже есть - убеждаемся что модальное окно закрыто
     if (consultation?.status === 'completed' && (hasReview || hasReviewInLocalStorage)) {
-      console.log('Консультация завершена и отзыв существует - закрываем модальное окно');
       setIsReviewModalOpen(false);
       return;
     }
@@ -382,7 +365,6 @@ function ConsultationPage() {
       !reviewShownRecently &&
       !isReviewModalOpen
     ) {
-      console.log('Автоматически открываем модальное окно отзыва');
       // Отмечаем, что модальное окно было показано в этой сессии
       sessionStorage.setItem(reviewShownKey, 'true');
       setTimeout(() => setIsReviewModalOpen(true), 500);
@@ -396,7 +378,6 @@ function ConsultationPage() {
     // Проверяем каждые 2 секунды, не появился ли отзыв
     const interval = setInterval(() => {
       if (localStorage.getItem(reviewKey) === 'true' && isReviewModalOpen) {
-        console.log('Отзыв найден в localStorage, принудительно закрываем модальное окно');
         setIsReviewModalOpen(false);
         setHasReview(true);
       }
@@ -563,7 +544,6 @@ function ConsultationPage() {
       <ReviewForm 
         isOpen={isReviewModalOpen} 
         onClose={() => {
-          console.log('Закрытие модального окна отзыва');
           setIsReviewModalOpen(false);
         }} 
         consultationId={consultationId}

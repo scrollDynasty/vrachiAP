@@ -100,7 +100,6 @@ function GoogleAuthCallback() {
           }
           processedCodes.push(code);
           getLocalStorage().setItem('processedGoogleCodes', JSON.stringify(processedCodes));
-          console.log(`Auth code '${code.substring(0, 10)}...' marked as processed`);
         }
       } catch (e) {
         console.error('Error adding to processed codes:', e);
@@ -110,7 +109,6 @@ function GoogleAuthCallback() {
     const processAuth = async () => {
       // Если процесс уже запущен, прерываем выполнение
       if (isProcessing) {
-        console.log('Authentication is already in progress, skipping');
         return;
       }
       
@@ -120,7 +118,6 @@ function GoogleAuthCallback() {
       try {
         // Если пользователь уже аутентифицирован, перенаправляем его
         if (isAuthenticated) {
-          console.log("User already authenticated, redirecting");
           setStatus('success');
           if (!needsProfileUpdate) {
             setTimeout(() => {
@@ -141,14 +138,11 @@ function GoogleAuthCallback() {
         
         // Если получили токен напрямую от бэкенда - используем его
         if (token) {
-          console.log('Direct token received from backend, using it');
           
           try {
             // Импортируем функцию для установки токена
             const { setAuthToken } = await import('../api');
             
-            console.log('GoogleAuthCallback: Received token, length:', token.length);
-            console.log('GoogleAuthCallback: Token starts with:', token.substring(0, 10) + '...');
             
             // Загружаем API для запроса
             let api;
@@ -168,11 +162,9 @@ function GoogleAuthCallback() {
             try {
               // Удаляем существующий токен, если он есть
               getLocalStorage().removeItem('auth_token');
-              console.log('GoogleAuthCallback: Старый токен удален из localStorage');
               
               // Устанавливаем новый токен
               getLocalStorage().setItem('auth_token', token);
-              console.log('GoogleAuthCallback: Новый токен установлен в localStorage');
             } catch (localStorageError) {
               console.error('GoogleAuthCallback: Error setting token in localStorage:', localStorageError);
             }
@@ -186,12 +178,10 @@ function GoogleAuthCallback() {
               
               // Устанавливаем новый токен
               tokenSetResult = setAuthToken(token);
-              console.log('GoogleAuthCallback: Новый токен установлен в заголовки API');
             } catch (tokenSetError) {
               console.error('GoogleAuthCallback: Error setting token via API:', tokenSetError);
             }
             
-            console.log('GoogleAuthCallback: Token set result:', tokenSetResult);
             
             // Обновляем состояние в authStore
             try {
@@ -250,7 +240,6 @@ function GoogleAuthCallback() {
                 
                 // Всегда перенаправляем на главную страницу, независимо от needProfile
                 // Форма заполнения профиля будет показана на главной странице, если необходимо
-                console.log('GoogleAuthCallback: Redirecting to home page, needsProfileUpdate =', needProfile);
                 setTimeout(() => {
                   navigate('/');
                 }, 1500);
@@ -303,12 +292,10 @@ function GoogleAuthCallback() {
         const sessionStorage = getSessionStorage();
         const isProcessedInSession = sessionStorage.getItem(`google_auth_code_${code}`);
         if (isProcessedInSession === 'processing') {
-          console.log('This auth code is currently being processed');
           return;
         }
         
         if (checkProcessedCodes(code)) {
-          console.log('This auth code was already processed');
           
           // Если пользователь аутентифицирован, просто перенаправляем
           if (isAuthenticated) {
@@ -329,7 +316,6 @@ function GoogleAuthCallback() {
         // Помечаем код как обрабатываемый в текущей сессии
         sessionStorage.setItem(`google_auth_code_${code}`, 'processing');
         
-        console.log(`Processing Google auth code: ${code.substring(0, 10)}...`);
         
         try {
           // Вызываем метод авторизации из стора
@@ -343,7 +329,6 @@ function GoogleAuthCallback() {
           
           // Всегда перенаправляем на главную страницу, независимо от needProfile
           // Форма заполнения профиля будет показана на главной странице, если необходимо
-          console.log('GoogleAuthCallback: Redirecting to home page, needsProfileUpdate =', needProfile);
           setTimeout(() => {
             navigate('/');
           }, 1500);
@@ -394,7 +379,6 @@ function GoogleAuthCallback() {
       
       // Проверяем, если пользователь все же аутентифицирован, несмотря на ошибку
       if (isAuthenticated) {
-        console.log("Authentication succeeded despite error, continuing");
         setStatus('success');
         if (!needsProfileUpdate) {
           setTimeout(() => {
@@ -416,7 +400,6 @@ function GoogleAuthCallback() {
         if (!lastCleared || now - parseInt(lastCleared, 10) > 24 * 60 * 60 * 1000) {
           getLocalStorage().setItem('processedGoogleCodes', '[]');
           getLocalStorage().setItem('lastCodeClearing', now.toString());
-          console.log('Expired Google auth codes cleared');
         }
       } catch (e) {
         // Игнорируем ошибки очистки
@@ -437,11 +420,9 @@ function GoogleAuthCallback() {
     // Обработчик успешной аутентификации через Google
     const handleAuthSuccess = async () => {
       if (isAuthenticated && !error && !isProcessing) {
-        console.log('GoogleAuthCallback: Аутентификация через Google успешна');
         
         // Проверяем, нужно ли пользователю заполнить профиль
         if (needsProfileUpdate) {
-          console.log('GoogleAuthCallback: Перенаправление на страницу заполнения профиля');
           navigate('/profile');
           return;
         }
@@ -449,23 +430,19 @@ function GoogleAuthCallback() {
         // Проверяем, есть ли сохраненный URL для перенаправления после обновления токена
         const redirectUrl = sessionStorage.getItem('auth_redirect_url');
         if (redirectUrl) {
-          console.log(`GoogleAuthCallback: Обнаружен URL перенаправления после обновления токена: ${redirectUrl}`);
           sessionStorage.removeItem('auth_redirect_url');
           
           // Задержка перед перенаправлением для гарантии установки токена
           await new Promise(resolve => setTimeout(resolve, 800));
-          console.log('GoogleAuthCallback: Задержка перед перенаправлением завершена, токен должен быть установлен');
           
           window.location.href = redirectUrl;
           return;
         }
         
         // Иначе перенаправляем на главную
-        console.log('GoogleAuthCallback: Перенаправление на домашнюю страницу, needsProfileUpdate =', needsProfileUpdate);
         
         // Задержка перед перенаправлением для гарантии установки токена
         await new Promise(resolve => setTimeout(resolve, 800));
-        console.log('GoogleAuthCallback: Задержка перед перенаправлением завершена, токен должен быть установлен');
         
         navigate('/');
       }

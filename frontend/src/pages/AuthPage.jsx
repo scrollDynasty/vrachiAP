@@ -59,28 +59,15 @@ function AuthPage() {
     
     // Устанавливаем текущую вкладку на основе URL
     const currentPath = location.pathname;
-    console.log('AuthPage: Current path is', currentPath);
     
     if (currentPath === '/register') {
-      console.log('AuthPage: Setting tab to register');
       setCurrentTab('register');
     } else {
-      console.log('AuthPage: Setting tab to login');
       setCurrentTab('login');
     }
   }, [location.pathname]);
 
   useEffect(() => {
-    console.log('AuthPage REDIRECT CHECK:', { 
-      isAuthenticated, 
-      user, 
-      authError, 
-      isAuthLoading,
-      token: useAuthStore.getState().token,
-      pendingVerificationEmail,
-      registrationCompleted
-    });
-
     // Проверяем все необходимые условия для редиректа на главную
     const shouldRedirect = 
       isAuthenticated && // Пользователь аутентифицирован
@@ -90,16 +77,7 @@ function AuthPage() {
       useAuthStore.getState().token; // Есть валидный токен
 
     if (shouldRedirect) {
-      console.log('AuthPage: Все условия для редиректа выполнены, перенаправляем на главную');
       navigate('/');
-    } else {
-      console.log('AuthPage: Условия для редиректа не выполнены:', {
-        isAuthenticated,
-        hasUser: !!user,
-        hasError: !!authError,
-        isLoading: isAuthLoading,
-        hasToken: !!useAuthStore.getState().token
-      });
     }
   }, [isAuthenticated, user, authError, isAuthLoading, navigate, pendingVerificationEmail]);
 
@@ -113,7 +91,6 @@ function AuthPage() {
 
   // Обработчик входа пользователя
   const handleLogin = async (email, password, rememberMe = false) => {
-    console.log('AuthPage: Handling login for email:', email);
     
     try {
       // Очищаем текущее состояние перед новой попыткой входа
@@ -121,13 +98,6 @@ function AuthPage() {
       
       // Вызываем функцию login из authStore
       await login(email, password);
-      
-      console.log('AuthPage: Login successful, state:', { 
-        isAuthenticated: useAuthStore.getState().isAuthenticated,
-        hasUser: !!useAuthStore.getState().user,
-        hasToken: !!useAuthStore.getState().token,
-        error: useAuthStore.getState().error
-      });
       
       // Здесь можно выполнить дополнительные действия после успешного входа
       // Но редирект должен происходить автоматически в useEffect с зависимостью от isAuthenticated
@@ -163,7 +133,6 @@ function AuthPage() {
 
   // Обработчик регистрации пользователя
   const handleRegister = async (userData) => {
-    console.log('AuthPage: Handling registration for email:', userData.email);
 
     try {
       // Очищаем текущее состояние перед новой попыткой регистрации
@@ -172,7 +141,6 @@ function AuthPage() {
       // Вызываем функцию register из authStore
       const result = await registerUser(userData);
 
-      console.log('AuthPage: Registration result:', result);
 
       // Проверяем результат регистрации
       if (result && result.success === false) {
@@ -200,12 +168,10 @@ function AuthPage() {
 
       // Проверяем, требуется ли подтверждение email
       if (result && result.requiresEmailVerification) {
-        console.log('AuthPage: Registration successful, email verification required');
         // Вместо установки флага для перенаправления на страницу подтверждения,
         // сразу перенаправляем на домашнюю страницу
         navigate('/');
       } else if (useAuthStore.getState().isAuthenticated) {
-        console.log('AuthPage: Registration successful, user authenticated');
         // Редирект произойдет автоматически через useEffect с isAuthenticated
       }
 
@@ -252,7 +218,6 @@ function AuthPage() {
 
   // Обработчики переключения вкладок
   const handleLoginTabClick = () => {
-    console.log('AuthPage: Login tab clicked');
     setFormTransition(true);
     setTimeout(() => {
       navigate('/login');
@@ -261,7 +226,6 @@ function AuthPage() {
   };
 
   const handleRegisterTabClick = () => {
-    console.log('AuthPage: Register tab clicked');
     setFormTransition(true);
     setTimeout(() => {
       navigate('/register');

@@ -24,7 +24,6 @@ export const AuthProvider = ({ children }) => {
           const response = await api.get('/users/me');
           setUser(response.data);
         } catch (error) {
-          console.error('Error loading user:', error);
           // Если ошибка авторизации, очищаем токен
           if (error.response?.status === 401) {
             localStorage.removeItem('token');
@@ -68,7 +67,6 @@ export const AuthProvider = ({ children }) => {
       
       return userResponse.data;
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   };
@@ -92,7 +90,6 @@ export const AuthProvider = ({ children }) => {
       
       return userResponse.data;
     } catch (error) {
-      console.error('Google login error:', error);
       throw error;
     }
   };
@@ -127,7 +124,6 @@ export const AuthProvider = ({ children }) => {
       
       return userResponse.data;
     } catch (error) {
-      console.error('Registration error:', error);
       throw error;
     }
   };

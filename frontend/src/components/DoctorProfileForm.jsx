@@ -80,7 +80,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
    // Предзаполнение формы при получении данных профиля
    useEffect(() => {
       if (profile) {
-         console.log('Получен профиль врача:', profile);
          
          setFullName(profile.full_name || '');
          setSpecialization(profile.specialization || '');
@@ -91,10 +90,8 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             try {
                // Проверяем, есть ли аватар в профиле или в связанном пользователе
                if (profile.user && profile.user.avatar_path) {
-                  console.log('Загружен аватар из профиля врача (user.avatar_path):', profile.user.avatar_path);
                   setProfileImage(profile.user.avatar_path);
                } else if (profile.avatar_path) {
-                  console.log('Загружен аватар напрямую из профиля врача (avatar_path):', profile.avatar_path);
                   setProfileImage(profile.avatar_path);
                } else {
                   // Если аватара нет ни в профиле, ни в связанном пользователе, 
@@ -102,19 +99,15 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                   try {
                      const userResponse = await api.get('/users/me');
                      if (userResponse.data && userResponse.data.avatar_path) {
-                        console.log('Загружен аватар из /users/me API:', userResponse.data.avatar_path);
                         setProfileImage(userResponse.data.avatar_path);
                      } else {
-                        console.log('Аватар не найден в API');
                         setProfileImage(null);
                      }
                   } catch (error) {
-                     console.error('Ошибка при загрузке аватара из API:', error);
                      setProfileImage(null);
                   }
                }
             } catch (error) {
-               console.error('Ошибка при загрузке аватара:', error);
                setProfileImage(null);
             }
          };
@@ -145,7 +138,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                      setAuthProvider(userResponse.data.auth_provider);
                   }
                } catch (error) {
-                  console.error('Ошибка при получении данных о способе аутентификации:', error);
                }
             };
             
@@ -165,7 +157,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             const token = await getCsrfToken();
             setCsrfToken(token);
          } catch (error) {
-            console.error('Ошибка при получении CSRF токена:', error);
          }
       };
       
@@ -197,7 +188,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             setPushNotifications(settings.push_notifications);
             setAppointmentReminders(settings.appointment_reminders);
          } catch (error) {
-            console.error('Ошибка при загрузке настроек уведомлений:', error);
          }
       };
       
@@ -206,7 +196,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          const savedSettings = sessionStorage.getItem('doctorNotificationSettings');
          if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
-            console.log('Загружены сохраненные настройки уведомлений:', parsedSettings);
             
             if (typeof parsedSettings.push_notifications === 'boolean') {
                setPushNotifications(parsedSettings.push_notifications);
@@ -220,7 +209,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             fetchNotificationSettings();
          }
       } catch (error) {
-         console.error('Ошибка при загрузке сохраненных настроек уведомлений:', error);
          // При ошибке пробуем загрузить с сервера
          fetchNotificationSettings();
       }
@@ -283,7 +271,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             });
          })
          .catch(error => {
-            console.error('Ошибка при загрузке аватара:', error);
             
             // Показываем сообщение об ошибке
             toast.error('Не удалось загрузить фото профиля. Попробуйте позже.', {
@@ -384,25 +371,21 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          
          // Проверка наличия CSRF токена
          if (!csrfToken) {
-            console.error('CSRF токен отсутствует. Получаем новый токен...');
             try {
                const tokenResponse = await api.get('/csrf-token');
                setCsrfToken(tokenResponse.data.csrf_token);
             } catch (tokenError) {
-               console.error('Не удалось получить CSRF токен:', tokenError);
                setPasswordError("Ошибка безопасности. Пожалуйста, обновите страницу и попробуйте снова.");
                setIsChangingPassword(false);
                return;
             }
          }
          
-         console.log('Отправка запроса на смену пароля...');
          
          // Всегда получаем свежий CSRF токен перед отправкой запроса на смену пароля
          try {
             const freshTokenResponse = await api.get('/csrf-token');
             const freshToken = freshTokenResponse.data.csrf_token;
-            console.log('Получен свежий CSRF токен для смены пароля');
             
             // Отправляем запрос на смену пароля с свежим CSRF токеном
             const changePasswordResponse = await api.post('/users/me/change-password', {
@@ -410,9 +393,7 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
                current_password: currentPassword,
                new_password: newPassword
             });
-            
-            console.log('Ответ от сервера:', changePasswordResponse);
-            
+                        
             // Показываем уведомление об успешной смене пароля
             toast.success('Пароль успешно изменен', {
                position: 'top-right',
@@ -502,7 +483,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             setIsChangingPassword(false);
          }
       } catch (error) {
-         console.error('Неожиданная ошибка при смене пароля:', error);
          setPasswordError('Произошла неожиданная ошибка. Пожалуйста, попробуйте позже.');
          setIsChangingPassword(false);
       }
@@ -515,7 +495,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
          // Получаем свежий CSRF-токен перед отправкой
          const freshTokenResponse = await api.get('/csrf-token');
          const freshToken = freshTokenResponse.data.csrf_token;
-         console.log('Получен свежий CSRF токен для настроек уведомлений');
          
          // Формируем объект с настройками и проверяем значения
          const notificationSettings = {
@@ -524,10 +503,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             appointment_reminders: !!appointmentReminders // Преобразуем в boolean
          };
          
-         console.log('Сохранение настроек уведомлений:', {
-            push_notifications: notificationSettings.push_notifications,
-            appointment_reminders: notificationSettings.appointment_reminders
-         });
          
          // Отправляем запрос на обновление настроек с CSRF токеном
          await notificationsApi.updateNotificationSettings(notificationSettings);
@@ -555,7 +530,6 @@ function DoctorProfileForm({ profile, onSave, isLoading, error }) {
             appointment_reminders: notificationSettings.appointment_reminders
          }));
       } catch (error) {
-         console.error('Ошибка при сохранении настроек уведомлений:', error);
          
          // Показываем детальное сообщение об ошибке
          let errorMessage = 'Не удалось сохранить настройки. Попробуйте позже.';

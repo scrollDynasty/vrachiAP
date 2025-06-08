@@ -11,22 +11,17 @@ function CompleteProfilePage() {
 
   // Обработчик завершения заполнения профиля
   const handleProfileCompletion = (userData) => {
-    console.log('CompleteProfilePage: Profile updated successfully', userData);
     
     // Используем переменную, которую получили из хука
-    console.log('CompleteProfilePage: Текущее значение needsProfileUpdate:', needsProfileUpdate);
     
     // Явно сбрасываем флаг needsProfileUpdate перед перенаправлением
     useAuthStore.setState({ needsProfileUpdate: false });
-    console.log('CompleteProfilePage: Установлено needsProfileUpdate = false');
     
     // Добавляем задержку для уверенности, что стор успел обновиться
     setTimeout(() => {
-      console.log('CompleteProfilePage: Проверка значения needsProfileUpdate после установки:', 
         useAuthStore.getState().needsProfileUpdate);
       
       // Перенаправляем на главную страницу
-      console.log('CompleteProfilePage: Перенаправляю на главную страницу');
       navigate('/', { replace: true });
     }, 100);
   };

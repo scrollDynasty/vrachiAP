@@ -68,7 +68,6 @@ function LoginForm({ onSubmit, isLoading, error }) {
     
     try {
       // Очищаем любой предыдущий error state перед новой попыткой
-      console.log("LoginForm: Submitting login form");
       
       // Вызываем функцию onSubmit, переданную из родительского компонента
       // Обычно это AuthPage.handleLogin, которая вызывает useAuthStore.login
@@ -76,7 +75,6 @@ function LoginForm({ onSubmit, isLoading, error }) {
       
       // Если успешно (не выброшено исключение), можно ничего не делать,
       // так как перенаправление обычно происходит в родительском компоненте
-      console.log("LoginForm: Login successful");
       
     } catch (err) {
       // Если ошибка возникла в этом компоненте и не была обработана выше,

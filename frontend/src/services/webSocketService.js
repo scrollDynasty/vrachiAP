@@ -119,11 +119,9 @@ class WebSocketService {
     
     // Увеличиваем счётчик запросов
     this.connectionRequestCounts[connectionKey] = (this.connectionRequestCounts[connectionKey] || 0) + 1;
-    console.log(`[WebSocketService] Запрос соединения для ${connectionKey} (запрос #${this.connectionRequestCounts[connectionKey]})`);
     
     // Если соединение уже существует и открыто, возвращаем его
     if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-      console.log(`[WebSocketService] Возвращаю существующее активное соединение для ${connectionKey}`);
       
       // Обновляем обработчик сообщений
       if (onMessage && onMessage !== this.messageHandlers[connectionKey]) {
@@ -137,7 +135,6 @@ class WebSocketService {
     
     // Если есть активная блокировка на это соединение, ждем её снятия
     if (this.connectionLocks[connectionKey]) {
-      console.log(`[WebSocketService] Соединение ${connectionKey} создается другим процессом, ожидание...`);
       
       // Ждем максимум 10 секунд снятия блокировки
       let lockWaitAttempts = 0;
@@ -149,7 +146,6 @@ class WebSocketService {
         
         // Проверяем, не создалось ли соединение за это время
         if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-          console.log(`[WebSocketService] Соединение ${connectionKey} создано другим процессом и готово`);
           
           // Обновляем обработчик сообщений
           if (onMessage && this.messageHandlers[connectionKey] !== onMessage) {
@@ -173,7 +169,6 @@ class WebSocketService {
     
     try {
       // Запрашиваем токен для WebSocket
-      console.log(`[WebSocketService] Запрашиваю токен для WebSocket соединения ${connectionKey}`);
       
       // Если передан callback изменения статуса, вызываем его
       if (onStatusChange) onStatusChange('connecting');
@@ -215,7 +210,6 @@ class WebSocketService {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/notifications/${userId}?token=${token}`;
       
-      console.log(`[WebSocketService] Создаю новое WebSocket соединение для user ${userId}: ${wsUrl.split('?')[0]}?token=***`);
       
       // Создаем новое соединение
       const socket = new WebSocket(wsUrl);
@@ -230,7 +224,6 @@ class WebSocketService {
       
       // Настраиваем обработчики событий
       socket.onopen = () => {
-        console.log(`[WebSocketService] Соединение ${connectionKey} успешно установлено`);
         
         // Если передан callback изменения статуса, вызываем его
         if (onStatusChange) onStatusChange('connected');
@@ -243,7 +236,6 @@ class WebSocketService {
         try {
           // Разбираем сообщение JSON
           const data = JSON.parse(event.data);
-          console.log(`[WebSocketService] Получено сообщение для ${connectionKey}:`, data);
           
           // Если есть обработчик сообщений, вызываем его
           if (this.messageHandlers[connectionKey]) {
@@ -255,7 +247,6 @@ class WebSocketService {
       };
       
       socket.onclose = (event) => {
-        console.log(`[WebSocketService] Соединение ${connectionKey} закрыто:`, event.code, event.reason);
         
         // Если передан callback изменения статуса, вызываем его
         if (onStatusChange) onStatusChange('disconnected', `Соединение закрыто (${event.code})`);
@@ -309,11 +300,9 @@ class WebSocketService {
     
     // Увеличиваем счётчик запросов
     this.connectionRequestCounts[connectionKey] = (this.connectionRequestCounts[connectionKey] || 0) + 1;
-    console.log(`[WebSocketService] Запрос соединения для ${connectionKey} (запрос #${this.connectionRequestCounts[connectionKey]})`);
     
     // Если соединение уже существует и открыто, возвращаем его
     if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-      console.log(`[WebSocketService] Возвращаю существующее активное соединение для ${connectionKey}`);
       
       // Обновляем обработчик сообщений
       if (onMessage && onMessage !== this.messageHandlers[connectionKey]) {
@@ -327,7 +316,6 @@ class WebSocketService {
     
     // Если есть активная блокировка на это соединение, ждем её снятия
     if (this.connectionLocks[connectionKey]) {
-      console.log(`[WebSocketService] Соединение ${connectionKey} создается другим процессом, ожидание...`);
       
       // Ждем максимум 10 секунд снятия блокировки
       let lockWaitAttempts = 0;
@@ -339,7 +327,6 @@ class WebSocketService {
         
         // Проверяем, не создалось ли соединение за это время
         if (this.connections[connectionKey] && this.connections[connectionKey].readyState === WebSocket.OPEN) {
-          console.log(`[WebSocketService] Соединение ${connectionKey} создано другим процессом и готово`);
           
           // Обновляем обработчик сообщений
           if (onMessage && this.messageHandlers[connectionKey] !== onMessage) {
@@ -363,7 +350,6 @@ class WebSocketService {
     
     try {
       // Запрашиваем токен для WebSocket
-      console.log(`[WebSocketService] Запрашиваю токен для WebSocket соединения ${connectionKey}`);
       
       // Если передан callback изменения статуса, вызываем его
       if (onStatusChange) onStatusChange('connecting');
@@ -388,7 +374,6 @@ class WebSocketService {
       // Создаем новое соединение
       const wsUrl = `${this.wsProtocol}//${this.wsHost}/ws/consultations/${consultationId}?token=${token}`;
       
-      console.log(`[WebSocketService] Создаю новое WebSocket соединение: ${wsUrl.split('?')[0]}?token=***`);
       
       // Создаем WebSocket соединение
       const socket = new WebSocket(wsUrl);
@@ -398,7 +383,6 @@ class WebSocketService {
       
       // Устанавливаем обработчики событий
       socket.onopen = () => {
-        console.log(`[WebSocketService] Соединение ${connectionKey} успешно установлено`);
         
         // Если передан обработчик сообщений, сохраняем его
         if (onMessage) {
@@ -413,7 +397,6 @@ class WebSocketService {
       };
       
       socket.onclose = (event) => {
-        console.log(`[WebSocketService] Соединение ${connectionKey} закрыто:`, event.code, event.reason);
         
         // Если передан callback изменения статуса, вызываем его
         if (onStatusChange) onStatusChange('disconnected', `Соединение закрыто (${event.code})`);
@@ -494,7 +477,6 @@ class WebSocketService {
     const connectionKey = `consultation_${consultationId}`;
     
     if (this.connections[connectionKey]) {
-      console.log(`[WebSocketService] Закрываю соединение консультации ${consultationId}`);
       
       try {
         const socket = this.connections[connectionKey];
@@ -525,7 +507,6 @@ class WebSocketService {
     const connectionKey = `notifications_${userId}`;
     
     if (this.connections[connectionKey]) {
-      console.log(`[WebSocketService] Закрываю соединение уведомлений пользователя ${userId}`);
       
       try {
         const socket = this.connections[connectionKey];
@@ -553,7 +534,6 @@ class WebSocketService {
 
   // Закрыть все соединения и очистить ресурсы
   closeAllConnections() {
-    console.log(`[WebSocketService] Закрываю все соединения...`);
     
     this.isShuttingDown = true;
     
@@ -605,7 +585,6 @@ class WebSocketService {
     
     this.isShuttingDown = false;
     
-    console.log(`[WebSocketService] Все соединения закрыты`);
   }
 
   // Проверить состояние соединения

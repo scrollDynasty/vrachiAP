@@ -38,46 +38,33 @@ const translateSpecialization = (specialization, t) => {
 const getAvatarSource = (doctorData) => {
   if (!doctorData) return undefined;
   
-  console.log('getAvatarSource: Проверка источников аватара', {
-    'doctorData.avatar_path': doctorData.avatar_path,
-    'doctorData.photo_path': doctorData.photo_path,
-    'doctorData.user?.avatar_path': doctorData.user?.avatar_path,
-    'doctorData.avatar': doctorData.avatar
-  });
   
   // Проверяем в порядке приоритета
   if (doctorData.avatar_path) {
-    console.log('Используем avatar_path:', doctorData.avatar_path);
     return doctorData.avatar_path;
   }
   
   if (doctorData.photo_path) {
-    console.log('Используем photo_path:', doctorData.photo_path);
     return doctorData.photo_path;
   }
   
   if (doctorData.user && doctorData.user.avatar_path) {
-    console.log('Используем user.avatar_path:', doctorData.user.avatar_path);
     return doctorData.user.avatar_path;
   }
   
   if (doctorData.avatar) {
-    console.log('Используем avatar:', doctorData.avatar);
     return doctorData.avatar;
   }
   
   if (doctorData.application_photo_path) {
-    console.log('Используем application_photo_path:', doctorData.application_photo_path);
     return doctorData.application_photo_path;
   }
   
   // Дополнительная проверка поля photo, которое могло быть загружено при подаче заявки
   if (doctorData.photo) {
-    console.log('Используем photo:', doctorData.photo);
     return doctorData.photo;
   }
   
-  console.log('Не найден подходящий источник аватара, используем заглушку');
   return undefined;
 };
 
@@ -244,116 +231,77 @@ function DoctorProfilePage() {
       setLoading(true);
       try {
         const data = await doctorsApi.getDoctorById(doctorId);
-        console.log('Получены данные о враче:', data);
-        console.log('ID врача:', data.id);
-        console.log('user_id врача:', data.user_id);
         
-        // Подробно выводим все поля объекта data для отладки
-        console.log('Все поля объекта data:');
-        for (const key in data) {
-          console.log(`- ${key}: ${JSON.stringify(data[key])}`);
-        }
         
         // Получаем аватар врача
         if (data && data.avatar_path) {
-          console.log('Аватар врача:', data.avatar_path);
-          console.log('Тип avatar_path:', typeof data.avatar_path);
-          console.log('Длина avatar_path:', data.avatar_path.length);
           
           if (data.avatar_path.startsWith('/')) {
-            console.log('Путь начинается с /');
           } else {
-            console.log('Путь НЕ начинается с /');
           }
         } else {
-          console.log('Аватар врача отсутствует в данных API');
           // Проверим, возможно аватар находится в другом поле или вложенном объекте
           if (data.user && data.user.avatar_path) {
-            console.log('Найден аватар в поле user.avatar_path:', data.user.avatar_path);
             
             // Добавим avatar_path в объект data для единообразия
             data.avatar_path = data.user.avatar_path;
-            console.log('Добавлен avatar_path в объект data:', data.avatar_path);
           }
           if (data.avatar) {
-            console.log('Найдено поле avatar:', data.avatar);
             
             // Если avatar_path еще не установлен
             if (!data.avatar_path) {
               data.avatar_path = data.avatar;
-              console.log('Установлен avatar_path из поля avatar:', data.avatar_path);
             }
           }
           if (data.photo_path) {
-            console.log('Найдено поле photo_path:', data.photo_path);
             
             // Если avatar_path еще не установлен
             if (!data.avatar_path) {
               data.avatar_path = data.photo_path;
-              console.log('Установлен avatar_path из поля photo_path:', data.avatar_path);
             }
           }
           // Дополнительная проверка на поле photo, которое могло быть загружено при подаче заявки
           if (data.photo) {
-            console.log('Найдено поле photo:', data.photo);
             
             if (!data.avatar_path) {
               data.avatar_path = data.photo;
-              console.log('Установлен avatar_path из поля photo:', data.avatar_path);
             }
           }
           // Проверка на application_photo_path - фото из заявки врача
           if (data.application_photo_path) {
-            console.log('Найдено поле application_photo_path:', data.application_photo_path);
+
             
             if (!data.avatar_path) {
               data.avatar_path = data.application_photo_path;
-              console.log('Установлен avatar_path из поля application_photo_path:', data.avatar_path);
             }
           }
         }
         
         setDoctor(data);
         
-        // Отладочная информация о городе и районе
-        console.log('Данные врача для отображения:', {
-          city: data.city,
-          district: data.district,
-          languages: data.languages,
-          user_id: data.user_id,
-          id: data.id
-        });
         
         // Добавим дополнительный запрос для получения профиля пользователя, если avatar_path отсутствует
         if (!data.avatar_path) {
           try {
-            console.log('Попытка получить аватар из профиля врача по URL `/doctors/${data.user_id}/profile`');
             const userResponse = await api.get(`/doctors/${data.user_id}/profile`);
-            console.log('Получен ответ из профиля врача:', userResponse.data);
             
             if (userResponse.data && userResponse.data.user && userResponse.data.user.avatar_path) {
-              console.log('Получен аватар из профиля врача:', userResponse.data.user.avatar_path);
               data.avatar_path = userResponse.data.user.avatar_path;
               setDoctor({...data});
             } else if (userResponse.data && userResponse.data.avatar_path) {
-              console.log('Получен аватар из профиля врача (avatar_path):', userResponse.data.avatar_path);
               data.avatar_path = userResponse.data.avatar_path;
               setDoctor({...data});
             }
           } catch (userErr) {
-            console.error('Не удалось получить данные профиля врача:', userErr);
             
             // Попробуем получить данные админским запросом из заявок врачей (requires admin role)
             try {
-              console.log('Попытка получить данные из админ-панели заявок врачей');
               const adminAppsResponse = await api.get(`/admin/doctor-applications?status=approved`);
-              console.log('Получен ответ от админ API заявок:', adminAppsResponse.data);
               
               if (adminAppsResponse.data && adminAppsResponse.data.items) {
                 // Найдем заявку для нашего user_id
                 const application = adminAppsResponse.data.items.find(app => app.user_id === data.user_id);
                 if (application && application.photo_path) {
-                  console.log('Найдена заявка с фото в админ-панели:', application.photo_path);
                   data.avatar_path = application.photo_path;
                   // Также сохраним ссылку на фото из заявки
                   data.application_photo_path = application.photo_path;
@@ -361,29 +309,23 @@ function DoctorProfilePage() {
                 }
               }
             } catch (adminErr) {
-              console.error('Не удалось получить данные заявок (требуются права админа):', adminErr);
               
               // Последняя попытка: напрямую проверить, существует ли фотография
               try {
-                console.log('Проверка доступности возможных путей к фотографии');
                 
                 // Попробуем создать стандартный путь, если знаем user_id
                 if (data.user_id) {
                   const possiblePhotoPath = `/uploads/photos/doctor_${data.user_id}.jpg`;
-                  console.log('Проверка возможного пути к фото:', possiblePhotoPath);
                   
                   try {
                     // Проверим, существует ли фото по этому пути
                     const checkResponse = await fetch(`http://127.0.0.1:8000${possiblePhotoPath}`);
                     if (checkResponse.ok) {
-                      console.log('Найдено фото по сгенерированному пути:', possiblePhotoPath);
                       data.avatar_path = possiblePhotoPath;
                       setDoctor({...data});
                     } else {
-                      console.log('Фото не найдено по сгенерированному пути');
                     }
                   } catch (fetchErr) {
-                    console.error('Ошибка при проверке существования фото:', fetchErr);
                   }
                 }
               } catch (directErr) {
@@ -431,7 +373,6 @@ function DoctorProfilePage() {
                   patientName: patientResponse.data.full_name || 'Пациент'
                 };
               } catch (err) {
-                console.log('Не удалось получить данные о пациенте:', err);
                 return {...review, patientName: 'Пациент'};
               }
             })

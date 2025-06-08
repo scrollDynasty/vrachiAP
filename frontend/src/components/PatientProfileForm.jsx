@@ -83,7 +83,6 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
    // При монтировании компонента получаем данные пользователя, включая аватар
    useEffect(() => {
       if (profile) {
-         console.log('Получен профиль пациента:', profile);
          
          setFullName(profile.full_name || '');
          setContactPhone(profile.contact_phone || '');
@@ -97,10 +96,8 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             try {
                // Проверяем, есть ли аватар в профиле или в связанном пользователе
                if (profile.user && profile.user.avatar_path) {
-                  console.log('Загружен аватар из профиля пациента (user.avatar_path):', profile.user.avatar_path);
                   setProfileImage(profile.user.avatar_path);
                } else if (profile.avatar_path) {
-                  console.log('Загружен аватар напрямую из профиля пациента (avatar_path):', profile.avatar_path);
                   setProfileImage(profile.avatar_path);
                } else {
                   // Если аватара нет ни в профиле, ни в связанном пользователе, 
@@ -108,19 +105,15 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                   try {
                      const userResponse = await api.get('/users/me');
                      if (userResponse.data && userResponse.data.avatar_path) {
-                        console.log('Загружен аватар из /users/me API:', userResponse.data.avatar_path);
                         setProfileImage(userResponse.data.avatar_path);
                      } else {
-                        console.log('Аватар не найден в API');
                         setProfileImage(null);
                      }
                   } catch (error) {
-                     console.error('Ошибка при загрузке аватара из API:', error);
                      setProfileImage(null);
                   }
                }
             } catch (error) {
-               console.error('Ошибка при загрузке аватара:', error);
                setProfileImage(null);
             }
          };
@@ -134,7 +127,6 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          setIsEditing(false);
 
          // Отладочное сообщение для проверки данных
-         console.log('Medical info:', profile.medical_info);
       } else {
          // Если профиля нет (null), включаем режим редактирования
          setIsEditing(true);
@@ -199,7 +191,6 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          const savedSettings = sessionStorage.getItem('notificationSettings');
          if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
-            console.log('Загружены сохраненные настройки уведомлений:', parsedSettings);
             
             if (typeof parsedSettings.push_notifications === 'boolean') {
                setPushNotifications(parsedSettings.push_notifications);
@@ -361,13 +352,11 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             }
          }
          
-         console.log('Отправка запроса на смену пароля...');
          
          // Всегда получаем свежий CSRF токен перед отправкой запроса на смену пароля
          try {
             const freshTokenResponse = await api.get('/csrf-token');
             const freshToken = freshTokenResponse.data.csrf_token;
-            console.log('Получен свежий CSRF токен для смены пароля');
             
             // Отправляем запрос на смену пароля с свежим CSRF токеном
             const changePasswordResponse = await api.post('/users/me/change-password', {
@@ -375,9 +364,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
                current_password: currentPassword,
                new_password: newPassword
             });
-            
-            console.log('Ответ от сервера:', changePasswordResponse);
-            
+                        
             // Показываем уведомление об успешной смене пароля
             toast.success(t('passwordChanged'), {
                position: 'top-right',
@@ -518,7 +505,6 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
          // Получаем свежий CSRF-токен перед отправкой
          const freshTokenResponse = await api.get('/csrf-token');
          const freshToken = freshTokenResponse.data.csrf_token;
-         console.log('Получен свежий CSRF токен для настроек уведомлений');
          
          // Формируем объект с настройками и проверяем значения
          const notificationSettings = {
@@ -526,11 +512,7 @@ const PatientProfileForm = ({ profile, onSave, isLoading, error }) => {
             push_notifications: !!pushNotifications, // Преобразуем в boolean
             appointment_reminders: !!appointmentReminders // Преобразуем в boolean
          };
-         
-         console.log('Сохранение настроек уведомлений:', {
-            push_notifications: notificationSettings.push_notifications,
-            appointment_reminders: notificationSettings.appointment_reminders
-         });
+
          
          // Отправляем запрос на обновление настроек с CSRF токеном
          await notificationsApi.updateNotificationSettings(notificationSettings);

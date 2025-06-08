@@ -164,7 +164,6 @@ function RegisterForm({ onSubmit, isLoading, error }) {
     };
     
     try {
-      console.log("RegisterForm: Submitting registration form with data:", userData);
       
       // Вызов функции регистрации из родительского компонента (обычно AuthPage.handleRegister)
       const result = await onSubmit(userData);
@@ -193,7 +192,6 @@ function RegisterForm({ onSubmit, isLoading, error }) {
           };
           
           // Логируем данные, которые сохраняем
-          console.log('Сохраняем данные профиля в localStorage:', profileData);
           
           // Сохраняем в localStorage
           localStorage.setItem('vrach_registration_profile', JSON.stringify(profileData));
@@ -203,7 +201,6 @@ function RegisterForm({ onSubmit, isLoading, error }) {
           if (savedData) {
             try {
               const parsedData = JSON.parse(savedData);
-              console.log('Данные профиля успешно сохранены в localStorage:', parsedData);
             } catch (parseError) {
               console.error('Ошибка при парсинге сохраненных данных:', parseError);
             }

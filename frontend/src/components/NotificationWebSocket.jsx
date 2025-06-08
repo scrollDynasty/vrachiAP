@@ -34,14 +34,12 @@ const NotificationWebSocket = () => {
   // Обработчик сообщений WebSocket
   const handleWebSocketMessage = useCallback((data) => {
     try {
-      console.log('NotificationWebSocket: Получено сообщение WebSocket', data);
       
       let notification = null;
       
       // Обрабатываем разные типы сообщений от сервера
       if (data.type === 'new_notification' && data.notification) {
         notification = data.notification;
-        console.log('NotificationWebSocket: Получено новое уведомление (new_notification)', notification);
       } else if (data.type === 'notification') {
         // Сервер может отправлять уведомления в другом формате
         notification = {
@@ -53,7 +51,6 @@ const NotificationWebSocket = () => {
           created_at: data.created_at || new Date().toISOString(),
           is_viewed: false
         };
-        console.log('NotificationWebSocket: Получено уведомление (notification)', notification);
       } else if ((data.title || data.message)) {
         // Если приходит уведомление в простом формате
         notification = {
@@ -65,7 +62,6 @@ const NotificationWebSocket = () => {
           created_at: data.created_at || new Date().toISOString(),
           is_viewed: false
         };
-        console.log('NotificationWebSocket: Получено уведомление (простой формат)', notification);
       }
       
       // Обрабатываем уведомление, если оно найдено
@@ -81,12 +77,10 @@ const NotificationWebSocket = () => {
         
         // Проверяем, не обрабатываем ли мы то же самое уведомление
         if (lastProcessedNotificationRef.current === notificationKey) {
-          console.log('NotificationWebSocket: Пропускаем дублированное уведомление', notificationKey);
           return;
         }
         
         if (isNotificationShown(notification.id)) {
-          console.log('NotificationWebSocket: Уведомление уже показывалось', notification.id);
           return;
         }
         
@@ -94,7 +88,6 @@ const NotificationWebSocket = () => {
         lastProcessedNotificationRef.current = notificationKey;
         markNotificationShown(notification.id);
         
-        console.log('NotificationWebSocket: 🔥 Обрабатываем уведомление', notification.id, 'с содержимым:', notification.title);
         
         // Отправляем кастомное событие для Header
         try {
@@ -102,7 +95,6 @@ const NotificationWebSocket = () => {
             detail: notification
           });
           window.dispatchEvent(notificationEvent);
-          console.log('NotificationWebSocket: Отправлено событие newNotificationReceived для Header');
         } catch (error) {
           console.error('NotificationWebSocket: Ошибка отправки события для Header:', error);
         }
@@ -120,13 +112,11 @@ const NotificationWebSocket = () => {
         // Проигрываем звук
         try {
           soundService.playNotification();
-          console.log('NotificationWebSocket: 🔊 Звук уведомления проигран');
         } catch (error) {
           console.error('NotificationWebSocket: Ошибка воспроизведения звука:', error);
         }
 
         // Отправляем браузерное уведомление НАПРЯМУЮ здесь
-        console.log('NotificationWebSocket: 📢 Отправляем браузерное уведомление напрямую');
         
         // Определяем настройки уведомления
         const requireInteraction = ['new_message', 'consultation_started', 'new_consultation'].includes(notification.type);
@@ -146,7 +136,6 @@ const NotificationWebSocket = () => {
             },
             onclick: () => {
               // Обработчик клика по браузерному уведомлению
-              console.log('NotificationWebSocket: Клик по браузерному уведомлению');
               
               // Закрываем Toast, если он еще открыт
               toast.dismiss(toastId);
@@ -161,19 +150,14 @@ const NotificationWebSocket = () => {
                 // Навигация в зависимости от типа уведомления
                 try {
                   if (notification.type === 'new_message' && notification.related_id) {
-                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
                     navigate(`/consultations/${notification.related_id}`);
                   } else if (notification.type === 'consultation_started' && notification.related_id) {
-                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
                     navigate(`/consultations/${notification.related_id}`);
                   } else if (notification.type === 'new_consultation' && notification.related_id) {
-                    console.log('NotificationWebSocket: Навигация к консультации:', notification.related_id);
                     navigate(`/consultations/${notification.related_id}`);
                   } else if (notification.type === 'application_processed') {
-                    console.log('NotificationWebSocket: Навигация к заявкам врача');
                     navigate('/doctor-applications');
                   } else {
-                    console.log('NotificationWebSocket: Навигация к уведомлениям');
                     navigate('/notifications');
                   }
                 } catch (error) {
@@ -184,14 +168,12 @@ const NotificationWebSocket = () => {
               }, 100);
             }
           }
-        ).then(result => {
-          console.log('NotificationWebSocket: ✅ Результат отправки браузерного уведомления:', result);
-        }).catch(error => {
+        ).catch(error => {
           console.error('NotificationWebSocket: ❌ Ошибка отправки браузерного уведомления:', error);
         });
       } else {
         // Логируем другие типы сообщений
-        console.log('NotificationWebSocket: ℹ️ Получено сообщение другого типа:', {
+        console.debug('NotificationWebSocket: Получено сообщение другого типа:', {
           type: data.type,
           hasData: !!data
         });
@@ -204,28 +186,23 @@ const NotificationWebSocket = () => {
   // Подключение к WebSocket для уведомлений
   useEffect(() => {
     if (!isAuthenticated || !user || !token) {
-      console.log('NotificationWebSocket: Пропускаем подключение - не авторизован');
       return;
     }
 
     // Проверяем что user.id существует и не undefined
     if (!user.id || user.id === 'undefined') {
       console.warn('NotificationWebSocket: User ID отсутствует или undefined, пропускаем подключение');
-      console.log('NotificationWebSocket: User data:', user);
       return;
     }
 
     // Предотвращаем множественные подключения
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('NotificationWebSocket: WebSocket уже подключен, пропускаем');
       return;
     }
     
     // Увеличиваем счетчик попыток подключения
     connectionAttemptRef.current++;
     const currentAttempt = connectionAttemptRef.current;
-    
-    console.log(`NotificationWebSocket: Попытка подключения #${currentAttempt} для пользователя ${user.id}`);
 
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
@@ -239,7 +216,6 @@ const NotificationWebSocket = () => {
       try {
         // Проверяем, что это все еще актуальная попытка подключения
         if (currentAttempt !== connectionAttemptRef.current) {
-          console.log('NotificationWebSocket: Отменяем устаревшую попытку подключения');
           return;
         }
         
@@ -250,8 +226,6 @@ const NotificationWebSocket = () => {
         }
         
         // Получаем WebSocket токен через API
-        console.log('NotificationWebSocket: Запрашиваем WebSocket токен для уведомлений');
-        
         const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://soglom.com'}/api/ws-token`, {
           method: 'GET',
           headers: {
@@ -271,25 +245,19 @@ const NotificationWebSocket = () => {
           throw new Error('WebSocket токен не получен');
         }
 
-        console.log('NotificationWebSocket: WebSocket токен получен');
-        
         // Исправляем URL - убираем двойной /ws
         const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://soglom.com'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
-        console.log('NotificationWebSocket: Подключение к WebSocket:', wsUrl.replace(/token=.+/, 'token=***'));
         
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
-          console.log('NotificationWebSocket: ✅ WebSocket подключен');
           reconnectAttempts = 0;
         };
 
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('NotificationWebSocket: RAW WebSocket сообщение:', event.data);
-            console.log('NotificationWebSocket: Parsed данные:', data);
             handleWebSocketMessage(data);
           } catch (error) {
             console.error('NotificationWebSocket: Ошибка парсинга WebSocket сообщения:', error, 'Raw data:', event.data);
@@ -297,14 +265,12 @@ const NotificationWebSocket = () => {
         };
 
         ws.onclose = (event) => {
-          console.log('NotificationWebSocket: WebSocket соединение закрыто', event.code, event.reason);
           wsRef.current = null;
           
           // Переподключение при неожиданном закрытии
           if (reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
             reconnectAttempts++;
             const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
-            console.log(`NotificationWebSocket: Переподключение через ${delay}ms (попытка ${reconnectAttempts}/${maxReconnectAttempts})`);
             
             setTimeout(() => {
               if (currentAttempt === connectionAttemptRef.current) {
@@ -325,7 +291,6 @@ const NotificationWebSocket = () => {
         if (reconnectAttempts < maxReconnectAttempts && currentAttempt === connectionAttemptRef.current) {
           reconnectAttempts++;
           const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
-          console.log(`NotificationWebSocket: Переподключение после ошибки через ${delay}ms (попытка ${reconnectAttempts}/${maxReconnectAttempts})`);
           
           setTimeout(() => {
             if (currentAttempt === connectionAttemptRef.current) {
@@ -339,7 +304,6 @@ const NotificationWebSocket = () => {
     connectWebSocket();
 
     return () => {
-      console.log('NotificationWebSocket: 🧹 Закрытие WebSocket соединения');
       if (wsRef.current) {
         wsRef.current.close(1000, 'Component unmounting');
         wsRef.current = null;
@@ -353,24 +317,16 @@ const NotificationWebSocket = () => {
       const timer = setTimeout(async () => {
         try {
           const status = notificationService.getStatus();
-          console.log('NotificationWebSocket: Текущий статус разрешений:', status);
           
           if (status.permission === 'default') {
-            console.log('NotificationWebSocket: Запрашиваем разрешения на уведомления');
             const result = await notificationService.requestPermission();
-            console.log('NotificationWebSocket: Результат запроса разрешений:', result);
             
             if (result.success) {
-              console.log('NotificationWebSocket: ✅ Разрешения получены!');
               toast.success('Push-уведомления включены!', {
                 duration: 3000,
                 position: 'top-right',
               });
-            } else {
-              console.log('NotificationWebSocket: ❌ Разрешения не получены:', result.message);
             }
-          } else if (status.permission === 'granted') {
-            console.log('NotificationWebSocket: ✅ Разрешения уже получены');
           }
         } catch (error) {
           console.error('NotificationWebSocket: Ошибка при запросе разрешений:', error);

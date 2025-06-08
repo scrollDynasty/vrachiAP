@@ -23,53 +23,19 @@ function HomePage() {
   // Состояние для отслеживания режима offline
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   
-  // Добавляем log при монтировании компонента
-  useEffect(() => {
-    console.log('HomePage: Mounted with user state:', {
-      hasUser: !!user,
-      needsProfileUpdate,
-      hasToken: !!token,
-      isAuthenticated,
-      isLoading,
-      userData: user
-    });
     
-    // Добавляем подробный лог данных пользователя для отладки аватарки
-    if (user) {
-      console.log('HomePage: User data details:', {
-        avatar_path: user.avatar_path,
-        avatar: user.avatar,
-        avatarUrl: user.avatarUrl,
-        photo: user.photo,
-        photoUrl: user.photoUrl,
-        profileImage: user.profileImage,
-        image: user.image,
-        name: user.name,
-        email: user.email,
-        fullUserObject: user
-      });
-    }
-  }, [user, needsProfileUpdate, token, isAuthenticated, isLoading]);
   
   // Перенаправляем на страницу логина, если есть ошибка аутентификации
   useEffect(() => {
     if (authError) {
-      console.log("HomePage: Authentication error detected, redirecting to login page");
       navigate('/login');
     }
   }, [authError, navigate]);
   
-  // Логи на каждое изменение ключевых данных
+  // Проверяем состояние пользователя и режим offline
   useEffect(() => {
-    console.log('HomePage: User state changed:', {
-      hasUser: !!user,
-      userData: user,
-      isAuthenticated
-    });
-    
     // Проверяем, получили ли мы HTML вместо данных пользователя (признак недоступности backend)
     if (user && typeof user === 'string' && user.includes('<!doctype html>')) {
-      console.warn('HomePage: Backend unavailable - received HTML instead of user data');
       setIsOfflineMode(true);
     } else if (user && typeof user === 'object' && Object.keys(user).length > 0) {
       setIsOfflineMode(false);
@@ -78,7 +44,6 @@ function HomePage() {
   
   // Функция для повторной попытки подключения к backend
   const handleRetryConnection = async () => {
-    console.log('HomePage: Retrying connection to backend...');
     setIsOfflineMode(false);
     
     try {
@@ -86,39 +51,31 @@ function HomePage() {
       const { initializeAuth } = useAuthStore.getState();
       await initializeAuth();
     } catch (error) {
-      console.error('HomePage: Retry failed:', error);
       setIsOfflineMode(true);
     }
   };
   
   // Если есть ошибка аутентификации, не рендерим содержимое страницы
   if (authError) {
-    console.log('HomePage: Not rendering due to auth error');
     return null;
   }
   
   // Если backend недоступен, показываем offline режим
   if (isOfflineMode && isAuthenticated) {
-    console.log('HomePage: Rendering offline mode due to backend unavailability');
     return <OfflineMode user={user} onRetry={handleRetryConnection} />;
   }
   
   // Если требуется обновление профиля, показываем форму
   if (needsProfileUpdate) {
-    console.log('HomePage: Showing profile update form');
     
     const handleProfileCompletion = (userData) => {
-      console.log('HomePage: Profile updated successfully', userData);
-      
       // Явно сбрасываем флаг needsProfileUpdate
       useAuthStore.setState({ needsProfileUpdate: false });
-      console.log('HomePage: Set needsProfileUpdate = false');
       
       // Перезагружаем состояние без полной перезагрузки страницы
       setTimeout(() => {
         // Проверяем, что флаг действительно сброшен
         const currentNeedsUpdate = useAuthStore.getState().needsProfileUpdate;
-        console.log('HomePage: Current needsProfileUpdate value:', currentNeedsUpdate);
         
         if (!currentNeedsUpdate) {
           // Принудительно обновляем компонент, не перезагружая страницу
@@ -139,58 +96,12 @@ function HomePage() {
     );
   }
   
-  console.log('HomePage: Rendering main content with user role:', user?.role);
+  // Отображение контента для пользователя
   
-  // Если пользователь администратор, показываем специальную страницу администратора
+  // Если пользователь администратор, перенаправляем на админ-панель
   if (user?.role === 'admin') {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
-        <div className="max-w-screen-xl mx-auto px-4 py-12">
-          {/* Приветствие для администратора */}
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 mb-2">
-              {t('adminPanel')}
-            </h1>
-            <p className="text-gray-600">
-              {t('systemManagement')}
-            </p>
-          </div>
-          
-          {/* Карточки для администратора */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardBody className="p-6 flex flex-col items-center text-center">
-                <div className="text-4xl mb-4">⚙️</div>
-                <h3 className="text-xl font-semibold mb-2 text-purple-600">{t('adminPanel')}</h3>
-                <p className="text-gray-600 mb-4">{t('adminPanelDescription')}</p>
-                <Button 
-                  color="secondary" 
-                  className="mt-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                  onPress={() => navigate('/admin')}
-                >
-                  {t('goToAdminPanel')}
-                </Button>
-              </CardBody>
-            </Card>
-            
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardBody className="p-6 flex flex-col items-center text-center">
-                <div className="text-4xl mb-4">📈</div>
-                <h3 className="text-xl font-semibold mb-2 text-purple-600">{t('systemAnalytics')}</h3>
-                <p className="text-gray-600 mb-4">{t('platformUsageStats')}</p>
-                <Button 
-                  color="secondary" 
-                  className="mt-auto"
-                  onPress={() => alert(t('featureInDevelopment'))}
-                >
-                                      {t('inDevelopment')}
-                </Button>
-              </CardBody>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
+    navigate('/admin_control_panel_52x9a8');
+    return null;
   }
   
   // Определяем приветствие в зависимости от роли
@@ -245,7 +156,7 @@ function HomePage() {
   // Выбираем набор карточек в зависимости от роли
   const serviceCards = user?.role === 'doctor' ? doctorCards : patientCards;
 
-  console.log('HomePage: Rendering content');
+  // Рендерим основной контент
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -452,7 +363,6 @@ function HomePage() {
                   avatarUrl = `${apiBaseUrl}/${avatarUrl}`;
                 }
                 
-                console.log('HomePage: Final avatar URL:', avatarUrl);
                 
                 // Получаем имя для инициалов из всех возможных источников
                 let userName = '';

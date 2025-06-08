@@ -162,7 +162,7 @@ function AdminPage() {
       setTotalApplications(response.data.total || response.data.length);
       setLoading(false);
     } catch (err) {
-      console.error('Ошибка при загрузке заявок:', err);
+      // Ошибка при загрузке заявок
       setError('Ошибка при загрузке заявок. Пожалуйста, проверьте подключение к серверу или обратитесь к администратору.');
       setLoading(false);
     }
@@ -187,7 +187,7 @@ function AdminPage() {
       
       setUsersLoading(false);
     } catch (err) {
-      console.error('Ошибка при загрузке пользователей:', err);
+      // Ошибка при загрузке пользователей
       setUsersError('Ошибка при загрузке пользователей. Пожалуйста, проверьте подключение к серверу или обратитесь к администратору.');
       setUsersLoading(false);
     }
@@ -201,12 +201,11 @@ function AdminPage() {
       // Запрашиваем только профиль пользователя без второго запроса
       const response = await api.get(`/admin/users/${userId}/profile`);
       
-      console.log("Получен профиль пользователя:", response.data);
       
       setUserProfile(response.data);
       setUserProfileLoading(false);
     } catch (err) {
-      console.error('Ошибка при загрузке профиля пользователя:', err);
+      // Ошибка при загрузке профиля пользователя
       setUserProfile({ message: 'Ошибка при загрузке профиля пользователя. Пожалуйста, попробуйте позже.' });
       setUserProfileLoading(false);
     }
@@ -226,7 +225,7 @@ function AdminPage() {
       onClose(); // Закрываем модальное окно деталей
       onConfirmModalClose(); // Закрываем модальное окно подтверждения
     } catch (err) {
-      console.error('Failed to process application:', err);
+      // Ошибка при обработке заявки
       setError('Ошибка при обработке заявки. Пожалуйста, попробуйте позже.');
       setLoading(false);
     }
@@ -307,7 +306,7 @@ function AdminPage() {
       
       onUserModalClose(); // Закрываем модальное окно
     } catch (err) {
-      console.error('Failed to change user role:', err);
+      // Ошибка при изменении роли пользователя
       setUsersError('Ошибка при изменении роли пользователя. Пожалуйста, попробуйте позже.');
       setUsersLoading(false);
     }
@@ -347,7 +346,7 @@ function AdminPage() {
       
       setIsSavingProfile(false);
     } catch (err) {
-      console.error('Failed to save profile changes:', err);
+      // Ошибка при сохранении изменений профиля
       setUsersError('Ошибка при сохранении изменений профиля. Пожалуйста, попробуйте позже.');
       setIsSavingProfile(false);
     }
@@ -508,12 +507,10 @@ function AdminPage() {
         user_id: notificationTarget === "user" ? parseInt(specificUserId) : undefined
       };
       
-      console.log("Отправка уведомления:", notificationData);
       
       // Отправляем уведомление напрямую через POST запрос к API
       const response = await api.post('/admin/notifications/send', notificationData);
       
-      console.log("Уведомление успешно отправлено:", response.data);
       
       // Формируем сообщение об успехе
       let successMessage = "Уведомление успешно отправлено";
@@ -536,7 +533,7 @@ function AdminPage() {
       setNotificationMessage("");
       
     } catch (error) {
-      console.error("Ошибка при отправке уведомления:", error);
+      // Ошибка при отправке уведомления
       
       setNotificationResult({
         success: false,

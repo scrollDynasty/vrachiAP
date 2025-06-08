@@ -38,55 +38,41 @@ const translateSpecialization = (specialization, t) => {
 // Функция для получения URL аватара из разных возможных полей
 const getAvatarSource = (doctorData) => {
   if (!doctorData) return undefined;
-  
-  console.log('SearchDoctorsPage - getAvatarSource: Проверка источников аватара', {
-    'doctorData.avatar_path': doctorData.avatar_path,
-    'doctorData.photo_path': doctorData.photo_path,
-    'doctorData.user?.avatar_path': doctorData.user?.avatar_path,
-    'doctorData.avatar': doctorData.avatar
-  });
+
   
   // Проверяем в порядке приоритета
   if (doctorData.avatar_path) {
-    console.log('Используем avatar_path:', doctorData.avatar_path);
     return doctorData.avatar_path;
   }
   
   if (doctorData.photo_path) {
-    console.log('Используем photo_path:', doctorData.photo_path);
     return doctorData.photo_path;
   }
   
   if (doctorData.user && doctorData.user.avatar_path) {
-    console.log('Используем user.avatar_path:', doctorData.user.avatar_path);
     return doctorData.user.avatar_path;
   }
   
   if (doctorData.avatar) {
-    console.log('Используем avatar:', doctorData.avatar);
     return doctorData.avatar;
   }
   
   // Проверяем наличие фотографии из заявки врача
   if (doctorData.application_photo_path) {
-    console.log('Используем application_photo_path:', doctorData.application_photo_path);
     return doctorData.application_photo_path;
   }
   
   // Дополнительная проверка поля photo, которое могло быть загружено при подаче заявки
   if (doctorData.photo) {
-    console.log('Используем photo:', doctorData.photo);
     return doctorData.photo;
   }
   
   // Пробуем создать стандартный путь, если знаем user_id
   if (doctorData.user_id) {
     const possiblePhotoPath = `/uploads/photos/doctor_${doctorData.user_id}.jpg`;
-    console.log('Используем сгенерированный путь к фото:', possiblePhotoPath);
     return possiblePhotoPath;
   }
   
-  console.log('SearchDoctorsPage: Не найден подходящий источник аватара, используем заглушку');
   return undefined;
 };
 
@@ -119,20 +105,16 @@ const DoctorCard = ({ doctor, onClick, variant = 'auto', className = '' }) => {
   
   // Получаем ID врача для записи на консультацию
   const getDoctorConsultationId = () => {
-    console.log("Получаем ID врача для консультации:", doctor);
     
     // Берем сначала user_id, затем id как запасной вариант
     const doctorId = doctor.user_id || doctor.id;
-    console.log("Найденный ID врача:", doctorId);
     
     return doctorId;
   };
   
   // Обработчик кнопки "Записаться"
   const handleRequestConsultation = () => {
-    console.log("Нажата кнопка Записаться для врача:", doctor);
-    console.log("ID пользователя врача:", doctor.user_id);
-    console.log("ID врача:", doctor.id);
+
     
     // Проверка наличия ID врача
     if (!doctor.user_id && !doctor.id) {
@@ -551,7 +533,6 @@ function SearchDoctorsPage() {
           const response = await api.get('/patients/me/profile');
           if (response.data && response.data.city) {
             setPatientCity(response.data.city);
-            console.log('Город пациента для автофильтрации:', response.data.city);
           }
         } catch (error) {
           console.error('Не удалось получить город пациента:', error);
@@ -592,14 +573,11 @@ function SearchDoctorsPage() {
           // Если у врача нет аватара, пробуем получить из профиля
           if (!doctor.avatar_path && doctor.user_id) {
             try {
-              console.log(`Попытка получить аватар для врача ${doctor.id} из профиля`);
               const profileResp = await api.get(`/doctors/${doctor.user_id}/profile`);
               if (profileResp.data && profileResp.data.user && profileResp.data.user.avatar_path) {
-                console.log(`Найден аватар в профиле для врача ${doctor.id}:`, profileResp.data.user.avatar_path);
                 doctor.avatar_path = profileResp.data.user.avatar_path;
               }
             } catch (err) {
-              console.log(`Не удалось получить профиль для врача ${doctor.id}:`, err);
             }
           }
           return doctor;

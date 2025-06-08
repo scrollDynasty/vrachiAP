@@ -43,10 +43,8 @@ const VerifyEmailPage = () => {
         // Проверяем, аутентифицирован ли пользователь
         const isAuth = useAuthStore.getState().isAuthenticated;
         if (isAuth) {
-          console.log('Пользователь авторизован, перенаправляем на страницу профиля');
           navigate('/profile');
         } else {
-          console.log('Пользователь не авторизован, перенаправляем на страницу входа');
           navigate('/login');
         }
       }
@@ -58,7 +56,6 @@ const VerifyEmailPage = () => {
     // Проверяем, был ли уже этот токен обработан (чтобы избежать повторных запросов)
     const processedToken = localStorage.getItem('processedVerificationToken');
     if (processedToken === token) {
-      console.log('Токен уже был обработан ранее');
       setStatus('success');
       
       // Начинаем обратный отсчет для редиректа
@@ -68,7 +65,6 @@ const VerifyEmailPage = () => {
     
     // Проверяем, был ли уже выполнен запрос верификации для этого компонента
     if (verificationAttempted) {
-      console.log('Верификация уже была выполнена, пропускаем повторный запрос');
       return;
     }
 
@@ -76,11 +72,9 @@ const VerifyEmailPage = () => {
     setVerificationAttempted(true);
     
     try {
-      console.log('Выполняем запрос верификации для токена:', token);
       const response = await api.get(`/verify-email?token=${token}`);
       
       if (response.status === 200) {
-        console.log('Верификация успешна:', response.data);
         
         // Сохраняем токен как обработанный, чтобы избежать повторных запросов
         localStorage.setItem('processedVerificationToken', token);
@@ -139,7 +133,6 @@ const VerifyEmailPage = () => {
       if (err.response && err.response.status === 200 && err.response.data && 
           err.response.data.already_verified && err.response.data.access_token) {
         // Если да, обрабатываем его как успешную верификацию
-        console.log('Email уже был подтвержден ранее, используем возвращенный токен');
         try {
           // Используем функцию обработки подтверждения email
           const result = await handleEmailVerification(err.response.data);
@@ -159,7 +152,6 @@ const VerifyEmailPage = () => {
           
       if (err.response && err.response.status === 400) {
         const errorDetail = err.response.data.detail || '';
-        console.log('Детали ошибки верификации:', errorDetail);
         
         if (errorDetail.includes('expired')) {
           setStatus('expired');
@@ -228,7 +220,6 @@ const VerifyEmailPage = () => {
 
     // Проверка, что пользователь уже аутентифицирован
     if (isAuthenticated && user) {
-      console.log('VerifyEmailPage: Пользователь уже аутентифицирован, перенаправляем на главную');
       navigate('/');
       return;
     }
@@ -237,7 +228,6 @@ const VerifyEmailPage = () => {
     if (token) {
       verifyEmail(token);
     } else if (pendingVerificationEmail) {
-      console.log('VerifyEmailPage: No token in URL but pendingVerificationEmail exists:', pendingVerificationEmail);
     } else {
       // Если нет ни токена, ни ожидающего подтверждения email-а, то перенаправляем на главную
       navigate('/');

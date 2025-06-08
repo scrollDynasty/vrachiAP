@@ -35,7 +35,6 @@ class SoundService {
           // Создаем обработчики для успешной загрузки и ошибки
           const loadPromise = new Promise((resolve, reject) => {
             audio.oncanplaythrough = () => {
-              console.log(`[SoundService] Звук ${soundFile.name} загружен успешно`);
               resolve();
             };
             
@@ -77,7 +76,6 @@ class SoundService {
     }
     
     const availableSounds = Object.keys(this.sounds).filter(key => this.sounds[key] !== null);
-    console.log(`[SoundService] Инициализация завершена. Доступные звуки: [${availableSounds.join(', ')}]`);
   }
   
   play(soundName) {
@@ -111,7 +109,6 @@ class SoundService {
   
   setEnabled(enabled) {
     this.isEnabled = enabled;
-    console.log(`[SoundService] Звуки ${enabled ? 'включены' : 'отключены'}`);
   }
   
   setVolume(volume) {
@@ -125,7 +122,6 @@ class SoundService {
       }
     });
     
-    console.log(`[SoundService] Громкость установлена на ${Math.round(clampedVolume * 100)}%`);
   }
   
   // Удобные методы для воспроизведения конкретных звуков

@@ -75,33 +75,9 @@ function App() {
 
   // При первом монтировании компонента инициализируем авторизацию
   useEffect(() => {
-    console.log("App mounted, initializing auth store...");
     initializeAuth();
   }, [initializeAuth])
-  
-  // Отслеживаем изменения в состоянии аутентификации
-  useEffect(() => {
-    console.log('App: Auth state changed:', {
-      isAuthenticated,
-      hasUser: !!user,
-      hasToken: !!token,
-      pendingVerificationEmail: pendingVerificationEmail,
-      isLoading,
-      error,
-      currentPath: location.pathname,
-      needsProfileUpdate
-    });
-  }, [isAuthenticated, user, token, isLoading, error, location.pathname, pendingVerificationEmail, needsProfileUpdate]);
-  
-  // Отслеживаем изменения только в маршруте для отладки белого экрана
-  useEffect(() => {
-    console.log('App: Route changed to:', location.pathname, {
-      state: location.state,
-      search: location.search,
-      hash: location.hash
-    });
-  }, [location]);
-  
+
   // Перенаправляем неаутентифицированных пользователей на страницу логина
   useEffect(() => {
     // Публичные маршруты, доступные всем пользователям
@@ -121,19 +97,9 @@ function App() {
       location.pathname === route || location.pathname.startsWith(route)
     );
     
-    console.log('App: Navigation check:', {
-      currentPath: location.pathname,
-      isPublicRoute,
-      authError: error ? 'exists' : 'none',
-      isAuthenticated,
-      isLoading,
-      error,
-      pendingVerificationEmail
-    });
     
     // Если есть ошибка аутентификации - перенаправляем на логин (кроме публичных маршрутов)
     if (!isPublicRoute && error) {
-      console.log("App: Authentication error detected, redirecting to login page:", error);
       navigate('/login');
       return;
     }
@@ -144,7 +110,6 @@ function App() {
     if (pendingVerificationEmail && !error && location.pathname !== '/verify-email' && 
         location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/register' && 
         location.pathname !== '/auth/google/callback') {
-      console.log("App: User has pending email verification, redirecting to verify-email page");
       navigate('/verify-email');
       return;
     }
@@ -152,41 +117,22 @@ function App() {
     // Если пользователь авторизован и находится на странице подтверждения email,
     // и нет ожидающих подтверждений, перенаправляем на профиль
     if (isAuthenticated && !isLoading && location.pathname === '/verify-email' && !pendingVerificationEmail) {
-      console.log("App: User is authenticated on verify-email page with no pending verifications, redirecting to profile");
       navigate('/');
     }
     
     // Если путь не публичный, загрузка завершена и пользователь не авторизован - перенаправляем на логин
     if (!isPublicRoute && !isLoading && !isAuthenticated) {
-      console.log("App: User not authenticated, redirecting to login page");
       // Добавляем проверку, чтобы не перенаправлять, если мы на странице подтверждения email
       if (location.pathname !== '/verify-email') {
         navigate('/login');
       } else {
-        console.log("App: On verify-email page, not redirecting despite being unauthenticated");
+        if (!pendingVerificationEmail){
+          nevigate('/');
+        }
       }
     } 
   }, [isLoading, isAuthenticated, navigate, location.pathname, error, pendingVerificationEmail]);
 
-  // Добавьте логи в рендер
-  console.log('App: Rendering with state:', {
-    isAuthenticated,
-    hasUser: !!user,
-    hasToken: !!token,
-    isLoading,
-    currentPath: location.pathname,
-    errorExists: !!error,
-    pendingVerificationEmail
-  });
-
-  // Основной UI приложения
-  console.log('App: Rendering main UI', {
-    showHeader: isAuthenticated && user && !error,
-    currentPath: location.pathname,
-    isAuthenticated,
-    hasUser: !!user,
-    hasToken: !!token
-  });
   
   return (
     <LanguageProvider>

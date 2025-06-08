@@ -85,7 +85,6 @@ function ProfileSettingsPage() {
 
         // Сохраняем полученные данные профиля в состояние компонента
         setProfileData(response.data);
-        console.log('Profile data loaded:', response.data);
 
       } catch (err) {
         // Обработка ошибок при загрузке профиля (например, 404 Not Found, если профиль еще не создан)
@@ -102,7 +101,6 @@ function ProfileSettingsPage() {
               if (registrationData) {
                 // Если есть данные регистрации, создаем профиль автоматически
                 setIsCreatingFromRegistration(true);
-                console.log('Найдены данные регистрации, автоматически создаем профиль', registrationData);
                 
                 // Делаем три попытки создания профиля с небольшими интервалами
                 let attempt = 0;
@@ -110,11 +108,9 @@ function ProfileSettingsPage() {
                 const attemptCreateProfile = async () => {
                   try {
                     attempt++;
-                    console.log(`Попытка создания профиля ${attempt}/${maxAttempts}`);
                     
                     const response = await createOrUpdatePatientProfile(registrationData);
                     if (response) {
-                      console.log('Профиль успешно создан из данных регистрации:', response);
                       setProfileData(response);
                       setError(null);
                       setSaveSuccess(true);
@@ -132,7 +128,6 @@ function ProfileSettingsPage() {
                     console.error(`Ошибка при создании профиля (попытка ${attempt}):`, error);
                     if (attempt < maxAttempts) {
                       // Делаем паузу перед следующей попыткой
-                      console.log(`Повторная попытка через ${attempt * 1000}мс...`);
                       setTimeout(attemptCreateProfile, attempt * 1000);
                     } else {
                       console.error('Все попытки создания профиля исчерпаны');
@@ -188,7 +183,6 @@ function ProfileSettingsPage() {
         const response = await api.post(endpoint, profileDataFromForm);
 
         // Если сохранение успешно (бэкенд вернул 201 Created или 200 OK)
-        console.log('Profile saved successfully:', response.data);
         setProfileData(response.data); // Обновляем данные профиля в состоянии компонента с актуальными данными от бэкенда
         setSaveSuccess(true); // Устанавливаем флаг успешного сохранения
 
@@ -196,7 +190,6 @@ function ProfileSettingsPage() {
         if (response.data && response.data.avatar_path) {
           // Проверяем, изменилась ли аватарка
           if (user.avatar_path !== response.data.avatar_path) {
-            console.log('Avatar path changed, updating user data and triggering events');
             
             // Обновляем данные пользователя в сторе с новой аватаркой
             const updatedUser = { ...user, avatar_path: response.data.avatar_path };

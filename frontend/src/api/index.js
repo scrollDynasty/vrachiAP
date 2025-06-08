@@ -61,7 +61,6 @@ api.interceptors.request.use(
         }
         
         // Отключаем логирование токена для всех запросов
-        // console.log(`🔄 Interceptor: Добавлен токен к запросу ${config.url}`);
       } else if (!token && !hasExplicitAuth && !isPublicRoute) {
         // Полностью отключаем предупреждение о токене
         // console.warn(`⚠️ Interceptor: Токен отсутствует для запроса к ${config.url}`);
@@ -69,7 +68,6 @@ api.interceptors.request.use(
       
       // Проверяем запросы к несуществующим эндпоинтам
       if (config.url && config.url.includes('/token/ws')) {
-        console.error('🔴 Попытка запроса к несуществующему эндпоинту /token/ws. Запрос отменен.');
         // Создаем ошибку для отмены запроса
         const error = new Error('Запрос к несуществующему эндпоинту /token/ws отменен');
         return Promise.reject(error);
@@ -81,32 +79,25 @@ api.interceptors.request.use(
         : 'debug'; // Остальные с уровнем debug
 
       if (logLevel === 'info') {
-        console.info(`🌐 REQUEST: ${config.method.toUpperCase()} ${config.url}`);
-        console.info('Headers:', config.headers);
-        
-        // Для методов с телом логируем данные
+        // Для методов с телом обрабатываем данные
         if (config.data) {
           try {
-            // Маскируем пароли в логах для безопасности
+            // Маскируем пароли для безопасности
             const safeData = { ...config.data };
             if (safeData.current_password) safeData.current_password = '********';
             if (safeData.new_password) safeData.new_password = '********';
-            console.info('Data:', safeData);
           } catch (e) {
-            console.info('Data: [Cannot stringify request data]');
           }
         }
       }
       
       return config;
     } catch (interceptorError) {
-      console.error('❌ Перехвачена ошибка в интерцепторе запросов:', interceptorError);
       // Возвращаем исходный конфиг без изменений, чтобы запрос мог продолжиться
       return config;
     }
   },
   error => {
-    console.error('🛑 REQUEST ERROR:', error);
     return Promise.reject(error);
   }
 );
@@ -115,16 +106,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    console.log('🛑 RESPONSE ERROR:', error.message);
     
     // Проверяем наличие статуса ошибки
     if (error.response) {
-      console.log('Статус ошибки:', error.response.status);
-      console.log('Данные ответа:', error.response.data);
       
       // Если ошибка 401 (неавторизован), значит токен истек или недействителен
       if (error.response.status === 401) {
-        console.log('🔑 Получен 401 ответ. Возможно, токен истек');
         
         // Получаем текущий URL, чтобы исключить страницы авторизации
         const currentPath = window.location.pathname;
@@ -137,7 +124,6 @@ api.interceptors.response.use(
         const currentToken = localStorage.getItem('auth_token');
         if (!currentToken) {
           // Если токена вообще нет, перенаправляем на логин
-          console.log('🔑 Токен отсутствует, перенаправляем на страницу входа');
           window.location.href = '/login';
           return Promise.reject(error);
         }
@@ -145,23 +131,18 @@ api.interceptors.response.use(
         // Очищаем localStorage от неработающего токена
         try {
           localStorage.removeItem('auth_token');
-          console.log('🔑 Токен успешно удален из localStorage');
           
           // Удаляем заголовок авторизации из дефолтных заголовков
           delete api.defaults.headers.common['Authorization'];
-          console.log('🔑 Заголовок авторизации удален из API клиента');
         } catch (e) {
-          console.error('Ошибка при очистке данных авторизации:', e);
         }
         
         // Перенаправляем на страницу входа
-        console.log('🔑 Перенаправляем на /login из-за ошибки авторизации');
         window.location.href = '/login';
         return Promise.reject(error);
       }
     }
     
-    console.log('Ошибка при запросе:', error);
     return Promise.reject(error);
   }
 );
@@ -172,7 +153,6 @@ export const setAuthToken = (token) => {
     if (token) {
       // Проверяем валидность токена (должен быть строкой и непустым)
       if (typeof token !== 'string' || token.trim() === '') {
-        console.error('🛑 Invalid token format. Token must be a non-empty string');
         return false;
       }
     
@@ -183,7 +163,6 @@ export const setAuthToken = (token) => {
         delete api.defaults.headers.common['Authorization'];
         delete api.defaults.headers.Authorization;
       } catch (headerError) {
-        console.error('❌ Ошибка при очистке заголовков:', headerError);
       }
       
       // Сразу синхронно сохраняем токен в localStorage без таймаута
@@ -196,25 +175,17 @@ export const setAuthToken = (token) => {
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           api.defaults.headers.Authorization = `Bearer ${token}`;
         } else {
-          console.warn('❌ api.defaults.headers не существует для установки токена');
         }
       } catch (apiHeaderError) {
-        console.error('❌ Ошибка при установке заголовков API:', apiHeaderError);
         // Даже если не удалось установить заголовки, токен сохранен в localStorage
         // и будет использован при следующих запросах через интерцептор
       }
       
-      console.info(`🔑 Auth token set successfully (length: ${token.length})`);
-      console.info(`🔑 Token starts with: ${token.substring(0, 10)}...`);
-      
       try {
         if (api && api.defaults && api.defaults.headers && api.defaults.headers.common && api.defaults.headers.common['Authorization']) {
-          console.info(`🔑 Authorization header: ${api.defaults.headers.common['Authorization'].substring(0, 17)}...`);
         } else {
-          console.warn('❌ Authorization header is not set or cannot be accessed');
         }
       } catch (logError) {
-        console.error('❌ Ошибка при логировании заголовка Authorization:', logError);
       }
       
       return true;
@@ -224,15 +195,12 @@ export const setAuthToken = (token) => {
         delete api.defaults.headers.common['Authorization'];
         delete api.defaults.headers.Authorization;
       } catch (cleanupError) {
-        console.error('❌ Ошибка при очистке заголовков при выходе:', cleanupError);
       }
       
       localStorage.removeItem('auth_token');
-      console.info('🔑 Auth token removed from headers and localStorage');
       return true;
     }
   } catch (error) {
-    console.error('🛑 Error setting auth token:', error);
     return false;
   }
 };
@@ -241,7 +209,6 @@ export const setAuthToken = (token) => {
 export const loadStoredToken = () => {
   const token = localStorage.getItem('auth_token');
   if (token) {
-    console.info('🔑 Auth token loaded from localStorage');
     setAuthToken(token);
     return true;
   }
@@ -261,7 +228,6 @@ export const logout = async () => {
     window.location.href = '/login';
     return true;
   } catch (error) {
-    console.error('Ошибка при выходе из системы:', error);
     return false;
   }
 };
@@ -269,12 +235,9 @@ export const logout = async () => {
 // Вспомогательная функция для получения CSRF токена
 export const getCsrfToken = async () => {
   try {
-    console.info('🔒 Requesting new CSRF token...');
     const response = await api.get('/csrf-token');
-    console.info('🔒 CSRF token received');
     return response.data.csrf_token;
   } catch (error) {
-    console.error('🛑 Failed to get CSRF token:', error);
     throw error;
   }
 };
@@ -287,33 +250,30 @@ export const doctorsApi = {
       // Формируем параметры запроса из переданных фильтров
       const params = { page, size, ...filters };
       const response = await api.get('/api/doctors', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      throw error;
-    }
+          return response.data;
+  } catch (error) {
+    throw error;
+  }
   },
 
   // Получение детальной информации о враче по ID
   getDoctorById: async (doctorId) => {
     try {
       const response = await api.get(`/api/doctors/${doctorId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching doctor with ID ${doctorId}:`, error);
-      throw error;
-    }
+          return response.data;
+  } catch (error) {
+    throw error;
+  }
   },
   
   // Получение списка специализаций
   getSpecializations: async () => {
     try {
       const response = await api.get('/api/specializations');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching specializations:', error);
-      throw error;
-    }
+          return response.data;
+  } catch (error) {
+    throw error;
+  }
   }
 };
 
@@ -323,11 +283,10 @@ export const notificationsApi = {
   checkDoctorApplicationUpdates: async () => {
     try {
       const response = await api.get('/users/me/doctor-applications');
-      return response.data;
-    } catch (error) {
-      console.error('Error checking doctor application updates:', error);
-      throw error;
-    }
+          return response.data;
+  } catch (error) {
+    throw error;
+  }
   },
   
   // Получение всех непрочитанных уведомлений для текущего пользователя
@@ -337,7 +296,6 @@ export const notificationsApi = {
       const response = await api.get('/users/me/notifications?unread=true');
       return response.data;
     } catch (error) {
-      console.error('Error fetching unread notifications:', error);
       // Возвращаем пустой массив, если эндпоинт еще не реализован на бэкенде
       return [];
     }
@@ -350,7 +308,6 @@ export const notificationsApi = {
       const response = await api.put(`/users/me/notifications/${notificationId}/read`);
       return response.data;
     } catch (error) {
-      console.error(`Error marking notification ${notificationId} as read:`, error);
       throw error;
     }
   },
@@ -361,7 +318,6 @@ export const notificationsApi = {
       await api.post('/users/me/notifications/viewed', { application_id: applicationId });
       return true; // Успешно
     } catch (error) {
-      console.error(`Ошибка при отметке уведомления о заявке ${applicationId} как просмотренного:`, error);
       return false; // Ошибка
     }
   },
@@ -370,7 +326,6 @@ export const notificationsApi = {
   getNotificationSettings: async () => {
     try {
       const response = await api.get('/users/me/notification-settings');
-      console.info('Настройки уведомлений получены:', response.data);
       
       // Сохраняем полученные настройки в локальное хранилище для синхронизации
       try {
@@ -385,14 +340,11 @@ export const notificationsApi = {
           appointment_reminders: response.data.appointment_reminders
         }));
         
-        console.info(`Настройки уведомлений сохранены в ${storageKey}`);
       } catch (storageError) {
-        console.warn('Не удалось сохранить настройки в sessionStorage:', storageError);
       }
       
       return response.data;
     } catch (error) {
-      console.error('Ошибка при получении настроек уведомлений:', error);
       
       // Проверяем, есть ли сохраненные настройки
       let savedSettings;
@@ -428,7 +380,6 @@ export const notificationsApi = {
       
       // Проверяем наличие CSRF токена
       if (!settings.csrf_token) {
-        console.error('CSRF токен отсутствует в запросе на обновление настроек');
         throw new Error('CSRF токен обязателен для обновления настроек');
       }
       
@@ -464,7 +415,6 @@ export const notificationsApi = {
       
       return response.data;
     } catch (error) {
-      console.error('Ошибка при обновлении настроек уведомлений:', error);
       
       // Проверяем, можно ли повторить запрос
       if (error.response && error.response.status === 403) {
@@ -483,7 +433,6 @@ export const notificationsApi = {
           console.info('Настройки уведомлений успешно обновлены при повторной попытке');
           return retryResponse.data;
         } catch (retryError) {
-          console.error('Ошибка при повторной попытке обновления настроек:', retryError);
           throw retryError;
         }
       }
@@ -514,7 +463,6 @@ export const notificationsApi = {
           clientSettings.doctor = JSON.parse(doctorSettings);
         }
       } catch (e) {
-        console.error('Ошибка при чтении настроек из sessionStorage:', e);
       }
       
       console.info('Локальные настройки уведомлений:', clientSettings);
@@ -529,7 +477,6 @@ export const notificationsApi = {
         mismatch: JSON.stringify(clientSettings) !== JSON.stringify(serverSettings.data)
       };
     } catch (error) {
-      console.error('Ошибка при проверке статуса уведомлений:', error);
       return {
         error: error.message,
         status: 'error'
@@ -544,7 +491,6 @@ api.getDistricts = async () => {
     const response = await api.get('/api/districts');
     return response.data;
   } catch (error) {
-    console.error('Ошибка при получении списка районов:', error);
     // Возвращаем статический список районов в случае ошибки
     return [
       "Алмазарский район",
@@ -566,10 +512,8 @@ api.getDistricts = async () => {
 export const getValidTokenForWS = async () => {
   try {
     const response = await api.get('/api/ws-token');
-    console.log('Получен токен для WebSocket:', response.data);
     return response.data.token;
   } catch (error) {
-    console.error('Ошибка при получении токена для WebSocket:', error);
     throw error;
   }
 };
@@ -581,7 +525,6 @@ export const uploadAvatar = async (file) => {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    console.log('Загрузка аватара на эндпоинт: /users/me/avatar');
     
     // Отправляем запрос на единственный правильный эндпоинт
     const response = await api.post('/users/me/avatar', formData, {
@@ -590,10 +533,8 @@ export const uploadAvatar = async (file) => {
       },
     });
     
-    console.log('Аватар успешно загружен:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Ошибка при загрузке аватара:', error);
     throw error;
   }
 };
@@ -607,7 +548,6 @@ export const consultationsApi = {
       const response = await api.get('/api/consultations', { params });
       return response.data;
     } catch (error) {
-      console.error('Ошибка при получении списка консультаций:', error);
       throw error;
     }
   },
@@ -618,7 +558,6 @@ export const consultationsApi = {
       const response = await api.get(`/api/consultations/${consultationId}`);
       return response.data;
     } catch (error) {
-      console.error(`Ошибка при получении консультации с ID ${consultationId}:`, error);
       throw error;
     }
   },
@@ -629,7 +568,6 @@ export const consultationsApi = {
       const response = await api.get(`/api/consultations/${consultationId}/messages`);
       return response.data;
     } catch (error) {
-      console.error(`Ошибка при получении сообщений консультации ${consultationId}:`, error);
       throw error;
     }
   },
@@ -641,7 +579,6 @@ export const consultationsApi = {
       const response = await api.get(`/api/consultations/${consultationId}/messages`, { params });
       return response.data;
     } catch (error) {
-      console.error(`Ошибка при получении новых сообщений консультации ${consultationId}:`, error);
       throw error;
     }
   },
@@ -649,11 +586,9 @@ export const consultationsApi = {
   // Завершение консультации через API (запасной метод)
   completeConsultation: async (consultationId) => {
     try {
-      console.log(`Завершение консультации ${consultationId} через REST API`);
       const response = await api.post(`/api/consultations/${consultationId}/complete`);
       return response.data;
     } catch (error) {
-      console.error(`Ошибка при завершении консультации ${consultationId} через API:`, error);
       throw error;
     }
   },
@@ -664,7 +599,6 @@ export const consultationsApi = {
       const formData = new FormData();
       formData.append('file', file);
       
-      console.log(`Загрузка файла в консультацию ${consultationId}:`, file.name);
       
       const response = await api.post(`/api/consultations/${consultationId}/upload-file`, formData, {
         headers: {
@@ -672,10 +606,8 @@ export const consultationsApi = {
         },
       });
       
-      console.log('Файл успешно загружен:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Ошибка при загрузке файла:', error);
       throw error;
     }
   },
@@ -689,7 +621,6 @@ export const consultationsApi = {
         formData.append('attachment_ids', JSON.stringify(fileData));
       }
       
-      console.log(`Отправка сообщения с файлами в консультацию ${consultationId}`);
       
       const response = await api.post(`/api/consultations/${consultationId}/messages-with-files`, formData, {
         headers: {
@@ -697,10 +628,8 @@ export const consultationsApi = {
         },
       });
       
-      console.log('Сообщение с файлами успешно отправлено:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Ошибка при отправке сообщения с файлами:', error);
       throw error;
     }
   }

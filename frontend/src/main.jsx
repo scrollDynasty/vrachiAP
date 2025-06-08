@@ -23,7 +23,6 @@ const GOOGLE_CLIENT_ID = "735617581412-e8ceb269bj7qqrv9sl066q63g5dr5sne.apps.goo
 // Утилита для очистки проблемных данных в хранилище браузера
 // Может быть вызвана в консоли разработчика: cleanupStorage()
 window.cleanupStorage = () => {
-  console.log('🧹 Очистка проблемных данных в хранилище браузера...');
   
   // Очистка токенов WebSocket
   const wsTokenKeys = [];
@@ -36,7 +35,6 @@ window.cleanupStorage = () => {
   
   // Удаляем найденные ключи
   wsTokenKeys.forEach(key => {
-    console.log(`🗑️ Удаление из localStorage: ${key}`);
     localStorage.removeItem(key);
   });
   
@@ -50,16 +48,13 @@ window.cleanupStorage = () => {
     }
   }
   
-  console.log(`🗑️ Удалено ${reviewCount} записей о отзывах из sessionStorage`);
   
   // Очистка глобальных переменных
   if (window.messageRefreshInterval) {
     clearInterval(window.messageRefreshInterval);
     window.messageRefreshInterval = null;
-    console.log('🗑️ Очищен интервал обновления сообщений');
   }
   
-  console.log('✅ Очистка завершена. Обновите страницу для применения изменений.');
   return 'Очистка завершена. Обновите страницу для применения изменений.';
 };
 
@@ -67,7 +62,6 @@ window.cleanupStorage = () => {
 // Может быть вызвана в консоли разработчика: markReviewAdded(consultationId)
 window.markReviewAdded = (consultationId) => {
   if (!consultationId) {
-    console.error('❌ Необходимо указать ID консультации');
     return 'Ошибка: необходимо указать ID консультации';
   }
   
@@ -76,7 +70,6 @@ window.markReviewAdded = (consultationId) => {
   localStorage.setItem(reviewKey, 'true');
   sessionStorage.setItem(reviewKey, 'true');
   
-  console.log(`✅ Консультация #${consultationId} отмечена как имеющая отзыв`);
   return `Консультация #${consultationId} отмечена как имеющая отзыв`;
 };
 
@@ -84,7 +77,6 @@ window.markReviewAdded = (consultationId) => {
 // Может быть вызвана в консоли разработчика: checkReviewStatus(consultationId)
 window.checkReviewStatus = (consultationId) => {
   if (!consultationId) {
-    console.error('❌ Необходимо указать ID консультации');
     return 'Ошибка: необходимо указать ID консультации';
   }
   
@@ -102,7 +94,6 @@ window.checkReviewStatus = (consultationId) => {
     consultationId
   };
   
-  console.log('📊 Статус отзыва:', status);
   return status;
 };
 
@@ -146,13 +137,11 @@ XMLHttpRequest.prototype.send = function(...args) {
 
 // Обработчик глобальных ошибок
 window.addEventListener('error', (event) => {
-  console.error('Глобальная ошибка:', event.error);
 });
 
 // Убедимся, что DOM готов для рендеринга
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  console.error('Элемент с id "root" не найден. Невозможно отрендерить приложение.');
 } else {
   try {
     // Точка входа в приложение
@@ -171,7 +160,6 @@ if (!rootElement) {
       </React.StrictMode>
     )
   } catch (error) {
-    console.error('Ошибка при инициализации приложения:', error);
     // Показываем сообщение об ошибке пользователю
     rootElement.innerHTML = `
       <div style="text-align: center; margin-top: 50px; font-family: Arial, sans-serif;">

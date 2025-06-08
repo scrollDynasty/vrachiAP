@@ -66,7 +66,6 @@ def get_db_connection():
         )
         return connection
     except Exception as e:
-        print(f"Ошибка подключения к базе данных: {e}")
         sys.exit(1)
 
 def check_column_exists(cursor, table_name, column_name):

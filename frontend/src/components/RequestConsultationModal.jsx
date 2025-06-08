@@ -20,8 +20,6 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
       setIsSubmitting(true);
       
       // Для отладки
-      console.log('Отправляем запрос на консультацию к врачу:', doctorName);
-      console.log('doctorId:', doctorId);
       
       // Подготавливаем данные для отправки
       const consultationData = {
@@ -29,10 +27,8 @@ function RequestConsultationModal({ isOpen, onClose, doctorId, doctorName }) {
         patient_note: note
       };
       
-      console.log('Данные для отправки:', consultationData);
       
       const response = await api.post('/api/consultations', consultationData);
-      console.log('Ответ сервера:', response.data);
       
       toast.success(t('consultationRequestSent'));
       onClose();

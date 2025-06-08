@@ -83,7 +83,6 @@ function DoctorApplicationForm({ onSuccess }) {
         const specializationResponse = await api.get('/api/specializations');
         setSpecializations(specializationResponse.data);
       } catch (err) {
-        console.error('Ошибка при загрузке данных:', err);
       } finally {
         setLoadingOptions(false);
       }
@@ -300,7 +299,6 @@ function DoctorApplicationForm({ onSuccess }) {
       }
       
     } catch (err) {
-      console.error('Failed to submit doctor application:', err);
       setError(err.response?.data?.detail || 'Ошибка при отправке заявки. Пожалуйста, попробуйте еще раз.');
     } finally {
       setIsLoading(false);

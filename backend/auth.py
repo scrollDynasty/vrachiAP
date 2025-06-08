@@ -46,8 +46,6 @@ if SECRET_KEY is None:
     # В продакшене это не безопасно - ключ будет меняться при каждом перезапуске
     import secrets
     SECRET_KEY = secrets.token_hex(32)
-    print(f"WARNING: SECRET_KEY not set in environment. Generated random key for development: {SECRET_KEY}")
-    print("DO NOT USE THIS IN PRODUCTION. Set SECRET_KEY in .env file or environment variables.")
 
 # Алгоритм шифрования для JWT. HS256 - распространенный выбор для HMAC подписи.
 ALGORITHM = "HS256"
@@ -167,7 +165,6 @@ async def verify_google_token(token: str) -> dict:
     try:
         # Если токен пустой или None, сразу выбрасываем ошибку
         if not token:
-            print("Google OAuth Debug - Empty authorization code received")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Отсутствует код авторизации Google",
@@ -176,7 +173,6 @@ async def verify_google_token(token: str) -> dict:
             
         # Проверяем, не слишком ли короткий токен (обычно они длинные)
         if len(token) < 20:  # Минимальная длина действительного токена
-            print(f"Google OAuth Debug - Authorization code too short: {token}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Некорректный формат кода авторизации Google",
@@ -193,23 +189,18 @@ async def verify_google_token(token: str) -> dict:
             "grant_type": "authorization_code"
         }
         
-        print(f"Google OAuth Debug - Sending request to {token_url}")
-        print(f"Google OAuth Debug - Request data: client_id={GOOGLE_CLIENT_ID}, redirect_uri={GOOGLE_REDIRECT_URI}")
         
         # Make the request with verbose error handling
         try:
             token_response = requests.post(token_url, data=token_data, timeout=10)
-            print(f"Google OAuth Debug - Response status: {token_response.status_code}")
             
             # Print response content regardless of status for debugging
             response_content = token_response.text
-            print(f"Google OAuth Debug - Response content: {response_content[:200]}...")
             
             # Если получен ответ 400 с invalid_grant, возможно, код уже был использован
             if token_response.status_code == 400 and "invalid_grant" in response_content:
                 # Это часто происходит при повторном использовании кода авторизации
                 # Используем более понятное сообщение об ошибке
-                print("Google OAuth Debug - Код авторизации уже был использован или истек")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Код авторизации Google истек. Пожалуйста, попробуйте войти снова",
@@ -219,10 +210,7 @@ async def verify_google_token(token: str) -> dict:
             token_response.raise_for_status()  # This will raise an exception for 4XX/5XX responses
             
             tokens = token_response.json()
-            print(f"Google OAuth Debug - Successfully received tokens")
         except requests.exceptions.HTTPError as http_err:
-            print(f"Google OAuth Debug - HTTP error: {http_err}")
-            print(f"Google OAuth Debug - Response content: {token_response.text}")
             
             # Улучшенная обработка сообщений об ошибках
             error_message = "Google OAuth token exchange failed"
@@ -235,22 +223,18 @@ async def verify_google_token(token: str) -> dict:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except requests.exceptions.Timeout:
-            print("Google OAuth Debug - Request timeout")
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 detail="Превышено время ожидания ответа от Google OAuth сервиса",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except requests.exceptions.RequestException as req_err:
-            print(f"Google OAuth Debug - Request error: {req_err}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Ошибка соединения с сервисом Google OAuth. Попробуйте позже.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except ValueError as json_err:
-            print(f"Google OAuth Debug - JSON decode error: {json_err}")
-            print(f"Google OAuth Debug - Raw response: {token_response.text}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Некорректный ответ от сервиса Google OAuth",
@@ -261,14 +245,11 @@ async def verify_google_token(token: str) -> dict:
         userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
         headers = {"Authorization": f"Bearer {tokens['access_token']}"}
         
-        print(f"Google OAuth Debug - Fetching user info from {userinfo_url}")
         
         try:
             userinfo_response = requests.get(userinfo_url, headers=headers, timeout=10)
-            print(f"Google OAuth Debug - User info response status: {userinfo_response.status_code}")
             
             if userinfo_response.status_code != 200:
-                print(f"Google OAuth Debug - User info error: {userinfo_response.text}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"Не удалось получить информацию о пользователе от Google",
@@ -277,18 +258,15 @@ async def verify_google_token(token: str) -> dict:
                 
             userinfo_response.raise_for_status()
             user_data = userinfo_response.json()
-            print(f"Google OAuth Debug - Successfully received user data for email: {user_data.get('email')}")
             
             return user_data
         except requests.exceptions.Timeout:
-            print("Google OAuth Debug - User info request timeout")
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 detail="Превышено время ожидания ответа от Google API",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except Exception as e:
-            print(f"Google OAuth Debug - Error getting user info: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Ошибка при получении данных пользователя от Google",
@@ -299,7 +277,6 @@ async def verify_google_token(token: str) -> dict:
         raise
     except Exception as e:
         # Записываем конкретную ошибку для отладки
-        print(f"Google OAuth Debug - Unexpected error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Ошибка аутентификации через Google: попробуйте войти снова",
@@ -399,7 +376,6 @@ def check_login_attempts(email: str) -> bool:
         bool: True, если вход разрешен, иначе False
     """
     # Полностью отключаем проверку rate limit и всегда возвращаем True
-    print(f"Rate limiting check disabled for {email}")
     return True
 
 # Функция для создания CSRF-токена
@@ -468,21 +444,15 @@ async def get_current_user(
     """
     # Для отладки печатаем базовую информацию о запросе
     if request and request.url.path == "/users/me":
-        print("\n==== AUTH DEBUG START ====")
-        print(f"Token from oauth2_scheme: {token and token[:15]}... (length: {token and len(token) or 0})")
         
         # Проверяем заголовок Authorization
         auth_header = request.headers.get("Authorization", "")
         if auth_header:
-            print(f"Authorization header present: {auth_header[:30]}... (length: {len(auth_header)})")
         else:
-            print("Authorization header missing!")
         
         # Проверяем куки
         if request.cookies and "access_token" in request.cookies:
             cookie_token = request.cookies.get("access_token")
-            print(f"Cookie token found: {cookie_token[:15]}... (length: {len(cookie_token)})")
-        print("==== AUTH DEBUG END ====\n")
     """
     Зависимость FastAPI. Декодирует токен доступа JWT и возвращает объект пользователя
     из базы данных, если токен действителен.
@@ -510,52 +480,41 @@ async def get_current_user(
     # Дополнительно логируем заголовки, если доступны
     if request and hasattr(request, 'headers'):
         auth_header = request.headers.get('Authorization', '')
-        print(f"Auth Debug - Headers check: 'Authorization' header is {len(auth_header) > 0 and 'present' or 'missing'}")
         if auth_header.startswith('Bearer '):
             bearer_token = auth_header.replace('Bearer ', '')
-            print(f"Auth Debug - Bearer token found in header: {bearer_token[:10]}...")
             # Если токен в заголовке, используем его
             if not actual_token or len(bearer_token) > len(actual_token):
                 actual_token = bearer_token
-                print(f"Auth Debug - Using Bearer token from header instead of token from dependency")
     
     # Если токена нет в заголовке, пытаемся получить его из cookie
     if not actual_token and request:
         cookie_token = request.cookies.get("access_token")
         if cookie_token:
-            print(f"Auth Debug - Cookie token found: {cookie_token[:10]}...")
             actual_token = cookie_token
     
     # Если токен не найден ни в заголовке, ни в cookie
     if not actual_token:
-        print("Auth Debug - No token found in header or cookie")
         raise credentials_exception
     
     try:
         # Печатаем токен для отладки
-        print(f"DECODE_DEBUG - Token start: {actual_token[:15]}...")
         
         try:
             # Декодируем JWT токен, извлекая данные (payload)
             payload = jwt.decode(actual_token, SECRET_KEY, algorithms=[ALGORITHM])
-            print(f"DECODE_DEBUG - Token decoded successfully!")
         except Exception as e:
-            print(f"DECODE_DEBUG - Token decode failed: {str(e)}")
             raise credentials_exception
         
         # Получаем имя пользователя (email) из поля "sub" в payload токена
         username: str = payload.get("sub")
         # Если поле "sub" отсутствует или пустое, значит, токен некорректен
         if username is None:
-            print("DECODE_DEBUG - Token has no 'sub' field!")
             raise credentials_exception
         
         # Проверяем наличие JTI (JWT ID) для защиты от replay-атак
         if "jti" not in payload:
-            print("DECODE_DEBUG - JWT token missing 'jti' claim")
             raise credentials_exception
             
-        print(f"DECODE_DEBUG - Token valid for user: {username}")
             
         token_data = TokenData(username=username)
     except HTTPException:
@@ -563,14 +522,12 @@ async def get_current_user(
         raise
     except Exception as e:
         # Ловим все остальные неожиданные ошибки
-        print(f"Unexpected error during token validation: {str(e)}")
         raise credentials_exception
         
     # Ищем пользователя в БД по email из токена
     user = db.query(User).filter(User.email == token_data.username).first()
     if user is None:
         # Более общее сообщение об ошибке без раскрытия конкретного email
-        print(f"Пользователь не найден в базе данных. Возможно, он был удален или никогда не существовал.")
         # Создаем специальное исключение с информацией о необходимости регистрации
         registration_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -655,7 +612,6 @@ async def authenticate_user(email: str, password: str, db: Session) -> Optional[
         # Если пользователь не найден
         if not user:
             # Не регистрируем попытку входа для несуществующего email
-            print(f"User not found: {email}")
             # Бросаем исключение вместо возврата None
             raise ValueError("User not found")
         
@@ -667,7 +623,6 @@ async def authenticate_user(email: str, password: str, db: Session) -> Optional[
         # Проверяем пароль. Если неверный, возвращаем None.
         if not verify_password(password, user.hashed_password):
             # Не регистрируем неудачную попытку входа
-            print(f"Invalid password for user: {email}")
             # Бросаем исключение вместо возврата None
             raise ValueError("Invalid password")
         
@@ -677,12 +632,10 @@ async def authenticate_user(email: str, password: str, db: Session) -> Optional[
         return user
     except ValueError as e:
         # Перехватываем только ValueError, которые генерируем сами
-        print(f"Authentication error: {e}")
         return None
     except Exception as e:
         # Логируем другие ошибки для отладки, но не показываем её пользователю
         # (из соображений безопасности)
-        print(f"Authentication error: {e}")
         return None
 
 # Добавляем функцию get_current_active_user
@@ -713,14 +666,12 @@ def reset_login_attempts(username: str) -> None:
     Сбрасывает счетчик неудачных попыток входа для заданного пользователя.
     """
     # Функция отключена
-    print(f"Login attempts reset disabled for {username}")
 
 def increment_login_attempts(username: str) -> None:
     """
     Увеличивает счетчик неудачных попыток входа для заданного пользователя.
     """
     # Функция отключена 
-    print(f"Login attempt tracking disabled for {username}")
 
 # Проверка валидности токена
 def verify_token(token: str, credentials_exception):

@@ -23,7 +23,6 @@ function ProtectedRoute({ allowedRoles }) {
 
   // Если есть ошибка аутентификации, перенаправляем на страницу логина
   if (authError) {
-    console.log("Authentication error in ProtectedRoute:", authError);
     return <Navigate to="/login" replace />;
   }
 
