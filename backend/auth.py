@@ -443,16 +443,17 @@ async def get_current_user(
     из базы данных, если токен действителен.
     """
     # Для отладки печатаем базовую информацию о запросе
-    if request and request.url.path == "/users/me":
-        
-        # Проверяем заголовок Authorization
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header:
-        else:
-        
-        # Проверяем куки
-        if request.cookies and "access_token" in request.cookies:
-            cookie_token = request.cookies.get("access_token")
+    # if request and request.url.path == "/users/me":
+    #     # Проверяем заголовок Authorization
+    #     auth_header = request.headers.get("Authorization", "")
+    #     if auth_header:
+    #         pass  # Логика для auth_header
+    #     else:
+    #         pass  # Логика когда auth_header пустой
+    #     
+    #     # Проверяем куки
+    #     if request.cookies and "access_token" in request.cookies:
+    #         cookie_token = request.cookies.get("access_token")
     """
     Зависимость FastAPI. Декодирует токен доступа JWT и возвращает объект пользователя
     из базы данных, если токен действителен.
