@@ -102,7 +102,7 @@ const AboutPage = () => {
       >
         <div className="max-w-4xl mx-auto">
           <motion.h1 
-            className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-8"
+            className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent mb-8"
             variants={fadeInVariants}
           >
             {t('aboutTitle')}

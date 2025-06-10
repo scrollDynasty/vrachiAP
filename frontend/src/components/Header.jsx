@@ -285,7 +285,7 @@ function Header() {
         <NavbarBrand>
           <Link to="/" className="flex items-center">
             <div className="transition-all hover:scale-105">
-              <Logo size="small" variant="full" />
+              <Logo size="medium" variant="full" />
             </div>
           </Link>
         </NavbarBrand>
@@ -307,12 +307,10 @@ function Header() {
         <NavbarItem>
           <Link 
             to="/about" 
-            className="relative text-gray-700 hover:text-primary transition-all duration-300 font-medium px-3 py-2 rounded-lg hover:bg-blue-50 group"
+            className="text-gray-700 hover:text-primary transition-colors relative group"
           >
-            <span className="relative z-10 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-indigo-700 transition-all duration-300">
-              {t('aboutTitle')}
-            </span>
-            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300 group-hover:w-full rounded-full"></span>
+            {t('aboutTitle')}
+            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
           </Link>
         </NavbarItem>
         
