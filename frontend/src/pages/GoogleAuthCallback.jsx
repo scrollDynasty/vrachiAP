@@ -153,7 +153,7 @@ function GoogleAuthCallback() {
               console.error('GoogleAuthCallback: Error importing API:', apiImportError);
               // Создаем временный экземпляр axios
               api = axios.create({
-                baseURL: 'http://127.0.0.1:8000',
+                baseURL: 'https://healzy.uz',
                 headers: { 'Authorization': `Bearer ${token}` }
               });
             }
@@ -207,7 +207,7 @@ function GoogleAuthCallback() {
               console.error('GoogleAuthCallback: Error importing API:', apiImportError);
               // Создаем временный экземпляр axios
               userApi = axios.create({
-                baseURL: 'http://127.0.0.1:8000',
+                baseURL: 'https://healzy.uz',
                 headers: { 'Authorization': `Bearer ${token}` }
               });
             }

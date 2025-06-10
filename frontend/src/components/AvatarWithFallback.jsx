@@ -44,7 +44,7 @@ const AvatarWithFallback = forwardRef(({
     // Формируем полный URL для изображения
     if (src.startsWith('/') && !src.startsWith('http')) {
       // Преобразуем относительный путь в абсолютный URL
-      const newSrc = `http://127.0.0.1:8000${src}${noCacheParam}`;
+              const newSrc = `https://healzy.uz${src}${noCacheParam}`;
       setFullSrc(newSrc);
     } else {
       // Если путь уже абсолютный, добавляем параметр nocache

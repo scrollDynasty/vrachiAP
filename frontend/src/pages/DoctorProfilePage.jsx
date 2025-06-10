@@ -319,7 +319,7 @@ function DoctorProfilePage() {
                   
                   try {
                     // Проверим, существует ли фото по этому пути
-                    const checkResponse = await fetch(`http://127.0.0.1:8000${possiblePhotoPath}`);
+                    const checkResponse = await fetch(`https://healzy.uz${possiblePhotoPath}`);
                     if (checkResponse.ok) {
                       data.avatar_path = possiblePhotoPath;
                       setDoctor({...data});

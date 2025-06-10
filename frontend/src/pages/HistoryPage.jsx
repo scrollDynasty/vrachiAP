@@ -55,7 +55,7 @@ function HistoryPage() {
               
               // Сохраняем путь к аватару
               if (response.data.avatar_path) {
-                avatarData[doctorId] = `http://127.0.0.1:8000${response.data.avatar_path}`;
+                                    avatarData[doctorId] = `https://healzy.uz${response.data.avatar_path}`;
               }
             } catch (error) {
               console.error(`Ошибка загрузки данных о враче ${doctorId}:`, error);
@@ -79,7 +79,7 @@ function HistoryPage() {
               
               // Сохраняем путь к аватару
               if (response.data.avatar_path) {
-                avatarData[patientId] = `http://127.0.0.1:8000${response.data.avatar_path}`;
+                                    avatarData[patientId] = `https://healzy.uz${response.data.avatar_path}`;
               }
             } catch (error) {
               console.error(`Ошибка загрузки данных о пациенте ${patientId}:`, error);

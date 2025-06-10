@@ -31,8 +31,8 @@ fi
 
 # Глобальные переменные
 DEPLOY_DIR="/home/whoami/production/vrachiAP"
-DOMAIN="soglom.duckdns.org"
-IP_ADDRESS="20.119.99.213"
+DOMAIN="healzy.uz"
+IP_ADDRESS="172.174.231.5"
 MYSQL_ROOT_PASSWORD=""
 MYSQL_USER="vrachi_user"
 MYSQL_PASSWORD=""

@@ -17,17 +17,17 @@ export default defineConfig({
     }
   },
   server: {
-    host: 'localhost',
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'https://healzy.uz',
         changeOrigin: true,
-        secure: false
+        secure: true
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'wss://healzy.uz',
         changeOrigin: true,
-        secure: false,
+        secure: true,
         ws: true
       }
     }

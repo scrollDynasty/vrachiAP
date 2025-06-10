@@ -96,7 +96,7 @@ from auth import (
 )
 
 # URL фронтенда для редиректов
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://healzy.uz")
 
 # Импортируем pydantic модели для валидации данных запросов и ответов
 from schemas import (
@@ -151,7 +151,7 @@ for directory in [PHOTO_DIR, DIPLOMA_DIR, LICENSE_DIR, AVATAR_DIR, CONSULTATION_
 # Определяем базовый URL для подтверждения email (адрес страницы фронтенда, куда пользователь перейдет по ссылке из письма)
 # В реальном проекте это должна быть переменная окружения, читаемая из .env!
 VERIFICATION_BASE_URL = os.getenv(
-    "VERIFICATION_BASE_URL", "http://localhost:5173/verify-email"
+    "VERIFICATION_BASE_URL", "https://healzy.uz/verify-email"
 )  # Базовый URL страницы подтверждения на фронтенде
 
 print(f"Using VERIFICATION_BASE_URL: {VERIFICATION_BASE_URL}")
@@ -203,13 +203,12 @@ except Exception as e:
 
 app = FastAPI()  # Создаем экземпляр FastAPI приложения
 origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://fa06-84-54-122-64.ngrok-free.app",  # Для разработки на стандартном порту React через IP
-    "https://soglom.duckdns.org",
-    "https://soglom.com",  # Продакшен домен
-    # TODO: Добавить другие источники, если фронтенд будет доступен по другому адресу или порту
-    # TODO: В продакшене здесь должен быть домен твоего сайта!
+    "https://healzy.uz",  # Продакшн домен
+    "http://172.174.231.5",  # IP сервера
+    "https://172.174.231.5",  # IP сервера с HTTPS
+    "http://localhost:5173",  # Для локальной разработки
+    "http://localhost:3000",  # Для локальной разработки
+    # TODO: Добавить другие источники при необходимости
 ]
 # Обновленные настройки CORS для правильной работы куки
 app.add_middleware(

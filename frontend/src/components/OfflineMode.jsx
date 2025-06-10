@@ -44,7 +44,7 @@ const OfflineMode = ({ user, onRetry }) => {
             <div className="bg-blue-50 p-4 rounded-lg mb-6">
               <p className="text-sm text-blue-700">
                 <strong>Для администратора:</strong><br/>
-                Проверьте состояние backend сервера на localhost:8000
+                Проверьте состояние backend сервера на healzy.uz
               </p>
             </div>
             {user && (
