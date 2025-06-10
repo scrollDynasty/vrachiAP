@@ -380,7 +380,7 @@ function AuthPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
             >
-              Soglom
+                                    Healzy
             </motion.h1>
             <motion.div 
               className="absolute -z-10 -inset-1 rounded-lg bg-gradient-to-r from-blue-600/20 to-indigo-600/20"

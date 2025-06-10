@@ -96,7 +96,7 @@ from auth import (
 )
 
 # URL фронтенда для редиректов
-FRONTEND_URL = "https://soglom.com"
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # Импортируем pydantic модели для валидации данных запросов и ответов
 from schemas import (

@@ -4,12 +4,25 @@ import { FiGlobe, FiChevronDown } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brandColors } from '../theme';
 
-// Доступные языки с их кодами, названиями и эмодзи флагами
+// Доступные языки с их кодами, названиями и кодами стран для флагов
 const AVAILABLE_LANGUAGES = [
-  { code: 'ru', name: 'Русский', nativeName: 'Русский', flag: '🇷🇺' },
-  { code: 'uz', name: 'Узбекский', nativeName: 'O\'zbekcha', flag: '🇺🇿' },
-  { code: 'en', name: 'Английский', nativeName: 'English', flag: '🇺🇸' }
+  { code: 'ru', name: 'Русский', nativeName: 'Русский', countryCode: 'RU' },
+  { code: 'uz', name: 'Узбекский', nativeName: 'O\'zbekcha', countryCode: 'UZ' },
+  { code: 'en', name: 'Английский', nativeName: 'English', countryCode: 'US' }
 ];
+
+// Компонент флага
+const FlagIcon = ({ countryCode, className = "w-6 h-4" }) => {
+  return (
+    <img
+      src={`https://flagcdn.com/20x15/${countryCode.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/40x30/${countryCode.toLowerCase()}.png 2x`}
+      alt={`${countryCode} flag`}
+      className={className}
+      style={{ objectFit: 'cover', borderRadius: '2px' }}
+    />
+  );
+};
 
 // Переводы для основных элементов интерфейса
 const translations = {
@@ -154,7 +167,7 @@ const translations = {
     repeatPassword: 'Повторите пароль',
     passwordsDontMatch: 'Пароли не совпадают',
     // Дополнительные переводы
-    welcome: 'Добро пожаловать в Soglom',
+    welcome: 'Добро пожаловать в Healzy',
     subtitle: 'Ваш цифровой помощник в области здравоохранения',
     getStarted: 'Начать',
     howItWorks: 'Как это работает',
@@ -203,6 +216,33 @@ const translations = {
     authProcessing: 'Завершение авторизации...',
     authProcessingDescription: 'Пожалуйста, подождите, мы обрабатываем вашу авторизацию через Google.',
     authErrorTitle: 'Ошибка авторизации',
+    
+    // About Page
+    aboutTitle: 'О нас',
+    aboutMission: 'Мы верим, что доступ к качественному здравоохранению — это не привилегия, а основное право человека. Каждый, везде, заслуживает возможности понимать, отслеживать и улучшать свое здоровье — в любое время, в любом месте.',
+    aboutVisionTitle: 'Наше видение',
+    aboutVision1: 'Мы создаем мир, где здравоохранение не знает границ. Мир, где забота о здоровье так же естественна и проста, как дыхание. Где экспертная медицинская помощь находится всего в одном клике — независимо от того, кто вы и где живете.',
+    aboutVision2: 'Это здравоохранение, созданное заново: персональное, интеллектуальное и человечное. Мы упрощаем понимание здравоохранения. И делаем все это, ставя вашу конфиденциальность, безопасность и уверенность в центр.',
+    aboutMovement: 'Мы создаем не просто инструмент. Мы строим движение — где каждое сердцебиение имеет значение, каждый человек замечен, и ни один вопрос не остается без ответа.',
+    aboutUnlimited: 'Безграничная забота',
+    aboutCommunity: 'Сообщество',
+    aboutInnovation: 'Инновации',
+    aboutCommitmentTitle: 'Наши обязательства',
+    aboutCommitment: 'Мы стремимся создать бесшовный опыт — построенный с эмпатией, руководимый инновациями и сформированный вокруг реальных человеческих потребностей. Потому что для нас здравоохранение — это не просто услуга. Это связь. Обязательство. Общая ответственность.',
+    aboutYourHealth: 'Это ваше здоровье. Это ваш момент.',
+    aboutWithYou: 'И мы здесь, на каждом шаге пути.',
+    aboutValuesTitle: 'За что мы выступаем',
+    aboutValue1Title: 'Мы верим в правильные поступки',
+    aboutValue1: 'Мы верим в правильные поступки — всегда. Для вашего здоровья, ваших данных и вашего спокойствия.',
+    aboutValue2Title: 'Технологии служат людям',
+    aboutValue2: 'Технологии служат людям, а не наоборот. Каждая функция разработана, чтобы сделать вашу жизнь проще, а не сложнее.',
+    aboutValue3Title: 'Здоровье не имеет границ',
+    aboutValue3: 'Здоровье не имеет одной формы, одного возраста или одного языка. Мы разрабатываем с инклюзивностью в основе — для каждого происхождения, каждой истории, каждого тела.',
+    aboutValue4Title: 'Мы помогаем людям',
+    aboutValue4: 'Мы здесь, чтобы помочь людям взять здоровье под контроль — один вопрос, один врач, одно сердцебиение за раз.',
+    aboutFinalTitle: 'Мы здесь, чтобы изменить то, как мир воспринимает здравоохранение',
+    aboutFinalMessage: 'Не только для сегодня, но и для завтра.',
+    aboutWithHeart: 'С вами. С сердцем. Без границ.',
     authRedirectMessage: 'Вы будете перенаправлены на главную страницу...',
     returnToLogin: 'Вернуться на страницу входа',
     consultationStarted: 'Консультация успешно началась',
@@ -538,7 +578,7 @@ const translations = {
     pleaseCompleteAllFields: 'Пожалуйста, заполните все поля',
     loginError: 'Ошибка входа',
     medicalPlatformAdminPanel: 'Панель администрирования медицинской платформы',
-    accessOnlyForSoglomAdmins: 'Доступ только для администраторов Soglom',
+    accessOnlyForSoglomAdmins: 'Доступ только для администраторов Healzy',
     
     // Переводы для SearchDoctorsPage
     doctorAppointmentError: 'Произошла ошибка при попытке записи к врачу. Попробуйте перейти в профиль врача.',
@@ -822,8 +862,32 @@ const translations = {
     pdfJpgPng: 'PDF, JPG или PNG',
     licenseScanField: 'Скан лицензии',
     
+    // Переводы для страницы "О нас"
+    aboutTitle: 'О нас',
+    aboutMission: 'Мы верим, что доступ к качественному здравоохранению — это не привилегия, а основное право человека. Каждый, везде, заслуживает возможности понимать, отслеживать и улучшать свое здоровье — в любое время, в любом месте.',
+    aboutVisionTitle: 'Наше видение',
+    aboutVision1: 'Мы создаем мир, где здравоохранение не знает границ. Мир, где забота о здоровье так же естественна и проста, как дыхание. Где экспертная медицинская помощь находится всего в одном клике — независимо от того, кто вы и где живете.',
+    aboutVision2: 'Это здравоохранение, созданное заново: персональное, интеллектуальное и человечное. Мы упрощаем понимание здравоохранения. И делаем все это, ставя вашу конфиденциальность, безопасность и уверенность в центр.',
+    aboutMovement: 'Мы создаем не просто инструмент. Мы строим движение — где каждое сердцебиение имеет значение, каждый человек замечен, и ни один вопрос не остается без ответа.',
+    aboutUnlimited: 'Безграничная забота',
+    aboutCommunity: 'Сообщество',
+    aboutInnovation: 'Инновации',
+    aboutCommitmentTitle: 'Наши обязательства',
+    aboutCommitment: 'Мы стремимся создать бесшовный опыт — построенный с эмпатией, руководимый инновациями и сформированный вокруг реальных человеческих потребностей. Потому что для нас здравоохранение — это не просто услуга. Это связь. Обязательство. Общая ответственность.',
+    aboutYourHealth: 'Это ваше здоровье. Это ваш момент.',
+    aboutWithYou: 'И мы здесь, на каждом шаге пути.',
+    aboutValuesTitle: 'За что мы выступаем',
+    aboutValue1Title: 'Мы верим в правильные поступки',
+    aboutValue1: 'Мы верим в правильные поступки — всегда. Для вашего здоровья, ваших данных и вашего спокойствия.',
+    aboutValue2Title: 'Мы делаем здравоохранение доступным для всех',
+    aboutValue2: 'Мы делаем качественное здравоохранение доступным для всех — независимо от того, кто вы и где находитесь.',
+    aboutValue3Title: 'Мы ставим вас в центр всего',
+    aboutValue3: 'Ваши потребности, ваши цели и ваш комфорт — вот что движет каждым решением, которое мы принимаем.',
+    aboutValue4Title: 'Мы никогда не прекращаем совершенствоваться',
+    aboutValue4: 'Здравоохранение развивается. И мы тоже. Мы постоянно учимся, растем и адаптируемся для лучшего обслуживания.',
+
     // Переводы для футера
-    copyrightText: '© 2025 Soglom. Barcha huquqlar himoyalangan.',
+    copyrightText: '© 2025 Healzy. Barcha huquqlar himoyalangan.',
     privacyPolicyLink: 'Maxfiylik siyosati',
     termsOfUseLink: 'Foydalanish shartlari',
     contactsLink: 'Aloqa'
@@ -969,7 +1033,7 @@ const translations = {
     repeatPassword: 'Parolni takrorlang',
     passwordsDontMatch: 'Parollar mos kelmaydi',
     // Дополнительные переводы
-    welcome: 'Soglom\'ga xush kelibsiz',
+    welcome: 'Healzy\'ga xush kelibsiz',
     subtitle: 'Sizning raqamli sog\'liqni saqlash yordamchingiz',
     getStarted: 'Boshlash',
     howItWorks: 'Qanday ishlaydi',
@@ -1020,6 +1084,33 @@ const translations = {
     authProcessing: 'Avtorizatsiyani yakunlash...',
     authProcessingDescription: 'Iltimos, kuting, biz sizning Google orqali avtorizatsiyangizni qayta ishlamoqdamiz.',
     authErrorTitle: 'Avtorizatsiya xatosi',
+    
+    // About Page
+    aboutTitle: 'Biz haqimizda',
+    aboutMission: 'Biz sifatli tibbiy xizmatga kich olish imtiyoz emas, balki insonning asosiy huquqi ekanligiga ishonamiz. Har kim, har yerda, o\'z sog\'lig\'ini tushunish, kuzatish va yaxshilash imkoniyatiga ega bo\'lishni loyiq ko\'radi — istalgan vaqtda, istalgan joyda.',
+    aboutVisionTitle: 'Bizning ko\'z o\'ngimiz',
+    aboutVision1: 'Biz tibbiyot chegaralarni bilmaydigan dunyoni yaratmoqdamiz. Sog\'liq g\'amxo\'rligi nafas olish kabi tabiiy va oddiy bo\'lgan dunyo. Mutaxassis tibbiy yordam atigi bir bosish bilan — siz kim bo\'lishingiz va qaerda yashashingizdan qat\'i nazar.',
+    aboutVision2: 'Bu yangidan yaratilgan tibbiyot: shaxsiy, aqlli va insoniy. Biz tibbiyotni tushunishni soddalashtramiz. Va buni hammasi sizning maxfiyligingiz, xavfsizligingiz va ishonchingizni markazga qo\'yib qilamiz.',
+    aboutMovement: 'Biz shunchaki vosita yaratmayapmiz. Biz harakat quramiz — bu yerda har bir yurak urishi muhim, har bir inson ko\'riladi va hech qanday savol javobsiz qolmaydi.',
+    aboutUnlimited: 'Cheksiz g\'amxo\'rlik',
+    aboutCommunity: 'Jamiyat',
+    aboutInnovation: 'Innovatsiyalar',
+    aboutCommitmentTitle: 'Bizning majburiyatlarimiz',
+    aboutCommitment: 'Biz uzluksiz tajriba yaratishga intilamiz — empatiyla qurilgan, innovatsiyalar bilan boshqarilgan va haqiqiy insoniy ehtiyojlar atrofida shakllangan. Chunki biz uchun tibbiyot shunchaki xizmat emas. Bu aloqa. Majburiyat. Umumiy javobgarlik.',
+    aboutYourHealth: 'Bu sizning sog\'ligingiz. Bu sizning lahzangiz.',
+    aboutWithYou: 'Va biz bu yerda, har bir qadamda.',
+    aboutValuesTitle: 'Biz nimani qo\'llab-quvvatlaymiz',
+    aboutValue1Title: 'Biz to\'g\'ri ishlarni qilishga ishonamiz',
+    aboutValue1: 'Biz to\'g\'ri ishlarni qilishga ishonamiz — har doim. Sizning sog\'ligingiz, ma\'lumotlaringiz va tinchligingiz uchun.',
+    aboutValue2Title: 'Texnologiya odamlarga xizmat qiladi',
+    aboutValue2: 'Texnologiya odamlarga xizmat qiladi, aksincha emas. Har bir funksiya sizning hayotingizni osonlashtirish uchun ishlab chiqilgan, murakkablashtirish uchun emas.',
+    aboutValue3Title: 'Sog\'liq chegaralarni bilmaydi',
+    aboutValue3: 'Sog\'liq bitta shakl, bitta yosh yoki bitta tilga ega emas. Biz inklyuzivlik asosida ishlab chiqamiz — har bir kelib chiqish, har bir tarix, har bir tana uchun.',
+    aboutValue4Title: 'Biz odamlarga yordam beramiz',
+    aboutValue4: 'Biz odamlarga o\'z sog\'liklarini nazorat qilishda yordam berish uchun bu yerdamiz — bitta savol, bitta shifokor, bitta yurak urishi.',
+    aboutFinalTitle: 'Biz dunyoning tibbiyotni qanday qabul qilishini o\'zgartirish uchun bu yerdamiz',
+    aboutFinalMessage: 'Nafaqat bugun uchun, balki ertaga ham.',
+    aboutWithHeart: 'Siz bilan. Yurak bilan. Chegaralarsiz.',
     authRedirectMessage: 'Siz bosh sahifaga yo\'naltirilasiz...',
     returnToLogin: 'Kirish sahifasiga qaytish',
     consultationStarted: 'Konsultatsiya muvaffaqiyatli boshlandi',
@@ -1588,8 +1679,32 @@ const translations = {
     submitApplication: 'Ariza yuborish',
     submittingApplication: 'Ariza yuborilmoqda...',
     
+    // Переводы для страницы "О нас"
+    aboutTitle: 'Biz haqimizda',
+    aboutMission: 'Biz sifatli tibbiy yordamga kirish imtiyoz emas, balki inson huquqi ekanligiga ishonamiz. Har kim, har joyda, o\'z sog\'lig\'ini tushunish, kuzatish va yaxshilash imkoniyatiga ega bo\'lishi kerak — istalgan vaqtda, istalgan joyda.',
+    aboutVisionTitle: 'Bizning ko\'zlangan maqsadimiz',
+    aboutVision1: 'Biz tibbiy yordam chegaralarni bilmaydigan dunyoni yaratmoqdamiz. Sog\'liqni saqlash nafas olish kabi tabiiy va sodda bo\'lgan dunyoni. Malakali tibbiy yordam atigi bir bosish bilan — kim bo\'lishingiz va qayerda yashashingizdan qat\'i nazar.',
+    aboutVision2: 'Bu yangicha tibbiy yordam: shaxsiy, aqlli va insoniy. Biz sog\'liqni saqlashni tushunishni soddalashtiramiz. Va bularning barchasini sizning maxfiyligingiz, xavfsizligingiz va ishonchingizni markazga qo\'yib amalga oshiramiz.',
+    aboutMovement: 'Biz oddiy vosita yaratmayapmiz. Biz harakat quryapmiz — har bir yurak urishi muhim, har bir inson e\'tiborga olinadi va birorta ham savol javobsiz qolmaydi.',
+    aboutUnlimited: 'Cheksiz g\'amxo\'rlik',
+    aboutCommunity: 'Jamiyat',
+    aboutInnovation: 'Innovatsiya',
+    aboutCommitmentTitle: 'Bizning majburiyatlarimiz',
+    aboutCommitment: 'Biz muammosiz tajriba yaratishga intilamiz — hamdardlik bilan qurilgan, innovatsiyalar bilan boshqarilgan va haqiqiy inson ehtiyojlari atrofida shakllantirilgan. Chunki biz uchun sog\'liqni saqlash oddiy xizmat emas. Bu aloqa. Majburiyat. Umumiy javobgarlik.',
+    aboutYourHealth: 'Bu sizning sog\'ligingiz. Bu sizning lahzangiz.',
+    aboutWithYou: 'Va biz har qadamda siz bilan birgamiz.',
+    aboutValuesTitle: 'Biz nimani qo\'llab-quvvatlaymiz',
+    aboutValue1Title: 'Biz to\'g\'ri ishlarni qilishga ishonamiz',
+    aboutValue1: 'Biz to\'g\'ri ishlarni qilishga ishonamiz — har doim. Sizning sog\'ligingiz, ma\'lumotlaringiz va xotirjamligingiz uchun.',
+    aboutValue2Title: 'Biz sog\'liqni saqlashni hamma uchun ochiq qilamiz',
+    aboutValue2: 'Biz sifatli sog\'liqni saqlashni hamma uchun ochiq qilamiz — kim bo\'lishingiz va qayerda ekanligingizdan qat\'i nazar.',
+    aboutValue3Title: 'Biz sizni hamma narsaning markaziga qo\'yamiz',
+    aboutValue3: 'Sizning ehtiyojlaringiz, maqsadlaringiz va qulayligingiz — biz qabul qiladigan har bir qarorni harakatga keltiruvchi kuch.',
+    aboutValue4Title: 'Biz hech qachon takomillashishni to\'xtatmaymiz',
+    aboutValue4: 'Sog\'liqni saqlash rivojlanadi. Biz ham. Biz doimiy o\'rganamiz, o\'samiz va yaxshiroq xizmat ko\'rsatish uchun moslashamiz.',
+
     // Переводы для футера
-    copyrightText: '© 2025 Soglom. Barcha huquqlar himoyalangan.',
+    copyrightText: '© 2025 Healzy. Barcha huquqlar himoyalangan.',
     privacyPolicyLink: 'Maxfiylik siyosati',
     termsOfUseLink: 'Foydalanish shartlari',
     contactsLink: 'Aloqa'
@@ -1735,7 +1850,7 @@ const translations = {
     repeatPassword: 'Repeat password',
     passwordsDontMatch: 'Passwords do not match',
     // Additional translations
-    welcome: 'Welcome to Soglom',
+    welcome: 'Welcome to Healzy',
     subtitle: 'Your digital healthcare assistant',
     getStarted: 'Get Started',
     howItWorks: 'How it works',
@@ -1786,6 +1901,33 @@ const translations = {
     authProcessing: 'Completing authorization...',
     authProcessingDescription: 'Please wait, we are processing your Google authorization.',
     authErrorTitle: 'Authorization error',
+    
+    // About Page
+    aboutTitle: 'About Us',
+    aboutMission: 'We believe that access to quality healthcare is not a privilege - it is a fundamental human right. Everyone, everywhere, deserves the power to understand, track, and improve their health - anytime, anywhere.',
+    aboutVisionTitle: 'Our Vision',
+    aboutVision1: 'We are building a world where healthcare knows no borders. A world where taking care of your health is as easy and natural as breathing. Where expert medical guidance is just a click away - no matter who you are, or where you live.',
+    aboutVision2: 'This is healthcare reimagined: personal, intelligent, and human. We simplify the understanding of healthcare. And we do it all with your privacy, safety, and confidence at the center.',
+    aboutMovement: 'We are not just creating a tool. We are building a movement - where every heartbeat matters, every person is seen, and no question goes unanswered.',
+    aboutUnlimited: 'Unlimited Care',
+    aboutCommunity: 'Community',
+    aboutInnovation: 'Innovation',
+    aboutCommitmentTitle: 'Our Commitments',
+    aboutCommitment: 'We are committed to creating a seamless experience - built with empathy, guided by innovation, and shaped around real human needs. Because for us, healthcare isn\'t just a service. It\'s a connection. A commitment. A shared responsibility.',
+    aboutYourHealth: 'This is your health. This is your moment.',
+    aboutWithYou: 'And we\'re here, every step of the way.',
+    aboutValuesTitle: 'What We Stand For',
+    aboutValue1Title: 'We believe in doing the right thing',
+    aboutValue1: 'We believe in doing the right thing - always. For your health, your data, and your peace of mind.',
+    aboutValue2Title: 'Technology serves people',
+    aboutValue2: 'Technology serves people, not the other way around. Every feature is designed to make your life easier, not more complicated.',
+    aboutValue3Title: 'Health doesn\'t come in one shape',
+    aboutValue3: 'Health doesn\'t come in one shape, one age, or one language. We design with inclusivity at the core - for every background, every story, every body.',
+    aboutValue4Title: 'We help people take charge',
+    aboutValue4: 'We\'re here to help people take charge of their health - one question, one doctor, one heartbeat at a time.',
+    aboutFinalTitle: 'We\'re here to change how the world experiences healthcare',
+    aboutFinalMessage: 'Not just for today, but for tomorrow.',
+    aboutWithHeart: 'With you. With heart. Without borders.',
     authRedirectMessage: 'You will be redirected to the home page...',
     returnToLogin: 'Return to login page',
     consultationStarted: 'Consultation started successfully',
@@ -2354,8 +2496,32 @@ const translations = {
     submitApplication: 'Submit Application',
     submittingApplication: 'Submitting application...',
     
+    // Переводы для страницы "О нас"
+    aboutTitle: 'About Us',
+    aboutMission: 'We believe that access to quality healthcare is not a privilege, but a fundamental human right. Everyone, everywhere, deserves the opportunity to understand, track, and improve their health — anytime, anywhere.',
+    aboutVisionTitle: 'Our Vision',
+    aboutVision1: 'We\'re creating a world where healthcare knows no boundaries. A world where health care is as natural and simple as breathing. Where expert medical help is just one click away — regardless of who you are or where you live.',
+    aboutVision2: 'This is healthcare, reimagined: personal, intelligent, and human. We simplify healthcare understanding. And we do it all while putting your privacy, security, and confidence at the center.',
+    aboutMovement: 'We\'re not just creating a tool. We\'re building a movement — where every heartbeat matters, every person is seen, and no question goes unanswered.',
+    aboutUnlimited: 'Unlimited care',
+    aboutCommunity: 'Community',
+    aboutInnovation: 'Innovation',
+    aboutCommitmentTitle: 'Our Commitment',
+    aboutCommitment: 'We\'re committed to creating a seamless experience — built with empathy, driven by innovation, and shaped around real human needs. Because for us, healthcare isn\'t just a service. It\'s a connection. A commitment. A shared responsibility.',
+    aboutYourHealth: 'This is your health. This is your moment.',
+    aboutWithYou: 'And we\'re here, every step of the way.',
+    aboutValuesTitle: 'What We Stand For',
+    aboutValue1Title: 'We believe in doing the right thing',
+    aboutValue1: 'We believe in doing the right thing — always. For your health, your data, and your peace of mind.',
+    aboutValue2Title: 'We make healthcare accessible to everyone',
+    aboutValue2: 'We make quality healthcare accessible to everyone — regardless of who you are or where you are.',
+    aboutValue3Title: 'We put you at the center of everything',
+    aboutValue3: 'Your needs, your goals, and your comfort — that\'s what drives every decision we make.',
+    aboutValue4Title: 'We never stop improving',
+    aboutValue4: 'Healthcare evolves. So do we. We continuously learn, grow, and adapt to serve you better.',
+
     // Переводы для футера
-    copyrightText: '© 2025 Soglom. All rights reserved.',
+    copyrightText: '© 2025 Healzy. All rights reserved.',
     privacyPolicyLink: 'Privacy Policy',
     termsOfUseLink: 'Terms of Use',
     contactsLink: 'Contacts'
@@ -2467,7 +2633,7 @@ const LanguageSelector = ({ variant = 'dropdown', className = '' }) => {
             className="text-sm text-gray-700 hover:text-blue-600 transition-colors duration-200 min-w-unit-16 h-8 px-2"
           >
             <div className="flex items-center gap-1.5">
-              <span className="text-base">{currentLang.flag}</span>
+                              <FlagIcon countryCode={currentLang.countryCode} className="w-5 h-3" />
               <span className="text-gray-700 font-medium text-xs sm:text-sm hidden xs:inline">{currentLang.nativeName}</span>
               <motion.div
                 animate={{ rotate: isOpen ? 180 : 0 }}
@@ -2504,7 +2670,7 @@ const LanguageSelector = ({ variant = 'dropdown', className = '' }) => {
                         lang.code === currentLanguage ? 'bg-blue-50/80' : ''
                       }`}
                     >
-                      <span className="text-lg">{lang.flag}</span>
+                      <FlagIcon countryCode={lang.countryCode} />
                       <div className="flex-1">
                         <div className="font-medium text-gray-800">{lang.nativeName}</div>
                         <div className="text-xs text-gray-500">{lang.name}</div>
@@ -2543,7 +2709,7 @@ const LanguageSelector = ({ variant = 'dropdown', className = '' }) => {
           <div className="flex items-center gap-3">
             <FiGlobe size={18} className="text-blue-600" />
             <div className="flex items-center gap-2">
-              <span className="text-lg">{currentLang.flag}</span>
+              <FlagIcon countryCode={currentLang.countryCode} className="w-6 h-4" />
               <span className="text-gray-700 font-medium">{currentLang.nativeName}</span>
             </div>
           </div>
@@ -2581,7 +2747,7 @@ const LanguageSelector = ({ variant = 'dropdown', className = '' }) => {
                       lang.code === currentLanguage ? 'bg-blue-50/80' : ''
                     }`}
                   >
-                    <span className="text-lg">{lang.flag}</span>
+                    <FlagIcon countryCode={lang.countryCode} />
                     <div className="flex-1">
                       <div className="font-medium text-gray-800">{lang.nativeName}</div>
                       <div className="text-xs text-gray-500">{lang.name}</div>

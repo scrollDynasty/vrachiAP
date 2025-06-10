@@ -416,40 +416,7 @@ function GoogleAuthCallback() {
     navigate('/');
   };
 
-  useEffect(() => {
-    // Обработчик успешной аутентификации через Google
-    const handleAuthSuccess = async () => {
-      if (isAuthenticated && !error && !isProcessing) {
-        
-        // Проверяем, нужно ли пользователю заполнить профиль
-        if (needsProfileUpdate) {
-          navigate('/profile');
-          return;
-        }
-        
-        // Проверяем, есть ли сохраненный URL для перенаправления после обновления токена
-        const redirectUrl = sessionStorage.getItem('auth_redirect_url');
-        if (redirectUrl) {
-          sessionStorage.removeItem('auth_redirect_url');
-          
-          // Задержка перед перенаправлением для гарантии установки токена
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          window.location.href = redirectUrl;
-          return;
-        }
-        
-        // Иначе перенаправляем на главную
-        
-        // Задержка перед перенаправлением для гарантии установки токена
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        navigate('/');
-      }
-    };
-    
-    handleAuthSuccess();
-  }, [isAuthenticated, error, navigate, isProcessing, needsProfileUpdate]);
+
   
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden py-12 px-4 sm:px-6 lg:px-8"

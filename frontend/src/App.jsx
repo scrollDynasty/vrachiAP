@@ -17,6 +17,7 @@ import GoogleAuthCallback from './pages/GoogleAuthCallback'
 import AdminPage from './pages/AdminPage'
 import DoctorApplicationPage from './pages/DoctorApplicationPage'
 import AdminLoginPage from './pages/AdminLoginPage'
+import AboutPage from './pages/AboutPage'
 
 
 // Импортируем компонент хедера
@@ -47,7 +48,7 @@ function Footer() {
   return (
     <footer className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200 py-6 text-center text-gray-600 text-sm">
       <div className="container mx-auto">
-        <p>© {new Date().getFullYear()} Soglom. {t('allRightsReserved')}</p>
+        <p>© {new Date().getFullYear()} Healzy. {t('allRightsReserved')}</p>
         <div className="mt-2 flex justify-center gap-4">
           <a href="#" className="hover:text-primary transition-colors">{t('privacyPolicy')}</a>
           <a href="#" className="hover:text-primary transition-colors">{t('termsOfUse')}</a>
@@ -82,6 +83,7 @@ function App() {
   useEffect(() => {
     // Публичные маршруты, доступные всем пользователям
     const publicRoutes = [
+      '/about',           // Добавляем страницу О нас как публичную
       '/login', 
       '/register', 
       '/verify-email',
@@ -262,6 +264,7 @@ function App() {
       {/* Определение набора маршрутов приложения с помощью компонента Routes */}
       <Routes>
           {/* Публичные роуты */}
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

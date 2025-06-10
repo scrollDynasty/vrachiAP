@@ -81,7 +81,7 @@ function sendBrowserNotification(title, options = {}) {
     
     // Создаем новое уведомление
     const notification = new Notification(title || 'Уведомление', {
-      icon: '/soglom.jpg', // Используем единую иконку Soglom
+      icon: '/healzy.png', // Используем единую иконку Healzy
       ...(options || {})
     });
     

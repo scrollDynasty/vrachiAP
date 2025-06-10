@@ -19,7 +19,7 @@ const nextUITheme = {
 
 export const nextUIPlugin = nextui(nextUITheme);
 
-// Brand colors for Soglom medical platform
+// Brand colors for Healzy medical platform
 export const brandColors = {
   // Primary brand colors
   primary: {

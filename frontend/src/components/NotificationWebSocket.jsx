@@ -226,7 +226,7 @@ const NotificationWebSocket = () => {
         }
         
         // Получаем WebSocket токен через API
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://soglom.com'}/api/ws-token`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ws-token`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -246,7 +246,7 @@ const NotificationWebSocket = () => {
         }
 
         // Исправляем URL - убираем двойной /ws
-        const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://soglom.com'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
+        const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
         
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

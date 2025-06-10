@@ -304,6 +304,18 @@ function Header() {
       
       {/* Ссылки навигации для десктопа */}
       <NavbarContent className="hidden sm:flex gap-4" justify="center">
+        <NavbarItem>
+          <Link 
+            to="/about" 
+            className="relative text-gray-700 hover:text-primary transition-all duration-300 font-medium px-3 py-2 rounded-lg hover:bg-blue-50 group"
+          >
+            <span className="relative z-10 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-indigo-700 transition-all duration-300">
+              {t('aboutTitle')}
+            </span>
+            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300 group-hover:w-full rounded-full"></span>
+          </Link>
+        </NavbarItem>
+        
         {isAuthenticated && (
           <>
             <NavbarItem>
@@ -590,6 +602,20 @@ function Header() {
           <>
             <NavbarMenuItem>
               <button 
+                onClick={() => handleMobileNavigation('/about')} 
+                className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+              >
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">{t('aboutTitle', 'О нас')}</span>
+                </div>
+              </button>
+            </NavbarMenuItem>
+            
+            <NavbarMenuItem>
+              <button 
                 onClick={() => handleMobileNavigation('/')} 
                 className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
               >
@@ -705,6 +731,20 @@ function Header() {
         ) : (
           // Меню для неавторизованных пользователей
           <>
+            <NavbarMenuItem>
+              <button 
+                onClick={() => handleMobileNavigation('/about')} 
+                className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+              >
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">{t('aboutTitle', 'О нас')}</span>
+                </div>
+              </button>
+            </NavbarMenuItem>
+            
             <NavbarMenuItem>
               <button 
                 onClick={() => handleMobileNavigation('/login')} 

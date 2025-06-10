@@ -1,12 +1,11 @@
 // frontend/src/pages/HomePage.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardBody, Button, Avatar } from '@nextui-org/react';
+import { Card, CardBody, Button, Chip } from '@nextui-org/react';
 import useAuthStore from '../stores/authStore';
 import GoogleProfileForm from '../components/GoogleProfileForm';
 import { ApplicationStatusTracker } from '../components/Notification';
-import { motion, AnimatePresence } from 'framer-motion';
-import AvatarWithFallback from '../components/AvatarWithFallback';
+import { motion } from 'framer-motion';
 import { useTranslation } from '../components/LanguageSelector';
 import OfflineMode from '../components/OfflineMode';
 
@@ -22,8 +21,6 @@ function HomePage() {
   
   // Состояние для отслеживания режима offline
   const [isOfflineMode, setIsOfflineMode] = useState(false);
-  
-    
   
   // Перенаправляем на страницу логина, если есть ошибка аутентификации
   useEffect(() => {
@@ -67,7 +64,6 @@ function HomePage() {
   
   // Если требуется обновление профиля, показываем форму
   if (needsProfileUpdate) {
-    
     const handleProfileCompletion = (userData) => {
       // Явно сбрасываем флаг needsProfileUpdate
       useAuthStore.setState({ needsProfileUpdate: false });
@@ -96,18 +92,11 @@ function HomePage() {
     );
   }
   
-  // Отображение контента для пользователя
-  
   // Если пользователь администратор, перенаправляем на админ-панель
   if (user?.role === 'admin') {
     navigate('/admin_control_panel_52x9a8');
     return null;
   }
-  
-  // Определяем приветствие в зависимости от роли
-  const welcomeText = user?.role === 'doctor' 
-    ? t('welcome') + ' врач!' 
-    : t('welcome');
   
   // Карточки для пациента
   const patientCards = [
@@ -149,57 +138,24 @@ function HomePage() {
       title: t('analytics'),
       description: t('analyticsDescription'),
       icon: '📊',
-              action: () => alert(t('featureInDevelopment'))
+      action: () => alert(t('featureInDevelopment'))
     }
   ];
   
   // Выбираем набор карточек в зависимости от роли
   const serviceCards = user?.role === 'doctor' ? doctorCards : patientCards;
 
-  // Рендерим основной контент
+  // Получаем имя пользователя
+  const getUserName = () => {
+    if (user?.full_name) return user.full_name;
+    if (user?.firstName && user?.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user?.name) return user.name;
+    if (user?.email) return user.email.split('@')[0];
+    return t('user');
+  };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Динамический градиентный фон */}
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-0"
-        animate={{ 
-          background: [
-            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))',
-            'linear-gradient(to bottom right, rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8), rgba(224, 231, 255, 0.8))',
-            'linear-gradient(to bottom right, rgba(236, 254, 255, 0.8), rgba(224, 242, 254, 0.8), rgba(219, 234, 254, 0.8))',
-            'linear-gradient(to bottom right, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.8), rgba(237, 233, 254, 0.8))'
-          ]
-        }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          repeatType: "reverse",
-          ease: "easeInOut"
-        }}
-      />
-      
-      {/* Анимированная сетка */}
-      <div className="absolute inset-0 overflow-hidden opacity-10">
-        <motion.div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px), 
-                             linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
-          }}
-          animate={{
-            x: [0, -40],
-            y: [0, -40]
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-      </div>
-      
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
       {/* Декоративные плавающие элементы */}
       <div className="absolute top-0 left-0 w-full h-full z-0 opacity-70">
         <motion.div 
@@ -233,12 +189,12 @@ function HomePage() {
         <motion.div 
           className="absolute top-1/3 right-[15%] w-40 h-40 rounded-full bg-gradient-to-r from-indigo-300/20 to-blue-300/20"
           animate={{
-            x: [0, 15, 0],
-            y: [0, -10, 0],
+            y: [0, 15, 0],
+            scale: [1, 1.08, 1],
             rotate: [0, 10, 0]
           }}
           transition={{
-            duration: 7,
+            duration: 6,
             repeat: Infinity,
             ease: "easeInOut"
           }}
@@ -247,85 +203,42 @@ function HomePage() {
         <motion.div 
           className="absolute bottom-1/4 left-[20%] w-56 h-56 rounded-full bg-gradient-to-r from-cyan-300/20 to-teal-300/20"
           animate={{
-            x: [0, -20, 0],
-            y: [0, 15, 0],
+            y: [0, -15, 0],
+            scale: [1, 1.03, 1],
             rotate: [0, -8, 0]
           }}
           transition={{
-            duration: 9,
+            duration: 12,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
       </div>
-      
-      {/* Декоративные медицинские элементы */}
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div 
-          className="absolute top-20 right-10 medical-cross w-10 h-10 opacity-10"
-          animate={{ 
-            rotate: [0, 45, 0, -45, 0],
-            scale: [1, 1.1, 1, 0.9, 1]
-          }}
-          transition={{ 
-            duration: 10, 
-            repeat: Infinity,
-            ease: "easeInOut" 
-          }}
-        />
-        
-        <motion.div 
-          className="absolute bottom-20 left-20 medical-cross w-16 h-16 opacity-10"
-          animate={{ 
-            rotate: [0, -45, 0, 45, 0],
-            scale: [1, 0.9, 1, 1.1, 1]
-          }}
-          transition={{ 
-            duration: 12, 
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
-        />
-        
-        <motion.div 
-          className="absolute top-1/3 left-10 w-40 h-40 rounded-full bg-red-100/10"
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1]
-          }}
-          transition={{ 
-            duration: 8, 
-            repeat: Infinity,
-            ease: "easeInOut" 
-          }}
-        />
-      </div>
-      
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 relative z-10">
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Компонент уведомлений о статусе заявок */}
         <ApplicationStatusTracker />
 
         {/* Приветствие */}
         <motion.div 
-          className="text-center mb-8 sm:mb-10 lg:mb-12"
-          initial={{ opacity: 0, y: -20 }}
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.6 }}
         >
-          <div className="mb-4 sm:mb-5 flex justify-center">
+          <div className="mb-6 flex justify-center">
             <motion.div
               className="relative inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <motion.h1 
-                className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
               >
-                Soglom
+                Healzy
               </motion.h1>
               <motion.div 
-                className="absolute -z-10 -inset-1 rounded-lg bg-gradient-to-r from-blue-600/20 to-indigo-600/20"
+                className="absolute -z-10 -inset-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-indigo-600/20"
                 animate={{ 
                   opacity: [0.5, 0.8, 0.5],
                   scale: [1, 1.05, 1]
@@ -339,255 +252,151 @@ function HomePage() {
             </motion.div>
           </div>
           
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mb-3 flex justify-center items-center"
-          >
-            <div className="relative">
-              {/* Получаем правильный URL аватарки */}
-              {(() => {
-                // Базовый URL API, если требуется
-                const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://soglom.com';
-                
-                // Получаем URL аватарки из объекта пользователя
-                let avatarUrl = user?.avatar_path || user?.avatar || user?.avatarUrl || user?.photo || user?.photoUrl || user?.profileImage || user?.image;
-                
-                // Если аватарка существует, но не начинается с http, добавляем базовый URL
-                if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
-                  // Убираем слеш в начале пути, если он есть
-                  if (avatarUrl.startsWith('/')) {
-                    avatarUrl = avatarUrl.substring(1);
-                  }
-                  avatarUrl = `${apiBaseUrl}/${avatarUrl}`;
-                }
-                
-                
-                // Получаем имя для инициалов из всех возможных источников
-                let userName = '';
-                if (user?.full_name) {
-                  userName = user.full_name;
-                } else if (user?.firstName && user?.lastName) {
-                  userName = `${user.firstName} ${user.lastName}`;
-                } else if (user?.name) {
-                  userName = user.name;
-                } else if (user?.profile?.full_name) {
-                  userName = user.profile.full_name;
-                } else if (user?.profile?.firstName && user?.profile?.lastName) {
-                  userName = `${user.profile.firstName} ${user.profile.lastName}`;
-                } else if (user?.email) {
-                  // Если нет имени, используем email (первую часть до @)
-                  userName = user.email.split('@')[0];
-                }
-                
-                return (
-                  <AvatarWithFallback 
-                    src={avatarUrl} // Только аватар пользователя, без fallback на стандартную фотографию
-                    name={userName} // Используем имя для отображения инициалов
-                    size="xl" // Увеличенный размер
-                    color="primary" // Используем основной цвет для фона инициалов
-                    className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 shadow-xl border-2 sm:border-3 lg:border-4 border-white"
-                    isBordered={true} // Добавляем рамку
-                  />
-                );
-              })()}
-              
-              <motion.div 
-                className="absolute -inset-2 sm:-inset-3 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20"
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  opacity: [0.6, 0.3, 0.6]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            </div>
-          </motion.div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
+            Добро пожаловать в Healzy
+          </h2>
           
-          <motion.h2 
-            className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-2 px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-          >
-            {welcomeText}
-          </motion.h2>
+          <div className="flex justify-center mb-6">
+            <Chip 
+              color="primary" 
+              variant="flat" 
+              size="lg"
+              className="text-lg px-6 py-2"
+            >
+              {getUserName()}
+            </Chip>
+          </div>
           
-          <motion.p 
-            className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-md mx-auto px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <span className="bg-gradient-to-r from-gray-700 to-gray-500 bg-clip-text text-transparent font-medium">
-              {user?.role === 'doctor' 
-                ? t('doctorWelcomeMessage')
-                : t('patientWelcomeMessage')
-              }
-            </span>
-          </motion.p>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            {t('subtitle')}
+          </p>
         </motion.div>
-        
-        {/* Уведомление о необходимости подтверждения email */}
-        {user && !user.is_active && (
-          <motion.div 
-            className="mb-10"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="bg-amber-50 border-l-4 border-amber-500 shadow-lg overflow-hidden">
-              <motion.div 
-                className="h-1 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-400"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ delay: 0.3, duration: 0.8 }}
-              />
-              <CardBody className="p-6">
-                <div className="flex items-start">
-                  <div className="mr-4 text-warning text-2xl">
-                    <motion.svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-8 w-8" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                      animate={{ 
-                        scale: [1, 1.1, 1],
-                      }}
-                      transition={{ 
-                        duration: 1.5, 
-                        repeat: Infinity,
-                        ease: "easeInOut" 
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </motion.svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-warning mb-1">{t('emailVerificationRequired')}</h3>
-                    <p className="text-gray-700 mb-2">
-                      {t('emailVerificationMessage')}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button 
-                        size="sm" 
-                        color="warning" 
-                        variant="flat"
-                        onPress={() => navigate('/verify-email')}
-                        className="hover:bg-amber-200 transition-all"
-                      >
-                        {t('moreDetails')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        color="default"
-                        variant="light"
-                        onPress={() => window.location.href = 'mailto:support@example.com'}
-                        className="hover:bg-gray-100 transition-all"
-                      >
-                        {t('havingProblems')}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          </motion.div>
-        )}
-        
-        {/* Карточки сервисов */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-10 px-4">
+
+        {/* Быстрые действия */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+        >
           {serviceCards.map((card, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 * (index + 1) }}
-              whileHover={{ y: -8, transition: { type: "spring", stiffness: 300 } }}
+              transition={{ delay: 0.4 + (index * 0.1), duration: 0.5 }}
+              whileHover={{ y: -8, scale: 1.02 }}
             >
-              <Card className="bg-white/90 border border-white/30 shadow-2xl overflow-hidden framer-motion-card">
+              <Card 
+                className="cursor-pointer h-full bg-white/90 backdrop-blur-sm border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden relative"
+                isPressable
+                onPress={card.action}
+              >
                 {/* Анимированная линия вверху */}
                 <motion.div 
                   className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
-                  transition={{ delay: 0.2 * (index + 1), duration: 0.8 }}
+                  transition={{ delay: 0.5 + (index * 0.1), duration: 0.8 }}
                 />
                 
                 {/* Световые блики */}
-                <div className="absolute -top-10 -left-10 w-20 h-20 rounded-full bg-pink-400/20 mix-blend-multiply opacity-50"></div>
-                <div className="absolute -bottom-10 -right-10 w-20 h-20 rounded-full bg-blue-400/20 mix-blend-multiply opacity-50"></div>
+                <div className="absolute -top-10 -left-10 w-20 h-20 rounded-full bg-pink-400/10 mix-blend-multiply opacity-70"></div>
+                <div className="absolute -bottom-10 -right-10 w-20 h-20 rounded-full bg-blue-400/10 mix-blend-multiply opacity-70"></div>
                 
-                <CardBody className="p-4 sm:p-5 lg:p-6 flex flex-col items-center text-center">
+                <CardBody className="p-6 text-center relative">
                   <motion.div 
-                    className="relative w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-full mb-3 sm:mb-4"
-                    whileHover={{ scale: 1.2, rotate: 5 }}
+                    className="text-4xl mb-4"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
-                    <span className="text-2xl sm:text-3xl lg:text-4xl">{card.icon}</span>
-                    <motion.div
-                      className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30"
-                      animate={{ 
-                        scale: [1, 1.2, 1],
-                        opacity: [0.2, 0.1, 0.2]
-                      }}
-                      transition={{
-                        duration: 2 + index,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
+                    {card.icon}
                   </motion.div>
-                  
-                  <h3 className="text-lg sm:text-xl font-semibold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">{card.title}</h3>
-                  <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{card.description}</p>
-                  
-                  <Button 
-                    color="primary" 
-                    size="sm"
-                    className="mt-auto bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-xl transition-all w-full sm:w-auto"
-                    onPress={card.action}
-                  >
-                    {t('goTo')}
-                  </Button>
+                  <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-700 to-gray-900 mb-3">
+                    {card.title}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed text-sm">
+                    {card.description}
+                  </p>
                 </CardBody>
               </Card>
             </motion.div>
           ))}
-        </div>
-        
-        {/* Ссылки на помощь */}
+        </motion.div>
+
+        {/* Информационная секция */}
         <motion.div 
-          className="mt-8 text-center"
+          className="text-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
         >
-          <motion.p
-            className="text-sm text-gray-600"
-            whileHover={{ scale: 1.05 }}
-          >
-            {t('needHelp')} 
-            <motion.a 
-              href="#" 
-              className="ml-1 text-primary relative inline-block font-medium"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="relative z-10">{t('contactSupport')}</span>
-              <motion.span 
-                className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 origin-left"
-                initial={{ scaleX: 0 }}
-                whileHover={{ scaleX: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.a>
-          </motion.p>
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl overflow-hidden relative">
+            {/* Анимированная линия вверху */}
+            <motion.div 
+              className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 1, duration: 0.8 }}
+            />
+            
+            {/* Световые блики */}
+            <div className="absolute -top-20 -left-20 w-40 h-40 rounded-full bg-pink-400/20 mix-blend-multiply opacity-70"></div>
+            <div className="absolute -bottom-20 -right-20 w-40 h-40 rounded-full bg-blue-400/20 mix-blend-multiply opacity-70"></div>
+            
+            <CardBody className="p-8 relative">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                {t('platformAdvantages')}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <motion.div 
+                  className="text-center"
+                  whileHover={{ y: -5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span className="text-2xl">🔍</span>
+                  </div>
+                  <h4 className="font-semibold text-gray-900 mb-2">
+                    {t('convenientDoctorSearch')}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    Найдите нужного специалиста по специализации
+                  </p>
+                </motion.div>
+                <motion.div 
+                  className="text-center"
+                  whileHover={{ y: -5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span className="text-2xl">🌍</span>
+                  </div>
+                  <h4 className="font-semibold text-gray-900 mb-2">
+                    {t('onlineConsultationsAnywhere')}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    Консультации из любой точки мира
+                  </p>
+                </motion.div>
+                <motion.div 
+                  className="text-center"
+                  whileHover={{ y: -5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span className="text-2xl">🔒</span>
+                  </div>
+                  <h4 className="font-semibold text-gray-900 mb-2">
+                    {t('secureDataExchange')}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    Защищенный обмен медицинскими данными
+                  </p>
+                </motion.div>
+              </div>
+            </CardBody>
+          </Card>
         </motion.div>
       </div>
     </div>

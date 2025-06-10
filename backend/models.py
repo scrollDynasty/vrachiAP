@@ -18,9 +18,8 @@ load_dotenv() # Загружаем переменные из .env файла
 # 2. Вручную выполните команды SQL для создания базы данных и пользователя
 # 3. Укажите свои настройки подключения в .env файле
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "mysql+pymysql://vrachi_user:1435511926Ss..@localhost:3306/online_doctors_db"
-)
+# Принудительно используем локальное подключение для разработки
+DATABASE_URL = "mysql+pymysql://vrachi_user:1435511926Ss..@localhost:3306/online_doctors_db"
 
 # Создаем подключение к базе данных (SQLAlchemy Engine)
 # connect_args={"check_same_thread": False} нужен только для SQLite, для MySQL он не нужен

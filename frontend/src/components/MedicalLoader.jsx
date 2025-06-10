@@ -171,7 +171,7 @@ const MedicalLoader = ({ size = 'medium', message = 'Загрузка...', fullS
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          Soglom • Здоровье в приоритете
+                            Healzy
         </motion.p>
       </motion.div>
     </div>

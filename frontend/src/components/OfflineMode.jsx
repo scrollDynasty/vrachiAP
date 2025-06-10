@@ -10,7 +10,7 @@ const OfflineMode = ({ user, onRetry }) => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600">Soglom</h1>
+          <h1 className="text-3xl font-bold text-blue-600">Healzy</h1>
           <div className="flex items-center gap-4">
             {user && (
               <div className="text-sm text-gray-600">
@@ -23,7 +23,7 @@ const OfflineMode = ({ user, onRetry }) => {
         {/* Main Content */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Добро пожаловать в Soglom
+                          Добро пожаловать в Healzy
           </h1>
           <p className="text-xl text-gray-600 mb-8">
             Здоровье в приоритете
@@ -44,7 +44,7 @@ const OfflineMode = ({ user, onRetry }) => {
             <div className="bg-blue-50 p-4 rounded-lg mb-6">
               <p className="text-sm text-blue-700">
                 <strong>Для администратора:</strong><br/>
-                Проверьте состояние backend сервера на домене soglom.com
+                Проверьте состояние backend сервера на localhost:8000
               </p>
             </div>
             {user && (
@@ -106,7 +106,7 @@ const OfflineMode = ({ user, onRetry }) => {
 
         {/* Footer */}
         <footer className="text-center text-gray-500 text-sm">
-          <p>© 2025 Soglom. Все права защищены.</p>
+          <p>© 2025 Healzy. Все права защищены.</p>
           <div className="flex justify-center gap-4 mt-2">
             <a href="#" className="hover:text-blue-500">Политика конфиденциальности</a>
             <a href="#" className="hover:text-blue-500">Условия использования</a>

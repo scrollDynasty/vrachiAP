@@ -14,7 +14,7 @@ import { getRegions, getDistrictsByRegion } from '../constants/uzbekistanRegions
 import { translateRegion, translateDistrict, getDistrictNameById } from '../components/RegionTranslations';
 
 // Импортируем API_BASE_URL для использования в путях к файлам
-const API_BASE_URL = 'https://soglom.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function AdminPage() {
   const { t } = useTranslation();
