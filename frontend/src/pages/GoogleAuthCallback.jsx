@@ -138,11 +138,11 @@ function GoogleAuthCallback() {
         
         // Если получили токен напрямую от бэкенда - используем его
         if (token) {
+          console.log('GoogleAuthCallback: Получен токен напрямую от бэкенда');
           
           try {
             // Импортируем функцию для установки токена
             const { setAuthToken } = await import('../api');
-            
             
             // Загружаем API для запроса
             let api;
@@ -170,18 +170,16 @@ function GoogleAuthCallback() {
             }
             
             // Используем функцию для установки токена
-            let tokenSetResult = false;
             try {
               // Сначала очищаем заголовки, чтобы избежать использования старого токена
               api.defaults.headers.common['Authorization'] = null;
               delete api.defaults.headers.common['Authorization'];
               
               // Устанавливаем новый токен
-              tokenSetResult = setAuthToken(token);
+              setAuthToken(token);
             } catch (tokenSetError) {
               console.error('GoogleAuthCallback: Error setting token via API:', tokenSetError);
             }
-            
             
             // Обновляем состояние в authStore
             try {
@@ -189,32 +187,16 @@ function GoogleAuthCallback() {
                 isAuthenticated: true, 
                 token: token,
                 needsProfileUpdate: needProfile,
-                error: null
+                error: null,
+                isLoading: false
               });
             } catch (storeError) {
               console.error('GoogleAuthCallback: Error updating auth store:', storeError);
             }
             
-            // Добавляем задержку перед запросом данных пользователя
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Загружаем API для запроса
-            let userApi;
+            // Пробуем получить данные пользователя
             try {
-              const apiModule = await import('../api');
-              userApi = apiModule.default;
-            } catch (apiImportError) {
-              console.error('GoogleAuthCallback: Error importing API:', apiImportError);
-              // Создаем временный экземпляр axios
-              userApi = axios.create({
-                baseURL: 'https://healzy.uz',
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-            }
-            
-            // Устанавливаем состояние аутентификации с явной передачей заголовка авторизации
-            try {
-              const userResponse = await userApi.get('/users/me', {
+              const userResponse = await api.get('/users/me', {
                 headers: { 
                   'Authorization': `Bearer ${token}`,
                   'Accept': 'application/json'
@@ -223,56 +205,40 @@ function GoogleAuthCallback() {
               });
               
               if (userResponse.status === 200 && userResponse.data) {
-                // Успешно получили данные пользователя с использованием токена
-                try {
-                  useAuthStore.setState({ 
-                    isAuthenticated: true, 
-                    user: userResponse.data,
-                    error: null,
-                    needsProfileUpdate: needProfile,
-                    token: token  // Явно сохраняем токен в store
-                  });
-                } catch (storeUpdateError) {
-                  console.error('GoogleAuthCallback: Error updating store with user data:', storeUpdateError);
-                }
+                // Успешно получили данные пользователя
+                useAuthStore.setState({ 
+                  isAuthenticated: true, 
+                  user: userResponse.data,
+                  error: null,
+                  needsProfileUpdate: needProfile,
+                  token: token
+                });
                 
                 setStatus('success');
                 
-                // Всегда перенаправляем на главную страницу, независимо от needProfile
-                // Форма заполнения профиля будет показана на главной странице, если необходимо
+                // Перенаправляем на главную страницу
                 setTimeout(() => {
                   navigate('/');
                 }, 1500);
                 return;
-              } else {
-                console.error('GoogleAuthCallback: User data fetch returned unexpected status:', userResponse.status);
               }
             } catch (userError) {
-              // Если запрос пользователя не удался, пробуем другой подход
-              console.error('GoogleAuthCallback: Error fetching user data:', userError);
-              
-              // Устанавливаем состояние и пробуем другой подход для аутентификации
-              try {
-                useAuthStore.setState({ 
-                  isAuthenticated: true,
-                  token: token,
-                  error: null,
-                  needsProfileUpdate: needProfile
-                });
-              } catch (stateError) {
-                console.error('GoogleAuthCallback: Error setting state after user data error:', stateError);
-              }
-              
-              setStatus('success');
-              setTimeout(() => {
-                window.location.href = '/'; // Полная перезагрузка страницы
-              }, 1000);
-              return;
+              console.warn('GoogleAuthCallback: Не удалось получить данные пользователя, но токен валидный:', userError);
+              // Продолжаем без данных пользователя - они загрузятся позже
             }
+            
+            setStatus('success');
+            
+            // Перенаправляем на главную страницу через короткое время
+            setTimeout(() => {
+              navigate('/');
+            }, 1000);
+            return;
+            
           } catch (error) {
-            console.error('Error using direct token:', error);
+            console.error('GoogleAuthCallback: Error processing direct token:', error);
             setStatus('error');
-            setErrorMessage('Ошибка при использовании токена авторизации');
+            setErrorMessage('Ошибка при обработке токена авторизации');
             return;
           }
         }
@@ -318,20 +284,37 @@ function GoogleAuthCallback() {
         
         
         try {
-          // Вызываем метод авторизации из стора
-          await processGoogleAuth(code);
-          
-          // Только при успешной авторизации добавляем код в список обработанных
-          addToProcessedCodes(code);
-          
-          // Если успешно, обновляем статус
-          setStatus('success');
-          
-          // Всегда перенаправляем на главную страницу, независимо от needProfile
-          // Форма заполнения профиля будет показана на главной странице, если необходимо
-          setTimeout(() => {
-            navigate('/');
-          }, 1500);
+          // Проверяем, получили ли мы токен напрямую от бэкенда
+          if (token) {
+            console.log('GoogleAuthCallback: Using token from URL');
+            
+            // Импортируем функцию для установки токена
+            const { setAuthToken } = await import('../api');
+            setAuthToken(token);
+            
+            // Обновляем состояние авторизации
+            useAuthStore.setState({
+              token: token,
+              isAuthenticated: true,
+              needsProfileUpdate: needProfile,
+              error: null
+            });
+            
+            // Добавляем код в список обработанных
+            addToProcessedCodes(code);
+            
+            // Устанавливаем статус успеха
+            setStatus('success');
+            
+            // Перенаправляем через более короткое время, так как токен уже есть
+            setTimeout(() => {
+              navigate('/');
+            }, 1000);
+            
+          } else {
+            // Если токена нет в URL, значит что-то пошло не так
+            throw new Error('Токен авторизации не получен');
+          }
         } catch (authError) {
           console.error('Google auth processing failed:', authError);
           handleAuthError(authError);

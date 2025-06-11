@@ -175,6 +175,9 @@ function RegisterForm({ onSubmit, isLoading, error }) {
         return;
       }
       
+      // Логируем результат регистрации для отладки
+      console.log('Registration result:', result);
+      
       // Если регистрация успешна и требуется подтверждение email
       if (result && result.success === true && result.requiresEmailVerification) {
         // Сохраняем данные в локальное хранилище для возможного повторного использования
@@ -212,9 +215,10 @@ function RegisterForm({ onSubmit, isLoading, error }) {
         }
         
         // Обновляем состояние для отображения сообщения об успешной регистрации
+        console.log('Setting registration successful state:', true);
         setRegistrationSuccessful(true);
         setVerificationRequired(true);
-        setRegisteredEmail(email.trim());
+        setRegisteredEmail(result.email || email.trim());
       } else if (result && result.success === true) {
         // Если регистрация успешна, но не требуется подтверждение email
         setRegistrationSuccessful(true);
@@ -224,7 +228,15 @@ function RegisterForm({ onSubmit, isLoading, error }) {
       
     } catch (err) {
       console.error("RegisterForm Error:", err);
-      setFormError(err.message || "Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
+      
+      // Проверяем, не является ли это ошибкой от расширений браузера
+      if (err.message && err.message.includes('inpage.js')) {
+        setFormError("Обнаружено вмешательство расширений браузера. Попробуйте отключить расширения или использовать режим инкогнито.");
+      } else if (err.message && err.message.includes('Cannot read properties of null')) {
+        setFormError("Ошибка интерфейса. Попробуйте обновить страницу или использовать другой браузер.");
+      } else {
+        setFormError(err.message || "Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
+      }
     }
   };
 
@@ -239,6 +251,7 @@ function RegisterForm({ onSubmit, isLoading, error }) {
   const displayError = formError || error;
 
   // Если регистрация успешна, показываем сообщение об успехе
+  console.log('RegisterForm state:', { registrationSuccessful, verificationRequired, registeredEmail });
   if (registrationSuccessful) {
     return (
       <motion.div 

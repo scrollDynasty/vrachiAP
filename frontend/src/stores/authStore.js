@@ -283,42 +283,98 @@ const useAuthStore = create(
       },
       
       // User registration
-      register: async (email, password, role = 'patient') => {
+      register: async (userData) => {
         try {
+          console.log('authStore.register called with:', userData);
+          
+          // Извлекаем нужные поля или используем объект целиком
+          const { email, password, role = 'patient', ...profileData } = userData;
           
           // Create user account
-          const response = await api.post('/auth/register', {
+          const response = await api.post('/register', {
             email,
             password,
             role,
-            is_active: true // Auto-activate user
+            is_active: true, // Auto-activate user
+            ...profileData // Передаем остальные данные профиля
           });
           
           if (response.status === 201) {
+            console.log('Registration response:', response.data);
             
-            // Пробуем сразу авторизоваться с теми же данными
-            try {
-              const loginResult = await get().login(email, password);
-              return { success: true, requiresEmailVerification: false };
-            } catch (loginError) {
-              // Если автологин не удался, возвращаем успех регистрации
-              // но требуем ручной авторизации
+            // Проверяем ответ на наличие флага email_verification_required
+            if (response.data.email_verification_required) {
+              // Если требуется подтверждение email - НЕ делаем автологин
+              console.log('Email verification required, skipping auto-login');
               set({ 
                 pendingVerificationEmail: email,
-                error: null
+                error: null,
+                isLoading: false // Сбрасываем состояние загрузки
               });
-              return { success: true, requiresEmailVerification: true };
+              return { 
+                success: true, 
+                requiresEmailVerification: true,
+                message: response.data.message || "Регистрация успешна! Проверьте почту для подтверждения.",
+                email: response.data.email || email
+              };
+            } else {
+              // Если подтверждение email не требуется, пробуем авторизоваться
+              console.log('Email verification not required, attempting auto-login');
+              try {
+                const loginResult = await get().login(email, password);
+                return { success: true, requiresEmailVerification: false };
+              } catch (loginError) {
+                console.error('Auto-login failed after registration:', loginError);
+                // Если автологин не удался, все равно считаем регистрацию успешной
+                set({ 
+                  pendingVerificationEmail: email,
+                  error: null,
+                  isLoading: false
+                });
+                return { 
+                  success: true, 
+                  requiresEmailVerification: true,
+                  message: "Регистрация успешна! Пожалуйста, войдите в систему."
+                };
+              }
             }
           } else {
             throw new Error('Регистрация не удалась');
           }
         } catch (error) {
+          console.error('Registration error:', error);
           let errorMessage = 'Произошла ошибка при регистрации';
           
+          // Обеспечиваем, что состояние загрузки сброшено
+          set({ 
+            isLoading: false,
+            isAuthenticated: false, 
+            user: null, 
+            token: null
+          });
+          
           if (error.response) {
-            if (error.response.status === 400) {
+            console.error('Error response:', error.response);
+            
+            if (error.response.status === 422) {
+              // Валидационные ошибки
               if (error.response.data && error.response.data.detail) {
-                if (error.response.data.detail.includes('already registered')) {
+                if (Array.isArray(error.response.data.detail)) {
+                  // Обрабатываем массив ошибок валидации
+                  const validationErrors = error.response.data.detail.map(err => {
+                    const field = err.loc ? err.loc[err.loc.length - 1] : 'unknown';
+                    return `${field}: ${err.msg}`;
+                  }).join(', ');
+                  errorMessage = `Ошибки валидации: ${validationErrors}`;
+                } else {
+                  errorMessage = error.response.data.detail;
+                }
+              } else {
+                errorMessage = 'Данные не прошли валидацию. Проверьте правильность заполнения формы.';
+              }
+            } else if (error.response.status === 400) {
+              if (error.response.data && error.response.data.detail) {
+                if (typeof error.response.data.detail === 'string' && error.response.data.detail.includes('already registered')) {
                   errorMessage = 'Пользователь с таким email уже зарегистрирован';
                 } else {
                   errorMessage = error.response.data.detail;
@@ -327,7 +383,9 @@ const useAuthStore = create(
                 errorMessage = 'Некорректные данные для регистрации';
               }
             } else if (error.response.data && error.response.data.detail) {
-              errorMessage = error.response.data.detail;
+              errorMessage = typeof error.response.data.detail === 'string' 
+                ? error.response.data.detail 
+                : 'Ошибка на сервере';
             }
           } else if (error.message) {
             errorMessage = error.message;
@@ -496,19 +554,19 @@ const useAuthStore = create(
             }
           }
           
-          // Send Google auth request
-          const response = await axios.post(`${DIRECT_API_URL}/auth/google`, { 
-            code,
-            // Устанавливаем длительное время жизни токена - 7 дней
-            expires_in_days: 7
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            timeout: 10000, // Увеличиваем таймаут для этого запроса
-            withCredentials: true // Необходимо для сохранения cookie
-          });
+                      // Send Google auth request to the correct callback endpoint
+            const response = await axios.post(`${DIRECT_API_URL}/auth/google/callback`, { 
+              code,
+              // Устанавливаем длительное время жизни токена - 7 дней
+              expires_in_days: 7
+            }, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              timeout: 15000, // Увеличиваем таймаут для этого запроса
+              withCredentials: true // Необходимо для сохранения cookie
+            });
           
           
           if (response.status === 200 && response.data) {

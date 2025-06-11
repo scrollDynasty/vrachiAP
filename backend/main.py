@@ -44,6 +44,7 @@ from sqlalchemy import func
 from urllib.parse import urlencode
 import urllib.parse
 from sqlalchemy.exc import IntegrityError
+import hashlib
 
 # Импортируем наши модели и функцию для получения сессии БД
 from models import (
@@ -254,7 +255,7 @@ def send_verification_email(email: str, token: str):
         msg = MIMEMultipart()
         msg["From"] = EMAIL_FROM
         msg["To"] = email
-        msg["Subject"] = "Подтверждение регистрации в Soglom"
+        msg["Subject"] = "Подтверждение регистрации в Healzy"
 
         # Создаем HTML-тело письма
         html = f"""
@@ -262,7 +263,7 @@ def send_verification_email(email: str, token: str):
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.5;">
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
                     <h2 style="color: #3b82f6; margin-bottom: 20px;">Подтверждение регистрации</h2>
-                    <p>Спасибо за регистрацию в системе Soglom!</p>
+                    <p>Спасибо за регистрацию в системе Healzy!</p>
                     <p>Для активации аккаунта, пожалуйста, перейдите по ссылке:</p>
                     <p style="margin: 30px 0;">
                         <a href="{verification_link}" 
@@ -271,7 +272,7 @@ def send_verification_email(email: str, token: str):
                         </a>
                     </p>
                     <p>Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.</p>
-                    <p>С уважением,<br>Команда Soglom</p>
+                    <p>С уважением,<br>Команда Healzy</p>
                 </div>
             </body>
         </html>
@@ -488,7 +489,9 @@ def register_user(
         return {
             "access_token": "",  # Пустой токен, так как пользователь еще не создан
             "token_type": "bearer",
-            "email_verification_required": True  # Флаг для фронтенда
+            "email_verification_required": True,  # Флаг для фронтенда
+            "message": "Регистрация успешна! Проверьте свою почту для подтверждения аккаунта.",
+            "email": user.email
         }
         
     except ValidationError as e:
@@ -597,14 +600,14 @@ def read_users_me(current_user: CurrentUser):
 
 # --- НОВЫЙ ЭНДПОИНТ ДЛЯ ПОДТВЕРЖДЕНИЯ EMAIL ---
 # Доступен по ссылке из письма, не требует авторизации.
-@app.get("/verify-email", response_model=Token)
+@app.get("/verify-email")
 def verify_email(
     token: str, db: DbDependency
 ):  # Принимает токен как параметр запроса (?token=...)
     """
     Подтверждение email по токену из письма.
     Создает пользователя из данных в таблице pending_users.
-    Возвращает JWT токен для автоматического входа.
+    Перенаправляет на фронтенд с результатом.
     """
     print(f"Received verification request with token: {token[:10]}... (length: {len(token)})")
     
@@ -631,22 +634,11 @@ def verify_email(
             # Если есть недавно созданные пользователи, вероятно токен был уже использован
             if recently_verified_users:
                 print(f"Found {len(recently_verified_users)} recently verified users, token likely used successfully")
-                # Создаем временный токен для переадресации пользователя
-                newest_user = recently_verified_users[0] if recently_verified_users else None
-                if newest_user:
-                    # Генерируем новый токен для этого пользователя
-                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                    access_token = create_access_token(
-                        data={"sub": newest_user.email, "role": newest_user.role},
-                        expires_delta=access_token_expires
-                    )
-                    print(f"Generated new token for recently verified user {newest_user.email}")
-                    return {
-                        "access_token": access_token, 
-                        "token_type": "bearer", 
-                        "already_verified": True,
-                        "email": newest_user.email
-                    }
+                # Перенаправляем на фронтенд с успешным статусом (токен уже был использован)
+                return RedirectResponse(
+                    url="https://healzy.uz/login?verification=success&reason=already_verified",
+                    status_code=302
+                )
             
             # Выведем информацию о существующих токенах для отладки
             all_pending = db.query(PendingUser).all()
@@ -654,10 +646,10 @@ def verify_email(
             for p in all_pending:
                 print(f"Pending user: {p.email}, token: {p.verification_token[:10]}...")
                 
-            # Если токен не найден в базе данных
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Недействительный токен подтверждения или время его действия истекло."
+            # Если токен не найден в базе данных - перенаправляем с ошибкой
+            return RedirectResponse(
+                url="https://healzy.uz/login?verification=error&reason=invalid_token",
+                status_code=302
             )
             
         # Сохраняем email из pending_user, чтобы использовать его при проверке
@@ -670,9 +662,10 @@ def verify_email(
             db.delete(pending_user)
             db.commit()
             
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Срок действия токена истек. Пожалуйста, запросите повторную отправку письма для подтверждения."
+            # Перенаправляем с ошибкой истечения времени
+            return RedirectResponse(
+                url="https://healzy.uz/login?verification=error&reason=expired_token",
+                status_code=302
             )
         
         # Проверяем, не существует ли уже пользователь с таким email с блокировкой
@@ -721,9 +714,9 @@ def verify_email(
                     new_user = existing_user
                 else:
                     # Если пользователь не найден, значит произошла непредвиденная ошибка
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Ошибка при создании пользователя: email уже существует, но пользователь не найден."
+                    return RedirectResponse(
+                        url="https://healzy.uz/login?verification=error&reason=server_error",
+                        status_code=302
                     )
         
         # Если это пациент, создаем профиль пациента
@@ -800,12 +793,83 @@ def verify_email(
             expires_delta=access_token_expires
         )
         
-        # Успешно завершаем транзакцию
+        # Применяем все изменения в базе данных
         db.commit()
-        print(f"Email verification successful for {new_user.email}")
         
-        # Возвращаем токен доступа
-        return {"access_token": access_token, "token_type": "bearer"}
+        print(f"Email verification successful for {new_user.email}")
+        print(f"User ID: {new_user.id}, Role: {new_user.role}")
+        print(f"Profile created: {profile_created}")
+        print(f"Access token: {access_token[:20]}...")
+        
+        # Создаем красивую HTML страницу с автоматическим редиректом  
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Подтверждение email - Healzy</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="icon" type="image/png" href="https://healzy.uz/healzy.png">
+        </head>
+        <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center">
+            <div class="max-w-md w-full mx-4">
+                <div class="bg-white rounded-2xl shadow-xl p-8 text-center">
+                    <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Email подтвержден!</h1>
+                    <p class="text-gray-600 mb-6">
+                        Ваш аккаунт <strong>{email}</strong> успешно активирован.
+                        Сейчас вы будете автоматически перенаправлены на страницу входа.
+                    </p>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <p class="text-blue-800 text-sm">
+                            Перенаправление через <span id="countdown">3</span> секунд...
+                        </p>
+                    </div>
+                    
+                    <a href="https://healzy.uz/login?verified=true&email={email}" 
+                       class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                        Перейти к входу
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                        </svg>
+                    </a>
+                </div>
+                
+                <div class="text-center mt-6">
+                    <img src="https://healzy.uz/healzy.png" alt="Healzy" class="h-8 mx-auto opacity-50">
+                </div>
+            </div>
+            
+            <script>
+                // Устанавливаем токен в localStorage
+                localStorage.setItem('access_token', '{access_token}');
+                
+                // Автоматический редирект через 3 секунды
+                let countdown = 3;
+                const countdownElement = document.getElementById('countdown');
+                
+                const timer = setInterval(() => {{
+                    countdown--;
+                    countdownElement.textContent = countdown;
+                    
+                    if (countdown <= 0) {{
+                        clearInterval(timer);
+                        window.location.href = 'https://healzy.uz/login?verified=true&email={email}&token={access_token}';
+                    }}
+                }}, 1000);
+            </script>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content, status_code=200)
         
     except Exception as e:
         # В случае любой ошибки откатываем транзакцию
@@ -818,25 +882,20 @@ def verify_email(
             if 'email' in locals():
                 existing_user = db.query(User).filter(User.email == email).first()
                 if existing_user and existing_user.is_active:
-                    # Если пользователь существует и активен, создаем для него токен
-                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                    access_token = create_access_token(
-                        data={"sub": existing_user.email, "role": existing_user.role},
-                        expires_delta=access_token_expires
+                    # Если пользователь существует и активен, перенаправляем на успех
+                    print(f"Found active user after error, redirecting for {existing_user.email}")
+                    return RedirectResponse(
+                        url=f"https://healzy.uz/login?verification=success&email={existing_user.email}",
+                        status_code=302
                     )
-                    print(f"Found active user after error, returning token for {existing_user.email}")
-                    return {"access_token": access_token, "token_type": "bearer"}
         except:
             pass
             
-        # Если не удалось восстановиться, пробрасываем оригинальную ошибку
-        if isinstance(e, HTTPException):
-            raise e
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Произошла ошибка при подтверждении email: {str(e)}"
-            )
+        # Перенаправляем с общей ошибкой
+        return RedirectResponse(
+            url="https://healzy.uz/login?verification=error&reason=server_error",
+            status_code=302
+        )
 
 
 # Эндпоинт для создания или обновления профиля Пациента. Требует авторизацию и роли 'patient'.
@@ -5681,10 +5740,37 @@ async def google_auth_callback(
         </html>
         """)
     
+    # ЗАЩИТА ОТ ПОВТОРНОГО ИСПОЛЬЗОВАНИЯ КОДА
+    # Используем простой кеш в памяти для отслеживания использованных кодов
+    # (Google OAuth и так предотвращает повторное использование кодов)
+    code_hash = hashlib.sha256(code.encode()).hexdigest()[:16]  # Короткий хеш для логирования
+    
+    # Создаем глобальный кеш использованных кодов если его нет
+    if not hasattr(google_auth_callback, 'used_codes_cache'):
+        google_auth_callback.used_codes_cache = {}
+    
+    # Очищаем старые записи (старше 10 минут)
+    current_time = datetime.utcnow()
+    expired_codes = [
+        key for key, timestamp in google_auth_callback.used_codes_cache.items()
+        if current_time - timestamp > timedelta(minutes=10)
+    ]
+    for key in expired_codes:
+        del google_auth_callback.used_codes_cache[key]
+    
+    # Проверяем, не был ли уже использован этот код
+    if code_hash in google_auth_callback.used_codes_cache:
+        print(f"Google Auth Callback: Code already used: {code[:10]}...")
+        # Перенаправляем на главную страницу, код уже был обработан
+        return RedirectResponse(url=f"{FRONTEND_URL}/")
+    
+    # Помечаем код как использованный
+    google_auth_callback.used_codes_cache[code_hash] = current_time
+    
     try:
         # Используем ту же функцию, что и в основном методе аутентификации,
         # но с переопределением redirect_uri на бэкенд-URL
-        backend_redirect_uri = "https://soglom.com/auth/google/callback"
+        backend_redirect_uri = "https://healzy.uz/auth/google/callback"
         
         # Получаем данные пользователя от Google API с использованием пользовательского redirect_uri
         token_url = "https://oauth2.googleapis.com/token"
@@ -6026,6 +6112,7 @@ async def google_auth_callback(
                             
                             // Проверка второй попытки
                             const secondSave = localStorage.getItem('auth_token');
+                            console.log('Вторая попытка сохранения токена:', 
                                 secondSave ? secondSave.substring(0, 15) + '...' : 'null');
                         }}, 100);
                     }} else {{
@@ -6077,7 +6164,7 @@ async def google_auth_callback(
             <div class="container">
                 <div class="success-icon"></div>
                 <h1>Авторизация успешна!</h1>
-                <p class="subtitle">Добро пожаловать в soglom</p>
+                <p class="subtitle">Добро пожаловать в Healzy</p>
                 
                 <div class="loading-container">
                     <div class="spinner"></div>
