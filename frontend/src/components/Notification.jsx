@@ -81,7 +81,7 @@ function sendBrowserNotification(title, options = {}) {
     
     // Создаем новое уведомление
     const notification = new Notification(title || 'Уведомление', {
-      icon: '/healzy.png', // Используем единую иконку Healzy
+      icon: '/healzy.png?v=2', // Используем единую иконку Healzy
       ...(options || {})
     });
     

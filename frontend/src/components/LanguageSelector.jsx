@@ -2498,7 +2498,7 @@ const translations = {
     
     // Переводы для страницы "О нас"
     aboutTitle: 'About Us',
-    aboutMission: 'We believe that access to quality healthcare is not a privilege, but a fundamental human right. Everyone, everywhere, deserves the opportunity to understand, track, and improve their health — anytime, anywhere.',
+    aboutMission: 'We believe that access to quality healthcare is not a privilege - it is a fundamental human right. Everyone, everywhere, deserves the power to understand, track, and improve their health - anytime, anywhere.',
     aboutVisionTitle: 'Our Vision',
     aboutVision1: 'We\'re building a world where healthcare knows no borders. A world where taking care of your health is as easy and natural as breathing. Where expert medical guidance is just a click away - no matter who you are or where you live',
     aboutVision2: 'We simplify the understanding of a healthcare. And we do it all while putting your privacy, security, and confidence at the center.',
@@ -2518,7 +2518,7 @@ const translations = {
     aboutValue3Title: 'Technology serves people, not the other way around',
     aboutValue3: 'Every feature is designed to make your life easier, not more complicated.',
     aboutValue4Title: 'We never stop improving',
-    aboutValue4: 'Healthcare evolves. So do we. We continuously learn, grow, and adapt to serve you better.',
+    aboutValue4: 'Healthcare evolves. So we do. We continuously learn, grow, and adapt to serve you better.',
 
     // Переводы для футера
     copyrightText: '© 2025 Healzy. All rights reserved.',

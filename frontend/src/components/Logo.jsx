@@ -46,14 +46,20 @@ const Logo = ({
     medium: {
       width: '160px',
       height: '50px',
-      logoSize: '40px',
+      logoSize: '48px',
       fontSize: '24px'
     },
     large: {
-      width: '200px',
-      height: '60px',
-      logoSize: '48px',
-      fontSize: '30px'
+      width: '240px',
+      height: '80px',
+      logoSize: '64px',
+      fontSize: '32px'
+    },
+    xlarge: {
+      width: '320px',
+      height: '120px',
+      logoSize: '96px',
+      fontSize: '40px'
     }
   };
 
@@ -69,7 +75,7 @@ const Logo = ({
       style={{ width: logoSize, height: logoSize }}
     >
       <img 
-        src="/healzy.png" 
+        src="/healzy.png?v=2" 
         alt="Healzy Logo" 
         style={{ 
           width: logoSize, 
