@@ -326,6 +326,30 @@ def get_status():
     return {"status": "Backend is running"}
 
 
+@app.get("/register")
+async def register_page():
+    """
+    Возвращает HTML-страницу регистрации для фронтенда.
+    Этот эндпоинт нужен для корректной работы React Router при перезагрузке страницы.
+    """
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Регистрация - Healzy</title>
+        <meta name="description" content="Зарегистрируйтесь в системе Healzy для получения медицинских консультаций">
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
 # Эндпоинт для регистрации нового пользователя. Не требует авторизации.
 @app.post(
     "/register", response_model=Token, status_code=status.HTTP_201_CREATED
@@ -513,6 +537,30 @@ def register_user(
 
 # Эндпоинт для авторизации (получения JWT токена). Не требует авторизации, но проверяет учетные данные.
 # Используем стандартную форму OAuth2 Password Request Form (email/password).
+@app.get("/login")
+async def login_page():
+    """
+    Возвращает HTML-страницу входа для фронтенда.
+    Этот эндпоинт нужен для корректной работы React Router при перезагрузке страницы.
+    """
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Вход - Healzy</title>
+        <meta name="description" content="Войдите в систему Healzy для получения медицинских консультаций">
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
 @app.post(
     "/token", response_model=Token
 )  # response_model=Token указывает, что в ответ ожидается Pydantic модель Token
@@ -1794,7 +1842,7 @@ async def get_cities():
         "Гулистан",
         "Джизак",
         "Ургенч",
-        "Алматы",  # Казахстан
+        "Алматы",   # Казахстан
         "Астана",   # Казахстан
         "Москва",   # Россия
         "Санкт-Петербург"  # Россия
@@ -5214,10 +5262,6 @@ async def get_websocket_token(
     db: Session = Depends(get_db),
     request: Request = None
 ):
-    """
-    Создает и возвращает специальный токен для WebSocket соединения.
-    Токен сохраняется в базе данных и имеет ограниченный срок действия.
-    """
     """
     Создает и возвращает специальный токен для WebSocket соединения.
     Токен сохраняется в базе данных и имеет ограниченный срок действия.

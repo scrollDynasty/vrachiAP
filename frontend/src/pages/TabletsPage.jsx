@@ -1,11 +1,23 @@
-import React from 'react';
-import { Card, CardBody, CardHeader, Button, Chip } from '@nextui-org/react';
+import React, { useState } from 'react';
+import { Card, CardBody, CardHeader, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Input } from '@nextui-org/react';
 import { motion } from 'framer-motion';
 import { PillIcon } from '../components/icons/PillIcon';
 import { useTranslation } from '../components/LanguageSelector';
+import { Notification } from '../components/Notification';
+
+const TELEGRAM_BOT_TOKEN = '8120853924:AAE8QVugXnKY3Ax_uiDDWE9OP1wjlQHztMQ';
+const TELEGRAM_CHAT_ID = -1002756008326; // Укажите chat_id, если хотите отправлять только в определённый чат
 
 function TabletsPage() {
   const { t } = useTranslation();
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackData, setFeedbackData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -30,9 +42,144 @@ function TabletsPage() {
     }
   };
 
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackData.message.trim()) {
+      setNotification({ type: 'error', message: 'Пожалуйста, введите ваше предложение' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      // Получаем IP адрес пользователя
+      let userIP = 'Не определен';
+      try {
+        // Пробуем несколько сервисов для более точного определения IP
+        const ipServices = [
+          'https://api.ipify.org?format=json',
+          'https://api.myip.com',
+          'https://ipapi.co/json/',
+          'https://ipinfo.io/json'
+        ];
+        
+        for (const service of ipServices) {
+          try {
+            const ipResponse = await fetch(service, { timeout: 3000 });
+            const ipData = await ipResponse.json();
+            
+            if (ipData.ip) {
+              userIP = ipData.ip;
+              break;
+            } else if (ipData.query) {
+              userIP = ipData.query;
+              break;
+            }
+          } catch (serviceError) {
+            continue; // Пробуем следующий сервис
+          }
+        }
+      } catch (ipError) {
+        // IP не удалось получить
+      }
+
+      const message = `\uD83D\uDCCA Новое предложение для раздела "Таблетки":\n\nИмя: ${feedbackData.name || 'Не указано'}\nEmail: ${feedbackData.email || 'Не указано'}\nIP адрес: ${userIP}\nСообщение: ${feedbackData.message}\n\nДата: ${new Date().toLocaleString()}`;
+      let chatId = TELEGRAM_CHAT_ID;
+      if (!chatId) {
+        const updatesResp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
+        const updates = await updatesResp.json();
+        if (updates.result && updates.result.length > 0) {
+          const lastMsg = updates.result[updates.result.length - 1];
+          chatId = lastMsg.message?.chat?.id;
+        }
+      }
+      if (!chatId) {
+        setIsSubmitting(false);
+        return;
+      }
+      const sendResp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'HTML'
+        })
+      });
+      const sendResult = await sendResp.json();
+      if (sendResult.ok) {
+        setNotification({ type: 'success', message: 'Спасибо за ваше предложение! Мы рассмотрим его в ближайшее время.' });
+        setIsFeedbackModalOpen(false);
+        setFeedbackData({ name: '', email: '', message: '' });
+        setTimeout(() => setNotification(null), 4000);
+      }
+    } catch (error) {
+      // Не показываем алерт, просто ничего не делаем
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Декоративные плавающие элементы */}
+      <div className="absolute top-0 left-0 w-full h-full z-0 opacity-70">
+        <motion.div 
+          className="absolute top-20 left-[10%] w-64 h-64 rounded-full bg-gradient-to-r from-blue-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, 20, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, 5, 0, -5, 0]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-20 right-[10%] w-80 h-80 rounded-full bg-gradient-to-r from-purple-300/20 to-indigo-300/20"
+          animate={{
+            y: [0, -25, 0],
+            scale: [1, 1.05, 1],
+            rotate: [0, -5, 0, 5, 0]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div 
+          className="absolute top-1/3 right-[15%] w-40 h-40 rounded-full bg-gradient-to-r from-indigo-300/20 to-blue-300/20"
+          animate={{
+            y: [0, 15, 0],
+            scale: [1, 1.08, 1],
+            rotate: [0, 10, 0]
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <motion.div 
+          className="absolute bottom-1/4 left-[20%] w-56 h-56 rounded-full bg-gradient-to-r from-cyan-300/20 to-teal-300/20"
+          animate={{
+            y: [0, -15, 0],
+            scale: [1, 1.03, 1],
+            rotate: [0, -8, 0]
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto py-8 px-4 relative z-10">
         {/* Заголовок страницы */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -237,7 +384,7 @@ function TabletsPage() {
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-teal-100 rounded-lg group-hover:bg-teal-200 transition-colors">
                       <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM4 19h6v-2H4v2zM4 15h6v-2H4v2zM4 11h6V9H4v2zM4 7h6V5H4v2zM4 3h6V1H4v2z" />
                       </svg>
                     </div>
                     <h3 className="text-lg font-semibold text-gray-800">
@@ -249,7 +396,7 @@ function TabletsPage() {
                   </p>
                   <Chip 
                     className="mt-3" 
-                    color="primary" 
+                    color="default" 
                     variant="flat" 
                     size="sm"
                   >
@@ -260,24 +407,28 @@ function TabletsPage() {
             </motion.div>
           </div>
 
-          {/* Кнопка обратной связи */}
-          <motion.div 
-            variants={cardVariants}
-            className="text-center pt-8"
-          >
-            <Card className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 shadow-lg">
-              <CardBody className="p-6">
-                <h3 className="text-xl font-semibold mb-2">
-                  {t('feedbackTitle', 'Есть предложения?')}
-                </h3>
-                <p className="text-blue-100 mb-4">
-                  {t('feedbackDescription', 'Расскажите нам, какие функции управления таблетками вам нужны больше всего')}
-                </p>
-                <Button 
-                  color="white" 
-                  variant="flat" 
-                  className="font-medium"
-                  onClick={() => window.open('mailto:support@healzy.com', '_blank')}
+          {/* Секция обратной связи */}
+          <motion.div variants={cardVariants} className="mt-12">
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 shadow-lg">
+              <CardBody className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {t('feedbackTitle', 'Есть предложения?')}
+                  </h3>
+                  <p className="text-gray-600 max-w-2xl mx-auto">
+                    {t('feedbackDescription', 'Расскажите нам, какие функции управления таблетками вам нужны больше всего')}
+                  </p>
+                </div>
+                <Button
+                  color="primary"
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold px-8 py-3"
+                  onPress={() => setIsFeedbackModalOpen(true)}
                 >
                   {t('sendFeedback', 'Отправить предложение')}
                 </Button>
@@ -286,6 +437,94 @@ function TabletsPage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Модальное окно для обратной связи */}
+      <Modal 
+        isOpen={isFeedbackModalOpen} 
+        onOpenChange={setIsFeedbackModalOpen}
+        size="2xl"
+        classNames={{
+          base: "bg-white/95 backdrop-blur-md",
+          header: "border-b border-gray-200",
+          body: "py-6",
+          footer: "border-t border-gray-200"
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  {t('feedbackTitle', 'Есть предложения?')}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Ваше мнение поможет нам сделать раздел "Таблетки" лучше
+                </p>
+              </div>
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
+              <Input
+                label="Ваше имя (необязательно)"
+                placeholder="Введите ваше имя"
+                value={feedbackData.name}
+                onChange={(e) => setFeedbackData({...feedbackData, name: e.target.value})}
+                variant="bordered"
+              />
+              <Input
+                label="Email (необязательно)"
+                placeholder="Введите ваш email"
+                type="email"
+                value={feedbackData.email}
+                onChange={(e) => setFeedbackData({...feedbackData, email: e.target.value})}
+                variant="bordered"
+              />
+              <Textarea
+                label="Ваше предложение"
+                placeholder="Расскажите нам, какие функции управления таблетками вам нужны больше всего..."
+                value={feedbackData.message}
+                onChange={(e) => setFeedbackData({...feedbackData, message: e.target.value})}
+                variant="bordered"
+                minRows={4}
+                maxRows={8}
+                isRequired
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button 
+              variant="light" 
+              onPress={() => setIsFeedbackModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Отмена
+            </Button>
+            <Button 
+              color="primary" 
+              onPress={handleFeedbackSubmit}
+              isLoading={isSubmitting}
+              disabled={!feedbackData.message.trim()}
+              className="bg-gradient-to-r from-blue-500 to-indigo-600"
+            >
+              {isSubmitting ? 'Отправка...' : 'Отправить'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {notification && (
+        <div className={`fixed top-6 left-1/2 z-50 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg font-semibold text-base transition-all duration-300
+          ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+        >
+          {notification.message}
+        </div>
+      )}
     </div>
   );
 }

@@ -1527,7 +1527,27 @@ const translations = {
     planned: 'Планируется',
     feedbackTitle: 'Есть предложения?',
     feedbackDescription: 'Расскажите нам, какие функции управления таблетками вам нужны больше всего',
-    sendFeedback: 'Отправить предложение'
+    sendFeedback: 'Отправить предложение',
+    
+    // Переводы для страницы клиник
+    clinics: 'Клиники',
+    clinicsDescription: 'Найдите ближайшие медицинские клиники и центры',
+    licenseNotice: 'Важная информация',
+    licenseDescription: 'В связи с отсутствием лицензии на отображение медицинских учреждений, мы пока не можем показывать реальные местоположения клиник',
+    mapTitle: 'Карта клиник',
+    mapDescription: 'Интерактивная карта для поиска медицинских учреждений',
+    demoMarker: 'Демо маркер',
+    locationSearch: 'Поиск по местоположению',
+    locationSearchDescription: 'Найдите клиники рядом с вашим местоположением',
+    clinicInfo: 'Информация о клиниках',
+    clinicInfoDescription: 'Подробная информация о специализации и услугах',
+    appointmentBooking: 'Запись на прием',
+    appointmentDescription: 'Онлайн запись на прием к врачам в выбранной клинике',
+    comingSoonTitle: 'Скоро будет доступно',
+    comingSoonDescription: 'Мы работаем над получением необходимых лицензий для отображения реальных медицинских учреждений. После этого вы сможете найти ближайшие клиники и записаться на прием онлайн.',
+    licenseInProgress: 'Лицензия в процессе',
+    developmentActive: 'Разработка активна',
+    betaVersion: 'Бета версия'
     },
     uz: {
     selectLanguage: 'Tilni tanlang',
@@ -2365,7 +2385,27 @@ const translations = {
     planned: 'Rejalashtirilgan',
     feedbackTitle: 'Takliflar bormi?',
     feedbackDescription: 'Qaysi dori-darmonlarni boshqarish funksiyalari sizga eng ko\'p kerakligini aytib bering',
-    sendFeedback: 'Taklif yuborish'
+    sendFeedback: 'Taklif yuborish',
+    
+    // Переводы для страницы клиник
+    clinics: 'Klinikalar',
+    clinicsDescription: 'Eng yaqin tibbiy klinikalar va markazlarni toping',
+    licenseNotice: 'Muhim ma\'lumot',
+    licenseDescription: 'Tibbiy muassasalarni ko\'rsatish uchun litsenziya yo\'qligi sababli, biz hozircha haqiqiy klinikalarning joylashuvini ko\'rsata olmaymiz',
+    mapTitle: 'Klinikalar xaritasi',
+    mapDescription: 'Tibbiy muassasalarni qidirish uchun interaktiv xarita',
+    demoMarker: 'Demo belgi',
+    locationSearch: 'Joylashuv bo\'yicha qidiruv',
+    locationSearchDescription: 'Sizning joylashuvingiz yaqinidagi klinikalarni toping',
+    clinicInfo: 'Klinikalar haqida ma\'lumot',
+    clinicInfoDescription: 'Mutaxassislik va xizmatlar haqida batafsil ma\'lumot',
+    appointmentBooking: 'Qabulga yozilish',
+    appointmentDescription: 'Tanlangan klinikadagi shifokorlarga onlayn qabulga yozilish',
+    comingSoonTitle: 'Tez orada mavjud bo\'ladi',
+    comingSoonDescription: 'Biz haqiqiy tibbiy muassasalarni ko\'rsatish uchun kerakli litsenziyalarni olish ustida ishlaymiz. Shundan so\'ng siz eng yaqin klinikalarni topishingiz va onlayn qabulga yozilishingiz mumkin.',
+    licenseInProgress: 'Litsenziya jarayonda',
+    developmentActive: 'Ishlab chiqarish faol',
+    betaVersion: 'Beta versiya'
     },
     en: {
     selectLanguage: 'Select language',
@@ -3203,7 +3243,27 @@ const translations = {
     planned: 'Planned',
     feedbackTitle: 'Have suggestions?',
     feedbackDescription: 'Tell us which medication management features you need most',
-    sendFeedback: 'Send Feedback'
+    sendFeedback: 'Send Feedback',
+    
+    // Переводы для страницы клиник
+    clinics: 'Clinics',
+    clinicsDescription: 'Find the nearest medical clinics and centers',
+    licenseNotice: 'Important Information',
+    licenseDescription: 'Due to the lack of a license to display medical institutions, we cannot yet show real clinic locations',
+    mapTitle: 'Clinics Map',
+    mapDescription: 'Interactive map for finding medical institutions',
+    demoMarker: 'Demo Marker',
+    locationSearch: 'Location Search',
+    locationSearchDescription: 'Find clinics near your location',
+    clinicInfo: 'Clinic Information',
+    clinicInfoDescription: 'Detailed information about specialization and services',
+    appointmentBooking: 'Appointment Booking',
+    appointmentDescription: 'Online appointment booking with doctors at the selected clinic',
+    comingSoonTitle: 'Coming Soon',
+    comingSoonDescription: 'We are working on obtaining the necessary licenses to display real medical institutions. After that, you will be able to find the nearest clinics and book appointments online.',
+    licenseInProgress: 'License in Progress',
+    developmentActive: 'Development Active',
+    betaVersion: 'Beta Version'
     }
   };
 

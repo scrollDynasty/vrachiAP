@@ -19,8 +19,6 @@ function CompleteProfilePage() {
     
     // Добавляем задержку для уверенности, что стор успел обновиться
     setTimeout(() => {
-        useAuthStore.getState().needsProfileUpdate);
-      
       // Перенаправляем на главную страницу
       navigate('/', { replace: true });
     }, 100);

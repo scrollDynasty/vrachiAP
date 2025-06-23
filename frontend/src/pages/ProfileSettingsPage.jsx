@@ -568,6 +568,25 @@ function ProfileSettingsPage() {
                 
                 {/* Кнопки действий */}
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  {/* Кнопка для сброса настроек уведомлений */}
+                  <Button 
+                    color="secondary" 
+                    variant="bordered"
+                    className="border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600 w-full sm:w-auto text-sm min-h-[44px] touch-manipulation"
+                    size="sm"
+                    onPress={() => {
+                      localStorage.removeItem('notificationPermissionRequested');
+                      toast.success('Настройки уведомлений сброшены. При следующем посещении сайта вы снова увидите запрос на разрешение уведомлений.');
+                    }}
+                    startContent={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    }
+                  >
+                    Сбросить уведомления
+                  </Button>
+                  
                   {/* Кнопка для подачи заявки на роль врача (только для пациентов) */}
                   {user?.role === 'patient' && (
                     <Button 

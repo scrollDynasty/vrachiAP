@@ -19,6 +19,7 @@ import DoctorApplicationPage from './pages/DoctorApplicationPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AboutPage from './pages/AboutPage'
 import TabletsPage from './pages/TabletsPage'
+import ClinicsPage from './pages/ClinicsPage'
 
 // Импортируем компонент хедера
 import Header from './components/Header'
@@ -129,7 +130,7 @@ function App() {
         navigate('/login');
       } else {
         if (!pendingVerificationEmail){
-          nevigate('/');
+          navigate('/');
         }
       }
     } 
@@ -284,6 +285,7 @@ function App() {
               <Route path="/search-doctors" element={<SearchDoctorsPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/tablets" element={<TabletsPage />} />
+              <Route path="/clinics" element={<ClinicsPage />} />
               {/* Маршрут для публичного профиля врача (доступен только аутентифицированным пользователям) */}
               <Route path="/doctors/:doctorId" element={<DoctorProfilePage />} />
               <Route path="/doctor-application" element={<DoctorApplicationPage />} />

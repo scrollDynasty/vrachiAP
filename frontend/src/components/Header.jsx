@@ -360,6 +360,15 @@ function Header() {
                 </Link>
               </NavbarItem>
             )}
+            
+            {user?.role !== 'admin' && (
+              <NavbarItem>
+                <Link to="/clinics" className="text-gray-700 hover:text-primary transition-colors relative group">
+                  {t('clinics', 'Клиники')}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              </NavbarItem>
+            )}
           </>
         )}
       </NavbarContent>
@@ -506,6 +515,7 @@ function Header() {
                 if (key === 'profile-settings') handleProfileClick();
                 if (key === 'history') handleHistoryClick();
                 if (key === 'tablets') handleMobileNavigation('/tablets');
+                if (key === 'clinics') handleMobileNavigation('/clinics');
                 if (key === 'search') handleSearchDoctorsClick();
                 if (key === 'admin-panel') navigate('/admin');
                 if (key === 'logout') handleLogout();
@@ -566,6 +576,17 @@ function Header() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
                       {t('tablets', 'Таблетки')}
+                    </div>
+                  </DropdownItem>
+                )}
+                
+                {user?.role !== 'admin' && (
+                  <DropdownItem key="clinics" textValue={t('clinics', 'Клиники')} className="py-2.5 hover:bg-blue-50">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      {t('clinics', 'Клиники')}
                     </div>
                   </DropdownItem>
                 )}
@@ -713,6 +734,22 @@ function Header() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                     </svg>
                     <span className="font-medium">{t('tablets', 'Таблетки')}</span>
+                  </div>
+                </button>
+              </NavbarMenuItem>
+            )}
+            
+            {user?.role !== 'admin' && (
+              <NavbarMenuItem>
+                <button 
+                  onClick={() => handleMobileNavigation('/clinics')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span className="font-medium">{t('clinics', 'Клиники')}</span>
                   </div>
                 </button>
               </NavbarMenuItem>

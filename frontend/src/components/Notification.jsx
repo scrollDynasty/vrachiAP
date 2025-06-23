@@ -2,45 +2,59 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Chip } from '@nextui-org/react';
 import { notificationsApi } from '../api';
 
-// Безопасная проверка поддержки нативных уведомлений браузера
-// Проверяем, что window существует (SSR-совместимость) и Notification API доступен
-const isBrowserNotificationSupported = typeof window !== 'undefined' && 'Notification' in window;
+// Простая проверка поддержки браузерных уведомлений
+const isBrowserNotificationSupported = typeof window !== 'undefined' && 
+  'Notification' in window;
 
 // Компонент для запроса разрешения на отправку уведомлений
 function NotificationPermissionHandler() {
-  const [permissionState, setPermissionState] = useState(
-    isBrowserNotificationSupported ? Notification.permission : 'denied'
-  );
+  const [showRequest, setShowRequest] = useState(false);
+  
+  useEffect(() => {
+    // Проверяем localStorage при загрузке
+    const wasRequested = localStorage.getItem('notificationPermissionRequested') === 'true';
+    const hasPermission = isBrowserNotificationSupported && Notification.permission === 'granted';
+    
+    // Показываем запрос только если:
+    // 1. Уведомления поддерживаются
+    // 2. Разрешение не предоставлено
+    // 3. Запрос еще не показывался
+    setShowRequest(isBrowserNotificationSupported && !hasPermission && !wasRequested);
+  }, []);
   
   // Запрос разрешения на отправку уведомлений
   const requestPermission = async () => {
-    if (!isBrowserNotificationSupported) return;
+    if (!isBrowserNotificationSupported) {
+      console.log('Уведомления не поддерживаются');
+      return;
+    }
     
     try {
       const permission = await Notification.requestPermission();
-      setPermissionState(permission);
+      console.log('Разрешение получено:', permission);
+      
+      // Запоминаем, что запрос был показан
+      localStorage.setItem('notificationPermissionRequested', 'true');
+      setShowRequest(false);
     } catch (error) {
-      console.error('Ошибка при запросе разрешения на уведомления:', error);
+      console.error('Ошибка при запросе разрешения:', error);
+      // Даже при ошибке скрываем запрос
+      localStorage.setItem('notificationPermissionRequested', 'true');
+      setShowRequest(false);
     }
   };
   
-  // При первом рендере проверяем статус разрешения
-  useEffect(() => {
-    // Если уже есть разрешение, не делаем ничего
-    if (permissionState === 'granted') return;
-    
-    // Если статус "default" (не определен), запрашиваем разрешение
-    if (permissionState === 'default') {
-      requestPermission();
-    }
-  }, [permissionState]);
+  // Скрыть запрос без предоставления разрешения
+  const dismissRequest = () => {
+    localStorage.setItem('notificationPermissionRequested', 'true');
+    setShowRequest(false);
+  };
   
-  // Если уведомления не поддерживаются или уже есть разрешение, не отображаем ничего
-  if (!isBrowserNotificationSupported || permissionState === 'granted') {
+  // Не показываем ничего, если запрос не нужен
+  if (!showRequest) {
     return null;
   }
   
-  // Отображаем запрос только если статус "denied" или "default"
   return (
     <Card className="mb-4 shadow-md border-primary" style={{ borderLeftWidth: '4px' }}>
       <CardBody className="p-4">
@@ -55,13 +69,22 @@ function NotificationPermissionHandler() {
             <p className="text-gray-600 mb-3">
               Получайте мгновенные уведомления о статусе ваших заявок и важных обновлениях.
             </p>
-            <Button 
-              color="primary" 
-              variant="flat"
-              onClick={requestPermission}
-            >
-              Разрешить уведомления
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                color="primary" 
+                variant="flat"
+                onClick={requestPermission}
+              >
+                Разрешить уведомления
+              </Button>
+              <Button 
+                color="default" 
+                variant="bordered"
+                onClick={dismissRequest}
+              >
+                Отклонить
+              </Button>
+            </div>
           </div>
         </div>
       </CardBody>
@@ -73,22 +96,28 @@ function NotificationPermissionHandler() {
 function sendBrowserNotification(title, options = {}) {
   try {
     // Проверяем поддержку API
-    if (typeof window === 'undefined' || !window.Notification) return false;
-    if (!isBrowserNotificationSupported) return false;
+    if (typeof window === 'undefined' || !window.Notification) {
+      return false;
+    }
+    
+    if (!isBrowserNotificationSupported) {
+      return false;
+    }
     
     // Проверяем разрешение
-    if (!Notification || Notification.permission !== 'granted') return false;
+    if (Notification.permission !== 'granted') {
+      return false;
+    }
     
     // Создаем новое уведомление
     const notification = new Notification(title || 'Уведомление', {
-      icon: '/healzy.png?v=2', // Используем единую иконку Healzy
+      icon: '/healzy.png?v=2',
       ...(options || {})
     });
     
     // Обработчики событий
     if (notification) {
       notification.onclick = function() {
-        // При клике на уведомление фокусируем окно браузера
         if (window) window.focus();
         if (options && typeof options.onClick === 'function') options.onClick();
         this.close();
@@ -97,7 +126,7 @@ function sendBrowserNotification(title, options = {}) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка при отправке браузерного уведомления:', error);
+    console.error('Ошибка при отправке уведомления:', error);
     return false;
   }
 }
@@ -387,4 +416,27 @@ export {
   ApplicationStatusTracker,
   NotificationPermissionHandler, 
   sendBrowserNotification 
+};
+
+// Экспортируем компонент Notification для обратной совместимости
+export const Notification = ({ type, message, onClose }) => {
+  if (!message) return null;
+  
+  const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+  
+  return (
+    <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg text-white shadow-lg ${bgColor}`}>
+      <div className="flex items-center justify-between">
+        <span>{message}</span>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="ml-4 text-white hover:text-gray-200"
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }; 
