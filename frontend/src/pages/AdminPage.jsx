@@ -112,7 +112,7 @@ function AdminPage() {
       "Тестовое уведомление",
       {
         body: "Это тестовое браузерное уведомление из админ панели",
-        icon: '/favicon.ico',
+        icon: '/favicon.ico?v=2',
         tag: 'admin-test',
         requireInteraction: false,
         duration: 5000

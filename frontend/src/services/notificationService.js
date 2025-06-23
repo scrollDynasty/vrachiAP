@@ -108,8 +108,8 @@ class NotificationService {
       
       // Создаем уведомление с настройками по умолчанию
       const notificationOptions = {
-        icon: '/favicon.ico', // Иконка приложения
-        badge: '/favicon.ico',
+        icon: '/favicon.ico?v=2', // Иконка приложения
+        badge: '/favicon.ico?v=2',
         tag: uniqueTag, // Уникальный тег для каждого уведомления
         renotify: true, // Показывать даже если есть похожие уведомления
         requireInteraction: false, // Автоматически скрывать

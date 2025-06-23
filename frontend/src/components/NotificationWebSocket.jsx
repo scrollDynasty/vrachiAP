@@ -125,7 +125,7 @@ const NotificationWebSocket = () => {
           notification.title || 'Новое уведомление',
           {
             body: notification.message,
-            icon: '/favicon.ico',
+            icon: '/favicon.ico?v=2',
             tag: `ws_notification_${notification.type}_${notification.id}`,
             requireInteraction: requireInteraction,
             renotify: true,
