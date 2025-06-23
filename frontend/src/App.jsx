@@ -18,7 +18,7 @@ import AdminPage from './pages/AdminPage'
 import DoctorApplicationPage from './pages/DoctorApplicationPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AboutPage from './pages/AboutPage'
-
+import TabletsPage from './pages/TabletsPage'
 
 // Импортируем компонент хедера
 import Header from './components/Header'
@@ -283,6 +283,7 @@ function App() {
               <Route path="/profile" element={<ProfileSettingsPage />} />
               <Route path="/search-doctors" element={<SearchDoctorsPage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/tablets" element={<TabletsPage />} />
               {/* Маршрут для публичного профиля врача (доступен только аутентифицированным пользователям) */}
               <Route path="/doctors/:doctorId" element={<DoctorProfilePage />} />
               <Route path="/doctor-application" element={<DoctorApplicationPage />} />
