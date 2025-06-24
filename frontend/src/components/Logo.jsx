@@ -114,7 +114,7 @@ const Logo = ({
             }}
             transition={{ duration: 0.3 }}
           >
-            Healzy
+            HEALZY
           </motion.span>
         </div>
       )}
