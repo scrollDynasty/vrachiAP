@@ -23,6 +23,7 @@ export default function useWebRTC({
   const [peerReady, setPeerReady] = useState(false); // Флаг готовности peer
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
+  const socketRef = useRef(null); // Сохраняем ссылку на WebSocket
 
   // Функции для обработки сигнализации
   const handleOffer = useCallback(async (offer) => {
@@ -47,8 +48,9 @@ export default function useWebRTC({
       console.log('✅ Local description (answer) установлен');
       console.log('- Answer:', answer);
       
-      if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-        signalingSocket.send(JSON.stringify({ 
+      const currentSocket = socketRef.current || signalingSocket;
+      if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+        currentSocket.send(JSON.stringify({ 
           type: 'answer', 
           sdp: answer 
         }));
@@ -101,8 +103,13 @@ export default function useWebRTC({
   }, []);
 
   // Инициализация медиа и peer соединения
-  const start = useCallback(async () => {
+  const start = useCallback(async (passedSocket = null) => {
     console.log('Начинаем инициализацию WebRTC...');
+    
+    // Используем переданный WebSocket или текущий
+    const activeSocket = passedSocket || signalingSocket;
+    socketRef.current = activeSocket;
+    console.log('🔌 Сохранили WebSocket:', activeSocket?.readyState);
     
     try {
       // Получаем медиа поток в зависимости от типа звонка
@@ -156,14 +163,23 @@ export default function useWebRTC({
       peer.onicecandidate = (event) => {
         if (event.candidate) {
           console.log('🧊 Отправляем ICE кандидат:', event.candidate);
-          if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-            signalingSocket.send(JSON.stringify({
-              type: 'ice-candidate',
-              candidate: event.candidate
-            }));
-            console.log('✅ ICE кандидат отправлен через WebSocket');
+          
+          // Используем активный WebSocket из замыкания
+          const currentSocket = socketRef.current;
+          console.log('🔍 Проверяем WebSocket. Состояние:', currentSocket?.readyState);
+          
+          if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+            try {
+              currentSocket.send(JSON.stringify({
+                type: 'ice-candidate',
+                candidate: event.candidate
+              }));
+              console.log('✅ ICE кандидат отправлен через WebSocket');
+            } catch (error) {
+              console.error('❌ Ошибка отправки ICE кандидата:', error);
+            }
           } else {
-            console.error('❌ WebSocket не готов для отправки ICE кандидата');
+            console.error('❌ WebSocket не готов для отправки ICE кандидата. ReadyState:', currentSocket?.readyState);
           }
         } else {
           console.log('🧊 ICE кандидат: null (сбор завершен)');
@@ -189,17 +205,32 @@ export default function useWebRTC({
           })));
           
           if (remoteVideoRef.current) {
-            console.log('- Устанавливаем поток в remoteVideo элемент');
-            remoteVideoRef.current.srcObject = stream;
-            remoteVideoRef.current.playsInline = true;
-            remoteVideoRef.current.autoplay = true;
-            
-            // Попытка воспроизведения
-            remoteVideoRef.current.play().then(() => {
-              console.log('✅ Удаленное видео успешно воспроизводится');
-            }).catch(e => {
-              console.error('❌ Не удалось воспроизвести удаленное видео:', e);
-            });
+            // Проверяем, не установлен ли уже поток
+            if (remoteVideoRef.current.srcObject !== stream) {
+              console.log('- Устанавливаем новый поток в remoteVideo элемент');
+              
+              // Останавливаем текущее воспроизведение если есть
+              if (remoteVideoRef.current.srcObject) {
+                remoteVideoRef.current.pause();
+              }
+              
+              remoteVideoRef.current.srcObject = stream;
+              remoteVideoRef.current.playsInline = true;
+              remoteVideoRef.current.autoplay = true;
+              
+              // Попытка воспроизведения с небольшой задержкой
+              setTimeout(() => {
+                if (remoteVideoRef.current && remoteVideoRef.current.srcObject === stream) {
+                  remoteVideoRef.current.play().then(() => {
+                    console.log('✅ Удаленное видео успешно воспроизводится');
+                  }).catch(e => {
+                    console.error('❌ Не удалось воспроизвести удаленное видео:', e);
+                  });
+                }
+              }, 100);
+            } else {
+              console.log('- Поток уже установлен, пропускаем');
+            }
           } else {
             console.error('❌ remoteVideoRef.current отсутствует!');
           }
@@ -264,7 +295,7 @@ export default function useWebRTC({
         if (onError) onError(error);
       }
     }
-  }, [isCaller, signalingSocket, localVideoRef, remoteVideoRef, callType]);
+  }, [signalingSocket, localVideoRef, remoteVideoRef, callType]);
 
   // Остановка WebRTC
   const stop = useCallback(() => {
@@ -295,6 +326,7 @@ export default function useWebRTC({
     setCallActive(false);
     setConnectionState('closed');
     setPeerReady(false); // Сбрасываем флаг готовности
+    socketRef.current = null; // Очищаем ссылку на WebSocket
     
     console.log('WebRTC остановлен');
   }, [localVideoRef, remoteVideoRef]);
@@ -426,7 +458,8 @@ export default function useWebRTC({
       return;
     }
     
-    if (!signalingSocket || signalingSocket.readyState !== WebSocket.OPEN) {
+    const currentSocket = socketRef.current || signalingSocket;
+    if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
       console.error('WebSocket не готов для отправки offer');
       return;
     }
@@ -437,7 +470,7 @@ export default function useWebRTC({
       await peer.setLocalDescription(offer);
       
       console.log('Отправляем offer через WebSocket');
-      signalingSocket.send(JSON.stringify({
+      currentSocket.send(JSON.stringify({
         type: 'offer',
         sdp: offer
       }));
@@ -453,9 +486,10 @@ export default function useWebRTC({
     setCallActive(false);
     
     // Отправляем уведомление о завершении звонка через WebSocket
-    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+    const currentSocket = socketRef.current || signalingSocket;
+    if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
       try {
-        signalingSocket.send(JSON.stringify({
+        currentSocket.send(JSON.stringify({
           type: 'call-ended'
         }));
         console.log('Уведомление о завершении звонка отправлено');

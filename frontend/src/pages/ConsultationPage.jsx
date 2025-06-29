@@ -103,8 +103,8 @@ function ConsultationPage() {
       console.log('WebSocket соединение установлено');
       // Запускаем WebRTC только после установки WebSocket соединения
       setTimeout(() => {
-        console.log('Запускаем WebRTC...');
-        start();
+        console.log('Запускаем WebRTC с переданным WebSocket...');
+        start(ws); // Передаем WebSocket напрямую
         
         // НЕ создаем offer здесь - будем ждать готовности peer
       }, 1000);
