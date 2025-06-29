@@ -42,8 +42,24 @@ class NotificationService {
     }
     
     try {
-      // Запрашиваем разрешение
-      const permission = await Notification.requestPermission();
+      // Запрашиваем разрешение с поддержкой старого и нового API
+      let permission;
+      
+      if (typeof Notification.requestPermission === 'function') {
+        const result = Notification.requestPermission();
+        
+        // Проверяем, возвращается ли Promise
+        if (result && typeof result.then === 'function') {
+          permission = await result;
+        } else {
+          // Старый API с callback
+          permission = await new Promise((resolve) => {
+            Notification.requestPermission(resolve);
+          });
+        }
+      } else {
+        throw new Error('requestPermission не поддерживается');
+      }
       
       this.permission = permission;
       

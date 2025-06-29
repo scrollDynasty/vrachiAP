@@ -30,7 +30,23 @@ function NotificationPermissionHandler() {
     }
     
     try {
-      const permission = await Notification.requestPermission();
+      let permission;
+      
+      // Поддержка как старого, так и нового API
+      if (typeof Notification.requestPermission === 'function') {
+        const result = Notification.requestPermission();
+        
+        // Проверяем, возвращается ли Promise
+        if (result && typeof result.then === 'function') {
+          permission = await result;
+        } else {
+          // Старый API с callback
+          permission = await new Promise((resolve) => {
+            Notification.requestPermission(resolve);
+          });
+        }
+      }
+      
       console.log('Разрешение получено:', permission);
       
       // Запоминаем, что запрос был показан

@@ -92,16 +92,32 @@ export default function useWebRTC({
     try {
       // Получаем медиа поток в зависимости от типа звонка
       const isVideoCall = callType === 'video';
+      console.log('Запрашиваем медиа поток. Видео:', isVideoCall, 'Аудио: true');
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: isVideoCall,
         audio: true
       });
+      
+      console.log('Медиа поток получен. Треки:', stream.getTracks().map(t => ({
+        kind: t.kind,
+        enabled: t.enabled,
+        label: t.label
+      })));
       
       console.log('Локальный медиа-поток получен');
       localStreamRef.current = stream;
       
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+        localVideoRef.current.muted = true; // Отключаем эхо
+        localVideoRef.current.playsInline = true;
+        localVideoRef.current.autoplay = true;
+        
+        // Попытка воспроизведения
+        localVideoRef.current.play().catch(e => {
+          console.log('Не удалось автоматически воспроизвести локальное видео:', e);
+        });
       }
       
       // Создаем peer connection
@@ -136,8 +152,15 @@ export default function useWebRTC({
       
       peer.ontrack = (event) => {
         console.log('Получен удаленный поток:', event.streams[0]);
-        if (remoteVideoRef.current) {
+        if (remoteVideoRef.current && event.streams[0]) {
           remoteVideoRef.current.srcObject = event.streams[0];
+          remoteVideoRef.current.playsInline = true;
+          remoteVideoRef.current.autoplay = true;
+          
+          // Попытка воспроизведения
+          remoteVideoRef.current.play().catch(e => {
+            console.log('Не удалось автоматически воспроизвести удаленное видео:', e);
+          });
         }
       };
       
@@ -155,26 +178,26 @@ export default function useWebRTC({
         }
       };
       
-      // Если мы инициатор звонка, создаем offer
-      if (isCaller && signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-        console.log('Создаем offer как инициатор звонка');
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        
-        console.log('Отправляем offer через WebSocket');
-        signalingSocket.send(JSON.stringify({
-          type: 'offer',
-          sdp: offer
-        }));
-        console.log('Offer отправлен:', offer);
-      } else if (!isCaller) {
-        console.log('Ожидаем offer от инициатора звонка');
-      } else {
-        console.log('WebSocket не готов или мы не инициатор');
-      }
+      // НЕ создаем offer сразу - дождемся готовности WebSocket
+      // Offer будет создан в отдельной функции после установки WebSocket соединения
+      console.log('WebRTC инициализирован, ожидаем готовности WebSocket для создания offer');
       
     } catch (error) {
       console.error('Ошибка при инициализации WebRTC:', error);
+      
+      // Более детальная обработка ошибок
+      if (error.name === 'NotAllowedError') {
+        console.error('Пользователь отклонил доступ к камере/микрофону');
+        if (onError) onError(new Error('Доступ к камере/микрофону отклонен'));
+      } else if (error.name === 'NotFoundError') {
+        console.error('Камера или микрофон не найдены');
+        if (onError) onError(new Error('Камера или микрофон не найдены'));
+      } else if (error.name === 'NotReadableError') {
+        console.error('Камера или микрофон уже используются');
+        if (onError) onError(new Error('Камера или микрофон уже используются'));
+      } else {
+        if (onError) onError(error);
+      }
     }
   }, [isCaller, signalingSocket, localVideoRef, remoteVideoRef, callType]);
 
@@ -322,6 +345,35 @@ export default function useWebRTC({
     }
   };
 
+  // Создание offer после готовности WebSocket
+  const createOffer = useCallback(async () => {
+    const peer = peerRef.current;
+    if (!peer) {
+      console.error('Peer соединение не готово для создания offer');
+      return;
+    }
+    
+    if (!signalingSocket || signalingSocket.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket не готов для отправки offer');
+      return;
+    }
+    
+    try {
+      console.log('Создаем offer для WebRTC соединения');
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      
+      console.log('Отправляем offer через WebSocket');
+      signalingSocket.send(JSON.stringify({
+        type: 'offer',
+        sdp: offer
+      }));
+      console.log('Offer отправлен:', offer);
+    } catch (error) {
+      console.error('Ошибка при создании offer:', error);
+    }
+  }, [signalingSocket]);
+
   // Завершение звонка
   const endCall = () => {
     console.log('Завершение звонка...');
@@ -370,6 +422,7 @@ export default function useWebRTC({
     camEnabled,
     callActive,
     connectionState,
-    stop
+    stop,
+    createOffer
   };
 } 
