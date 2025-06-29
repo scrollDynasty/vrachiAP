@@ -389,4 +389,34 @@ class WebSocketToken(Base):
     )
 
 
+# Модель для хранения информации о звонках (видео/аудио)
+class Call(Base):
+    """
+    Модель для хранения информации о звонках (видео/аудио)
+    """
+    __tablename__ = "calls"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    consultation_id = Column(Integer, ForeignKey("consultations.id", ondelete="CASCADE"), nullable=False)
+    caller_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    call_type = Column(String(20), nullable=False)  # 'video' или 'audio'
+    status = Column(String(20), default="initiated")  # initiated, ringing, active, ended, rejected
+    started_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+    duration = Column(Integer, nullable=True)  # длительность в секундах
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    consultation = relationship("Consultation")
+    caller = relationship("User", foreign_keys=[caller_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
+    
+    # Индексы для быстрого поиска
+    __table_args__ = (
+        Index('idx_consultation_status', 'consultation_id', 'status'),
+        Index('idx_caller_receiver', 'caller_id', 'receiver_id'),
+    )
+
+
 # TODO: Определить модели для других сущностей:

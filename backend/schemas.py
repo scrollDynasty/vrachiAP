@@ -264,6 +264,34 @@ class DoctorListResponse(BaseModel):
     size: int                      # Размер страницы (количество элементов на странице)
     pages: int                     # Общее количество страниц
 
+# Схемы для звонков
+class CallCreate(BaseModel):
+    consultation_id: int
+    receiver_id: int
+    call_type: str = Field(..., description="Тип звонка: 'video' или 'audio'")
+
+class CallResponse(BaseModel):
+    id: int
+    consultation_id: int
+    caller_id: int
+    receiver_id: int
+    call_type: str
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    duration: Optional[int] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class CallUpdate(BaseModel):
+    status: str = Field(..., description="Новый статус звонка")
+
+class CallListResponse(BaseModel):
+    calls: List[CallResponse]
+    total: int
+
 # TODO: Добавить Pydantic модели для других сущностей:
 # class ConsultationCreate(BaseModel): ...
 # class ConsultationResponse(BaseModel): ...

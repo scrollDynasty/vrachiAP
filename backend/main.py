@@ -66,6 +66,7 @@ from models import (
     PendingUser,
     Notification,
     WebSocketToken,  # Добавляем импорт новой модели
+    Call,  # Добавляем импорт модели звонков
 )  # Добавляем PendingUser и Notification
 
 # Импортируем функции для работы с паролями и JWT, а также зависимости для аутентификации и ролей
@@ -118,6 +119,9 @@ from schemas import (
     DoctorApplicationProcessRequest,
     DoctorApplicationListResponse,
 )  # Импортируем Field (хотя он нужен только в schemas.py), DoctorFilter, DoctorBrief, DoctorDetail, DoctorListResponse
+
+# Импортируем роутер звонков
+from calls_router import router as calls_router
 
 from dotenv import load_dotenv
 
@@ -223,6 +227,9 @@ app.add_middleware(
 
 # Монтируем StaticFiles для доступа к загруженным файлам
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Подключаем роутер звонков
+app.include_router(calls_router)
 
 # Dependency для получения сессии базы данных. Используется в роутах для взаимодействия с БД.
 # Annotated - современный способ указания типа и зависимости.
