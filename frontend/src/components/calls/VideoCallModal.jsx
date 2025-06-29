@@ -63,7 +63,7 @@ const VideoCallModal = ({
               <p className="text-white text-lg">Ожидание ответа собеседника...</p>
               <p className="text-gray-400 text-sm mt-2">Звонок будет подключен, когда собеседник ответит</p>
             </div>
-          ) : (
+          ) : callType === 'video' ? (
             <>
               <div className="relative w-64 h-48 bg-black rounded-lg overflow-hidden flex items-center justify-center">
                 <video ref={remoteVideoRef} className="w-full h-full object-cover" />
@@ -74,6 +74,17 @@ const VideoCallModal = ({
                 <span className="absolute bottom-2 left-2 text-white text-xs bg-black/60 px-2 py-1 rounded">Вы</span>
               </div>
             </>
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full h-64">
+              <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-4">
+                <Mic size={48} className="text-white" />
+              </div>
+              <p className="text-white text-lg">Аудиозвонок активен</p>
+              <p className="text-gray-400 text-sm mt-2">Говорите в микрофон</p>
+              {/* Скрытые видео элементы для аудио */}
+              <video ref={remoteVideoRef} className="hidden" />
+              <video ref={localVideoRef} className="hidden" />
+            </div>
           )}
         </ModalBody>
         <ModalFooter className="flex justify-center gap-4 py-4">

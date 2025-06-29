@@ -278,6 +278,7 @@ class CallResponse(BaseModel):
     call_type: str
     status: str
     started_at: Optional[datetime] = None
+    accepted_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     duration: Optional[int] = None
     created_at: datetime

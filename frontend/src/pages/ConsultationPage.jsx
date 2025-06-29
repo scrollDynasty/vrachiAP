@@ -64,6 +64,7 @@ function ConsultationPage() {
     remoteVideoRef,
     signalingSocket,
     isCaller: currentCall?.caller_id === user?.id, // Определяем по caller_id
+    callType: currentCall?.call_type || 'video', // Передаем тип звонка
     onCallEnd: () => {
       setCallModalOpen(false);
       setCurrentCall(null);

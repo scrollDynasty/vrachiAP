@@ -10,6 +10,7 @@ export default function useWebRTC({
   remoteVideoRef,
   signalingSocket,
   isCaller,
+  callType = 'video',
   onCallEnd,
   onError,
   onOfferReceived,
@@ -42,7 +43,7 @@ export default function useWebRTC({
       if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
         signalingSocket.send(JSON.stringify({ 
           type: 'answer', 
-          answer: answer 
+          sdp: answer 
         }));
         console.log('Answer отправлен:', answer);
       } else {
@@ -89,9 +90,10 @@ export default function useWebRTC({
     console.log('Начинаем инициализацию WebRTC...');
     
     try {
-      // Получаем медиа поток
+      // Получаем медиа поток в зависимости от типа звонка
+      const isVideoCall = callType === 'video';
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: isVideoCall,
         audio: true
       });
       
@@ -162,7 +164,7 @@ export default function useWebRTC({
         console.log('Отправляем offer через WebSocket');
         signalingSocket.send(JSON.stringify({
           type: 'offer',
-          offer: offer
+          sdp: offer
         }));
         console.log('Offer отправлен:', offer);
       } else if (!isCaller) {
@@ -174,7 +176,7 @@ export default function useWebRTC({
     } catch (error) {
       console.error('Ошибка при инициализации WebRTC:', error);
     }
-  }, [isCaller, signalingSocket, localVideoRef, remoteVideoRef]);
+  }, [isCaller, signalingSocket, localVideoRef, remoteVideoRef, callType]);
 
   // Остановка WebRTC
   const stop = useCallback(() => {
@@ -245,22 +247,22 @@ export default function useWebRTC({
             break;
           case 'offer':
             console.log('Получен offer от собеседника');
-            if (data.offer && typeof data.offer === 'object') {
+            if (data.sdp && typeof data.sdp === 'object') {
               // Сбрасываем состояние ожидания ответа при получении offer
               if (onOfferReceived) {
                 onOfferReceived();
               }
-              handleOffer(data.offer);
+              handleOffer(data.sdp);
             } else {
-              console.error('Offer получен, но данные некорректны:', data.offer);
+              console.error('Offer получен, но данные некорректны:', data.sdp);
             }
             break;
           case 'answer':
             console.log('Получен answer от собеседника');
-            if (data.answer && typeof data.answer === 'object') {
-              handleAnswer(data.answer);
+            if (data.sdp && typeof data.sdp === 'object') {
+              handleAnswer(data.sdp);
             } else {
-              console.error('Answer получен, но данные некорректны:', data.answer);
+              console.error('Answer получен, но данные некорректны:', data.sdp);
             }
             break;
           case 'ice-candidate':

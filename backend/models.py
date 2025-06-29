@@ -403,6 +403,7 @@ class Call(Base):
     call_type = Column(String(20), nullable=False)  # 'video' или 'audio'
     status = Column(String(20), default="initiated")  # initiated, ringing, active, ended, rejected
     started_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)  # когда звонок был принят
     ended_at = Column(DateTime, nullable=True)
     duration = Column(Integer, nullable=True)  # длительность в секундах
     created_at = Column(DateTime, default=datetime.utcnow)
