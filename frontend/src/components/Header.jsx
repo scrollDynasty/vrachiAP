@@ -29,6 +29,7 @@ import { PulseLoader } from 'react-spinners';
 import { useTheme } from 'next-themes';
 import soundService from '../services/soundService'; // Импортируем soundService
 import NotificationIcon from './NotificationIcon'; // Импортируем новый компонент для иконки уведомления
+import { useCalls } from '../contexts/CallsContext'; // Импортируем контекст звонков
 
 function Header() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -36,6 +37,7 @@ function Header() {
   const logout = useAuthStore(state => state.logout);
   const { totalUnread, fetchUnreadCounts } = useChatStore();
   const { t } = useTranslation(); // Добавляем хук для переводов
+  const { connectionStatus, reconnectAttempts } = useCalls(); // Добавляем статус соединения
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -495,6 +497,24 @@ function Header() {
                 ) : null}
               </DropdownMenu>
             </Dropdown>
+            
+            {/* Индикатор статуса соединения с сервером звонков */}
+            <NavbarItem className="hidden lg:flex">
+              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-gray-200">
+                <div 
+                  className={`w-2 h-2 rounded-full ${
+                    connectionStatus === 'connected' ? 'bg-green-500' : 
+                    connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 
+                    'bg-red-500'
+                  }`} 
+                />
+                <span className="text-xs text-gray-600">
+                  {connectionStatus === 'connected' ? '📞' : 
+                   connectionStatus === 'connecting' ? '🔄' : 
+                   '❌'}
+                </span>
+              </div>
+            </NavbarItem>
             
             {/* Dropdown с аватаром пользователя */}
             <Dropdown placement="bottom-end">

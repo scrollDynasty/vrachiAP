@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCalls } from '../../contexts/CallsContext';
 
 const GlobalCallNotification = () => {
-  const { incomingCall, acceptCall, rejectCall } = useCalls();
+  const { incomingCall, acceptCall, rejectCall, connectionStatus } = useCalls();
   const navigate = useNavigate();
 
   if (!incomingCall) return null;
@@ -14,7 +14,7 @@ const GlobalCallNotification = () => {
     const success = await acceptCall(incomingCall.id);
     if (success) {
       // Переходим к странице консультации
-      navigate(`/consultation/${incomingCall.consultation_id}`);
+      navigate(`/consultations/${incomingCall.consultation_id}`);
     }
   };
 
@@ -31,8 +31,8 @@ const GlobalCallNotification = () => {
         size="full"
         className="z-[60]"
         classNames={{
-          wrapper: "bg-black/90",
-          base: "bg-gradient-to-br from-blue-900 via-purple-900 to-black m-0 max-w-full h-full rounded-none"
+          wrapper: "bg-black/95 backdrop-blur-sm",
+          base: "bg-gradient-to-br from-red-900 via-purple-900 to-black m-0 max-w-full h-full rounded-none animate-pulse"
         }}
       >
         <ModalContent className="bg-transparent text-white h-full flex items-center justify-center">
@@ -53,7 +53,7 @@ const GlobalCallNotification = () => {
 
               {/* Информация о звонке */}
               <div className="mb-8">
-                <h2 className="text-3xl font-bold mb-2">Входящий звонок</h2>
+                <h2 className="text-4xl font-bold mb-2 animate-bounce text-red-400">🔥 ВХОДЯЩИЙ ЗВОНОК! 🔥</h2>
                 <p className="text-xl text-blue-200 mb-4">
                   {incomingCall.call_type === 'video' ? (
                     <span className="flex items-center justify-center gap-2">
@@ -111,10 +111,10 @@ const GlobalCallNotification = () => {
 
       {/* Дополнительное минимальное уведомление в углу для случаев когда окно не в фокусе */}
       <div className="fixed top-4 right-4 z-50">
-        <Card className="bg-black/80 border border-blue-500 shadow-2xl max-w-xs animate-bounce">
+        <Card className="bg-red-600/90 border border-red-400 shadow-2xl max-w-xs animate-bounce">
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
                 {incomingCall.call_type === 'video' ? (
                   <Video size={20} className="text-white" />
                 ) : (
@@ -122,7 +122,7 @@ const GlobalCallNotification = () => {
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-white font-semibold text-sm">Входящий звонок</p>
+                <p className="text-white font-semibold text-sm">🔥 ВХОДЯЩИЙ ЗВОНОК!</p>
                 <p className="text-gray-300 text-xs">
                   {incomingCall.call_type === 'video' ? 'Видео' : 'Аудио'}
                 </p>
