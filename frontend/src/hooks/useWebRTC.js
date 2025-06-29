@@ -24,6 +24,36 @@ export default function useWebRTC({
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const socketRef = useRef(null); // Сохраняем ссылку на WebSocket
+  const activeRef = useRef(true); // Флаг активности экземпляра
+  const timersRef = useRef([]); // Массив для отслеживания всех таймеров
+
+  // Вспомогательные функции для управления таймерами
+  const addTimer = useCallback((timerId) => {
+    if (activeRef.current) {
+      timersRef.current.push(timerId);
+    }
+  }, []);
+
+  const clearAllTimers = useCallback(() => {
+    console.log('🧹 Очищаем все таймеры:', timersRef.current.length);
+    timersRef.current.forEach(timerId => {
+      clearTimeout(timerId);
+    });
+    timersRef.current = [];
+  }, []);
+
+  const safeSetTimeout = useCallback((callback, delay) => {
+    if (!activeRef.current) return null;
+    
+    const timerId = setTimeout(() => {
+      if (activeRef.current) {
+        callback();
+      }
+    }, delay);
+    
+    addTimer(timerId);
+    return timerId;
+  }, [addTimer]);
 
   // Функции для обработки сигнализации
   const handleOffer = useCallback(async (offer) => {
@@ -83,7 +113,7 @@ export default function useWebRTC({
 
   // Улучшенная функция настройки локального видео
   const setupLocalVideo = useCallback((stream) => {
-    if (!localVideoRef || !localVideoRef.current) {
+    if (!localVideoRef || !localVideoRef.current || !document.contains(localVideoRef.current)) {
       console.warn('⚠️ localVideoRef не доступен для настройки видео');
       return;
     }
@@ -110,7 +140,7 @@ export default function useWebRTC({
     // Обработчики событий для лучшего контроля
     localVideoRef.current.onloadedmetadata = () => {
       console.log('✅ Метаданные локального видео загружены');
-      if (localVideoRef.current) {
+      if (localVideoRef.current && document.contains(localVideoRef.current)) {
         localVideoRef.current.play()
           .then(() => {
             console.log('✅ Локальное видео успешно воспроизводится');
@@ -124,7 +154,7 @@ export default function useWebRTC({
     localVideoRef.current.oncanplay = () => {
       console.log('✅ Локальное видео готово к воспроизведению');
       // Дополнительная попытка воспроизведения
-      if (localVideoRef.current && localVideoRef.current.paused) {
+      if (localVideoRef.current && localVideoRef.current.paused && document.contains(localVideoRef.current)) {
         localVideoRef.current.play().catch(() => {});
       }
     };
@@ -133,16 +163,22 @@ export default function useWebRTC({
     console.log('📹 readyState:', localVideoRef.current.readyState);
     console.log('📹 paused:', localVideoRef.current.paused);
     
-    // Принудительное воспроизведение
-    const forcePlay = () => {
-      if (localVideoRef.current && localVideoRef.current.srcObject) {
-        console.log('🔄 Попытка принудительного воспроизведения локального видео');
+    // Принудительное воспроизведение с улучшенной логикой
+    const forcePlay = (attemptNumber = 1) => {
+      if (!activeRef.current) return; // Проверяем активность
+      
+      if (localVideoRef.current && localVideoRef.current.srcObject && document.contains(localVideoRef.current)) {
+        console.log(`🔄 Попытка принудительного воспроизведения локального видео (${attemptNumber})`);
         localVideoRef.current.play()
           .then(() => {
             console.log('✅ Принудительное воспроизведение локального видео успешно');
           })
           .catch((error) => {
-            console.warn('⚠️ Принудительное воспроизведение не удалось:', error);
+            console.warn(`⚠️ Принудительное воспроизведение не удалось (попытка ${attemptNumber}):`, error);
+            // Если не удалось, попробуем еще раз через небольшой интервал
+            if (attemptNumber < 5 && activeRef.current) {
+              safeSetTimeout(() => forcePlay(attemptNumber + 1), 500 * attemptNumber);
+            }
           });
       }
     };
@@ -151,12 +187,12 @@ export default function useWebRTC({
     forcePlay();
     
     // Несколько попыток с интервалами
-    setTimeout(forcePlay, 100);
-    setTimeout(forcePlay, 500);
-    setTimeout(forcePlay, 1000);
-    setTimeout(forcePlay, 2000);
+    safeSetTimeout(() => forcePlay(2), 100);
+    safeSetTimeout(() => forcePlay(3), 500);
+    safeSetTimeout(() => forcePlay(4), 1000);
+    safeSetTimeout(() => forcePlay(5), 2000);
     
-  }, []);
+  }, [safeSetTimeout]);
 
   // Инициализация медиа и peer соединения
   const start = useCallback(async (passedSocket = null) => {
@@ -192,7 +228,14 @@ export default function useWebRTC({
         
         // Функция для настройки видео с повторными попытками
         const trySetupLocalVideo = (attemptNumber = 1) => {
-          if (localVideoRef && localVideoRef.current) {
+          // Проверяем активность экземпляра
+          if (!activeRef.current) {
+            console.log('⏹️ WebRTC экземпляр неактивен, останавливаем попытки настройки видео');
+            return;
+          }
+          
+          // Проверяем не только наличие ref, но и что элемент действительно в DOM
+          if (localVideoRef && localVideoRef.current && document.contains(localVideoRef.current)) {
             console.log(`✅ localVideoRef доступен (попытка ${attemptNumber})`);
             // Немедленно настраиваем видео элемент
             localVideoRef.current.srcObject = stream;
@@ -202,14 +245,26 @@ export default function useWebRTC({
             
             // Дополнительная настройка через функцию
             setupLocalVideo(stream);
-          } else if (attemptNumber < 10) {
-            console.warn(`⚠️ localVideoRef не доступен, попытка ${attemptNumber}/10`);
-            // Попробуем еще раз через короткий интервал
-            setTimeout(() => {
+          } else if (attemptNumber <= 20) { // Увеличили до 20 попыток
+            console.warn(`⚠️ localVideoRef не доступен, попытка ${attemptNumber}/20`);
+            // Используем экспоненциальную задержку с максимумом в 2 секунды
+            const delay = Math.min(500 * Math.pow(1.2, attemptNumber - 1), 2000);
+            safeSetTimeout(() => {
               trySetupLocalVideo(attemptNumber + 1);
-            }, 200 * attemptNumber); // Увеличиваем интервал с каждой попыткой
+            }, delay);
           } else {
-            console.error('❌ Не удалось настроить локальное видео после 10 попыток');
+            console.error('❌ Не удалось настроить локальное видео после 20 попыток');
+            // Последняя попытка - попробуем настроить через более длительный интервал
+            safeSetTimeout(() => {
+              if (activeRef.current && localVideoRef && localVideoRef.current) {
+                console.log('🔄 Финальная попытка настройки локального видео');
+                localVideoRef.current.srcObject = stream;
+                localVideoRef.current.muted = true;
+                localVideoRef.current.playsInline = true;
+                localVideoRef.current.autoplay = true;
+                setupLocalVideo(stream);
+              }
+            }, 3000);
           }
         };
         
@@ -291,23 +346,35 @@ export default function useWebRTC({
         if (callType === 'video' && localStreamRef.current) {
           console.log('🔄 Проверка локального видео после подключения');
           
-          if (!localVideoRef || !localVideoRef.current) {
+          if (!localVideoRef || !localVideoRef.current || !document.contains(localVideoRef.current)) {
             console.warn('⚠️ localVideoRef недоступен после подключения, попробуем позже');
-            // Попробуем еще раз через небольшой интервал
-            const retryCount = 5;
+            // Попробуем еще раз через интервалы с экспоненциальной задержкой
+            const retryCount = 15; // Увеличили количество попыток
             let attempts = 0;
             
-            const retrySetupVideo = setInterval(() => {
+            const retrySetupVideo = () => {
+              if (!activeRef.current) return; // Проверяем активность
+              
               attempts++;
-              if (localVideoRef && localVideoRef.current && localStreamRef.current) {
+              if (localVideoRef && localVideoRef.current && document.contains(localVideoRef.current) && localStreamRef.current) {
                 console.log('✅ localVideoRef теперь доступен, настраиваем видео');
                 setupLocalVideo(localStreamRef.current);
-                clearInterval(retrySetupVideo);
-              } else if (attempts >= retryCount) {
+              } else if (attempts < retryCount) {
+                console.log(`🔄 Повторная попытка настройки видео после подключения (${attempts}/${retryCount})`);
+                safeSetTimeout(retrySetupVideo, 800);
+              } else {
                 console.error('❌ Не удалось получить доступ к localVideoRef после нескольких попыток');
-                clearInterval(retrySetupVideo);
+                // Последняя попытка через большой интервал
+                safeSetTimeout(() => {
+                  if (activeRef.current && localVideoRef && localVideoRef.current && localStreamRef.current) {
+                    console.log('🔄 Финальная попытка настройки видео после подключения');
+                    setupLocalVideo(localStreamRef.current);
+                  }
+                }, 2000);
               }
-            }, 500);
+            };
+            
+            retrySetupVideo();
           } else {
             if (!localVideoRef.current.srcObject) {
               console.log('⚠️ Локальное видео не настроено, настраиваем сейчас');
@@ -373,6 +440,12 @@ export default function useWebRTC({
   const stop = useCallback(() => {
     console.log('🛑 Остановка WebRTC соединения');
     
+    // Деактивируем экземпляр чтобы остановить все работающие таймеры
+    activeRef.current = false;
+    
+    // Очищаем все активные таймеры
+    clearAllTimers();
+    
     // Останавливаем локальный поток
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
@@ -384,27 +457,57 @@ export default function useWebRTC({
     
     // Закрываем peer connection
     if (peerRef.current) {
-      peerRef.current.close();
+      try {
+        peerRef.current.close();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при закрытии peer connection:', error);
+      }
       peerRef.current = null;
     }
     
-    // Очищаем видео элементы
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-      localVideoRef.current.pause();
-    }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-      remoteVideoRef.current.pause();
+    // Очищаем видео элементы с дополнительной проверкой
+    if (localVideoRef && localVideoRef.current) {
+      try {
+        // Удаляем обработчики событий
+        localVideoRef.current.onloadedmetadata = null;
+        localVideoRef.current.oncanplay = null;
+        localVideoRef.current.onplay = null;
+        localVideoRef.current.onpause = null;
+        localVideoRef.current.onerror = null;
+        
+        localVideoRef.current.srcObject = null;
+        localVideoRef.current.pause();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при очистке localVideoRef:', error);
+      }
     }
     
+    if (remoteVideoRef && remoteVideoRef.current) {
+      try {
+        // Удаляем обработчики событий
+        remoteVideoRef.current.onloadedmetadata = null;
+        remoteVideoRef.current.oncanplay = null;
+        remoteVideoRef.current.onplay = null;
+        remoteVideoRef.current.onpause = null;
+        remoteVideoRef.current.onerror = null;
+        
+        remoteVideoRef.current.srcObject = null;
+        remoteVideoRef.current.pause();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при очистке remoteVideoRef:', error);
+      }
+    }
+    
+    // Сбрасываем все состояния
     setCallActive(false);
-    setConnectionState('closed');
+    setConnectionState('new'); // Устанавливаем в исходное состояние
     setPeerReady(false);
+    setMicEnabled(true);
+    setCamEnabled(true);
     socketRef.current = null;
     
-    console.log('✅ WebRTC соединение остановлено');
-  }, [localVideoRef, remoteVideoRef]);
+    console.log('✅ WebRTC соединение остановлено и все таймеры очищены');
+  }, [localVideoRef, remoteVideoRef, clearAllTimers]);
 
   // Обработка сигнализации
   useEffect(() => {
@@ -552,6 +655,13 @@ export default function useWebRTC({
   // Завершение звонка
   const endCall = useCallback(() => {
     console.log('📞 Завершение звонка...');
+    
+    // Деактивируем экземпляр чтобы остановить все работающие таймеры
+    activeRef.current = false;
+    
+    // Очищаем все активные таймеры
+    clearAllTimers();
+    
     setCallActive(false);
     
     // Отправляем уведомление о завершении звонка через WebSocket
@@ -569,7 +679,11 @@ export default function useWebRTC({
     
     // Останавливаем WebRTC
     if (peerRef.current) {
-      peerRef.current.close();
+      try {
+        peerRef.current.close();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при закрытии peer connection в endCall:', error);
+      }
       peerRef.current = null;
     }
     if (localStreamRef.current) {
@@ -581,13 +695,21 @@ export default function useWebRTC({
     }
     
     // Очищаем видео элементы
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-      localVideoRef.current.pause();
+    if (localVideoRef && localVideoRef.current) {
+      try {
+        localVideoRef.current.srcObject = null;
+        localVideoRef.current.pause();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при очистке localVideoRef в endCall:', error);
+      }
     }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-      remoteVideoRef.current.pause();
+    if (remoteVideoRef && remoteVideoRef.current) {
+      try {
+        remoteVideoRef.current.srcObject = null;
+        remoteVideoRef.current.pause();
+      } catch (error) {
+        console.warn('⚠️ Ошибка при очистке remoteVideoRef в endCall:', error);
+      }
     }
     
     // Сбрасываем состояния
@@ -601,16 +723,15 @@ export default function useWebRTC({
       onCallEnd();
     }
     
-    console.log('✅ Звонок завершен');
-  }, [signalingSocket, localVideoRef, remoteVideoRef, onCallEnd]);
+    console.log('✅ Звонок завершен и все таймеры очищены');
+  }, [signalingSocket, localVideoRef, remoteVideoRef, onCallEnd, clearAllTimers]);
 
   // Эффект для проверки и настройки локального видео
   useEffect(() => {
     if (callActive && callType === 'video' && localStreamRef.current && localVideoRef && localVideoRef.current) {
       // Проверяем состояние локального видео каждые 2 секунды
-      const checkInterval = setInterval(() => {
-        if (!localVideoRef.current) {
-          clearInterval(checkInterval);
+      const checkVideoStatus = () => {
+        if (!activeRef.current || !localVideoRef.current || !localStreamRef.current) {
           return;
         }
         
@@ -626,11 +747,42 @@ export default function useWebRTC({
             localVideoRef.current.play().catch(() => {});
           }
         }
-      }, 2000);
+        
+        // Планируем следующую проверку
+        if (activeRef.current) {
+          safeSetTimeout(checkVideoStatus, 2000);
+        }
+      };
       
-      return () => clearInterval(checkInterval);
+      // Запускаем первую проверку
+      safeSetTimeout(checkVideoStatus, 2000);
     }
-  }, [callActive, callType, setupLocalVideo]);
+  }, [callActive, callType, setupLocalVideo, safeSetTimeout]);
+
+  // Эффект для очистки при размонтировании
+  useEffect(() => {
+    return () => {
+      console.log('🧹 Размонтирование useWebRTC - очищаем все ресурсы');
+      activeRef.current = false;
+      clearAllTimers();
+      
+      // Останавливаем все треки
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          track.stop();
+        });
+      }
+      
+      // Закрываем peer connection
+      if (peerRef.current) {
+        try {
+          peerRef.current.close();
+        } catch (error) {
+          console.warn('⚠️ Ошибка при закрытии peer в cleanup:', error);
+        }
+      }
+    };
+  }, [clearAllTimers]);
 
   return {
     start,

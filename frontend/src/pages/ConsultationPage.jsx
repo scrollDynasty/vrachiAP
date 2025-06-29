@@ -92,28 +92,36 @@ function ConsultationPage() {
   });
 
   // --- Call initiation ---
-  const connectToCallWebSocket = (callId) => {
+  const connectToCallWebSocket = (callId, isGlobalAccept = false) => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/api/calls/ws/${callId}?token=${localStorage.getItem('auth_token')}`;
+    
+    console.log('🔌 Подключаемся к WebSocket для звонка:', callId, isGlobalAccept ? '(глобальное принятие)' : '');
     
     // Открываем WebSocket для сигнализации
     const ws = new WebSocket(wsUrl);
     setSignalingSocket(ws);
     
     ws.onopen = () => {
+      console.log('✅ WebSocket для звонка подключен');
+      // Для глобального принятия даем больше времени на инициализацию
+      const delay = isGlobalAccept ? 2000 : 1000;
+      
       // Запускаем WebRTC только после установки WebSocket соединения
       setTimeout(() => {
+        console.log('🚀 Запускаем WebRTC после WebSocket подключения');
         start(ws); // Передаем WebSocket напрямую
-      }, 1000);
+      }, delay);
     };
     
     ws.onclose = () => {
+      console.log('🔌 WebSocket для звонка закрыт');
       setSignalingSocket(null);
     };
     
     ws.onerror = (error) => {
-      console.error('WebSocket ошибка:', error);
+      console.error('❌ WebSocket ошибка:', error);
       toast.error('Ошибка подключения к серверу звонков');
     };
   };
@@ -694,21 +702,24 @@ function ConsultationPage() {
             // Подключаемся к WebSocket для звонка с задержкой для инициализации
             if (callData.id) {
               console.log('🔗 Подключаемся к WebSocket для звонка:', callData.id);
-              // Увеличиваем задержку для глобального принятия звонка
+              // Увеличиваем задержку для глобального принятия звонка чтобы VideoCallModal успел смонтироваться
               setTimeout(() => {
-                connectToCallWebSocket(callData.id);
+                console.log('🔄 Начинаем подключение к WebSocket после задержки для глобального принятия');
+                connectToCallWebSocket(callData.id, true); // Указываем что это глобальное принятие
                 
                 // Дополнительная проверка и инициализация видео
                 if (callType === 'video') {
-                  console.log('📹 Проверяем локальное видео после глобального принятия');
+                  console.log('📹 Проверяем готовность видео после глобального принятия');
                   setTimeout(() => {
-                    // Проверяем готовность WebRTC
-                    if (webrtcRef.current && webrtcRef.current.peerReady) {
-                      console.log('✅ WebRTC готов, видео должно работать');
+                    // Проверяем готовность peer соединения
+                    if (peerReady) {
+                      console.log('✅ WebRTC готов для глобального звонка, видео должно работать');
+                    } else {
+                      console.warn('⚠️ WebRTC еще не готов для глобального звонка');
                     }
-                  }, 2000);
+                  }, 3000); // Увеличиваем время ожидания
                 }
-              }, 1500);
+              }, 2500); // Увеличиваем задержку для полной инициализации UI
             }
             return true;
           }

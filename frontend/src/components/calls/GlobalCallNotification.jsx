@@ -13,6 +13,9 @@ const GlobalCallNotification = () => {
     if (success) {
       // Переходим к странице консультации и передаем параметр что нужно открыть звонок
       navigate(`/consultations/${incomingCall.consultation_id}?openCall=true&callType=${incomingCall.call_type}`);
+      
+      // Дополнительная задержка для глобального принятия звонка
+      console.log('✅ Звонок принят глобально, переходим к консультации');
     }
   };
 
