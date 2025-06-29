@@ -1,0 +1,300 @@
+/* Анимации для компонентов звонка */
+
+/* Анимация для пульсирующих колец */
+@keyframes pulse-rings {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* Анимация для плавного появления */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Анимация для покачивания кнопок */
+@keyframes wiggle {
+  0%, 7% {
+    transform: rotateZ(0);
+  }
+  15% {
+    transform: rotateZ(-15deg);
+  }
+  20% {
+    transform: rotateZ(10deg);
+  }
+  25% {
+    transform: rotateZ(-10deg);
+  }
+  30% {
+    transform: rotateZ(6deg);
+  }
+  35% {
+    transform: rotateZ(-4deg);
+  }
+  40%, 100% {
+    transform: rotateZ(0);
+  }
+}
+
+/* Анимация для сияния градиента */
+@keyframes gradient-shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Анимация для пульса с разными задержками */
+@keyframes pulse-delayed-1 {
+  0%, 40%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  20% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-delayed-2 {
+  0%, 60%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-delayed-3 {
+  0%, 80%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* Анимация для вращения с bounce эффектом */
+@keyframes rotate-bounce {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* Классы для применения анимаций */
+.pulse-rings {
+  animation: pulse-rings 2s infinite;
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+}
+
+.wiggle-animation {
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+.gradient-shine {
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: gradient-shine 2s infinite;
+}
+
+.pulse-delayed-1 {
+  animation: pulse-delayed-1 3s infinite;
+}
+
+.pulse-delayed-2 {
+  animation: pulse-delayed-2 3s infinite;
+}
+
+.pulse-delayed-3 {
+  animation: pulse-delayed-3 3s infinite;
+}
+
+.rotate-bounce {
+  animation: rotate-bounce 4s linear infinite;
+}
+
+/* Эффекты для кнопок */
+.call-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.call-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.call-button:hover::before {
+  left: 100%;
+}
+
+.call-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Специальные эффекты для типов звонков */
+.video-call-glow {
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.4),
+    0 0 40px rgba(147, 197, 253, 0.2),
+    inset 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+.audio-call-glow {
+  box-shadow: 
+    0 0 20px rgba(34, 197, 94, 0.4),
+    0 0 40px rgba(74, 222, 128, 0.2),
+    inset 0 0 20px rgba(34, 197, 94, 0.1);
+}
+
+.end-call-glow {
+  box-shadow: 
+    0 0 20px rgba(239, 68, 68, 0.4),
+    0 0 40px rgba(248, 113, 113, 0.2),
+    inset 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+/* Эффект размытого фона для модалок */
+.call-backdrop {
+  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Анимация для статуса соединения */
+@keyframes connection-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+.connection-indicator {
+  animation: connection-pulse 2s infinite;
+}
+
+/* Анимация для волн звука */
+@keyframes sound-wave {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+.sound-wave {
+  width: 3px;
+  background: currentColor;
+  margin: 0 1px;
+  animation: sound-wave 1s infinite;
+}
+
+.sound-wave:nth-child(1) { animation-delay: 0s; }
+.sound-wave:nth-child(2) { animation-delay: 0.1s; }
+.sound-wave:nth-child(3) { animation-delay: 0.2s; }
+.sound-wave:nth-child(4) { animation-delay: 0.3s; }
+.sound-wave:nth-child(5) { animation-delay: 0.4s; }
+
+/* Эффект стеклянной поверхности */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Эффект неонового свечения */
+.neon-glow {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
+}
+
+/* Адаптивные улучшения для мобильных устройств */
+@media (max-width: 768px) {
+  .call-button {
+    transform: scale(0.9);
+  }
+  
+  .call-button:hover {
+    transform: scale(0.95);
+  }
+  
+  /* Уменьшаем интенсивность анимаций на мобильных для производительности */
+  .pulse-rings,
+  .rotate-bounce,
+  .pulse-delayed-1,
+  .pulse-delayed-2,
+  .pulse-delayed-3 {
+    animation-duration: 4s;
+  }
+}
+
+/* Темная тема */
+@media (prefers-color-scheme: dark) {
+  .glass-effect {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+} 

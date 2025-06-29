@@ -27,7 +27,8 @@ class WebSocketService {
     // Для отслеживания попыток переподключения
     this.reconnectAttempts = {};
     this.reconnectTimers = {};
-    this.maxReconnectAttempts = 3; // Уменьшаем количество попыток переподключения
+    this.maxReconnectAttempts = -1; // Бесконечные попытки переподключения (-1 = без лимита)
+    this.reconnectInterval = 5000; // Интервал между попытками
     
     // Флаги для отслеживания переподключений в процессе
     this.reconnectingFlags = {};
@@ -91,9 +92,15 @@ class WebSocketService {
       if (!conn || conn.readyState === WebSocket.CLOSED || conn.readyState === WebSocket.CLOSING) {
         const [type, id] = key.split('_');
         if (type === 'notifications') {
-          this.getNotificationConnection(id, this.messageHandlers[key]);
+          // Восстанавливаем соединение для уведомлений
+          setTimeout(() => {
+            this.getNotificationConnection(id, this.messageHandlers[key]);
+          }, 1000);
         } else if (type === 'consultation') {
-          this.getConsultationConnection(id, this.messageHandlers[key]);
+          // Восстанавливаем соединение для консультаций
+          setTimeout(() => {
+            this.getConsultationConnection(id, this.messageHandlers[key]);
+          }, 1500);
         }
       }
     });
@@ -111,6 +118,47 @@ class WebSocketService {
     
     // Сбрасываем все замки
     this.connectionLocks = {};
+  }
+
+  // Планирование переподключения
+  scheduleReconnect(connectionKey, userId, onMessage, onStatusChange) {
+    // Инициализируем счетчик попыток если он не существует
+    if (!this.reconnectAttempts[connectionKey]) {
+      this.reconnectAttempts[connectionKey] = 0;
+    }
+    
+    // Проверяем лимит попыток (если он установлен)
+    if (this.maxReconnectAttempts > 0 && this.reconnectAttempts[connectionKey] >= this.maxReconnectAttempts) {
+      if (onStatusChange) onStatusChange('error', 'Не удалось переподключиться после нескольких попыток');
+      delete this.reconnectAttempts[connectionKey];
+      delete this.messageHandlers[connectionKey];
+      return;
+    }
+    
+    // Увеличиваем счетчик попыток
+    this.reconnectAttempts[connectionKey]++;
+    
+    // Рассчитываем задержку с экспоненциальным откладыванием (максимум до 60 секунд)
+    const exponentialDelay = Math.min(this.reconnectInterval * Math.pow(1.5, Math.min(this.reconnectAttempts[connectionKey] - 1, 10)), 60000);
+    const delay = exponentialDelay;
+    
+    // Планируем переподключение
+    this.reconnectTimers[connectionKey] = setTimeout(async () => {
+      // Очищаем таймер
+      delete this.reconnectTimers[connectionKey];
+      
+      // Пытаемся переподключиться
+      try {
+        const socket = await this.getNotificationConnection(userId, onMessage, onStatusChange);
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          // Успешное переподключение - сбрасываем счетчик
+          delete this.reconnectAttempts[connectionKey];
+        }
+      } catch (error) {
+        // Если переподключение не удалось, планируем следующую попытку
+        this.scheduleReconnect(connectionKey, userId, onMessage, onStatusChange);
+      }
+    }, delay);
   }
 
   // Получить соединение для уведомлений конкретного пользователя
@@ -224,12 +272,16 @@ class WebSocketService {
       
       // Настраиваем обработчики событий
       socket.onopen = () => {
-        
         // Если передан callback изменения статуса, вызываем его
         if (onStatusChange) onStatusChange('connected');
         
         // Освобождаем блокировку ТОЛЬКО после успешного открытия соединения
         this.connectionLocks[connectionKey] = false;
+        
+        // Сбрасываем счетчик попыток переподключения при успешном соединении
+        if (this.reconnectAttempts[connectionKey]) {
+          delete this.reconnectAttempts[connectionKey];
+        }
       };
       
       socket.onmessage = (event) => {
@@ -247,7 +299,6 @@ class WebSocketService {
       };
       
       socket.onclose = (event) => {
-        
         // Если передан callback изменения статуса, вызываем его
         if (onStatusChange) onStatusChange('disconnected', `Соединение закрыто (${event.code})`);
         
@@ -261,8 +312,13 @@ class WebSocketService {
           this.connectionLocks[connectionKey] = false;
         }
         
-        // Удаляем обработчик сообщений
-        delete this.messageHandlers[connectionKey];
+        // Автоматическое переподключение для уведомлений
+        if (!this.isShuttingDown && event.code !== 1000) { // 1000 = нормальное закрытие
+          this.scheduleReconnect(connectionKey, userId, onMessage, onStatusChange);
+        } else {
+          // Удаляем обработчик сообщений только при нормальном закрытии
+          delete this.messageHandlers[connectionKey];
+        }
       };
       
       socket.onerror = (error) => {

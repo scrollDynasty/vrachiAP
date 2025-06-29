@@ -37,6 +37,11 @@ function ConsultationPage() {
   const isDoctor = user?.id === consultation?.doctor_id;
   const isPatient = user?.id === consultation?.patient_id;
 
+  // Проверяем URL параметры для автоматического открытия звонка
+  const urlParams = new URLSearchParams(location.search);
+  const shouldOpenCall = urlParams.get('openCall') === 'true';
+  const urlCallType = urlParams.get('callType') || 'video';
+
   // --- WebRTC state ---
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [callType, setCallType] = useState('audio');
@@ -106,7 +111,7 @@ function ConsultationPage() {
     ws.onopen = () => {
       console.log('✅ WebSocket для звонка подключен');
       // Для глобального принятия даем больше времени на инициализацию
-      const delay = isGlobalAccept ? 2000 : 1000;
+      const delay = isGlobalAccept ? 3500 : 1000; // Увеличиваем до 3.5 секунд
       
       // Запускаем WebRTC только после установки WebSocket соединения
       setTimeout(() => {
@@ -174,7 +179,7 @@ function ConsultationPage() {
     }
     
     // Очищаем глобальное уведомление о исходящем звонке
-    console.log('🔔 Убираем глобальное уведомление');
+    console.log('🔔 Убираем глобальное уведомление (НЕ трогая глобальный WebSocket)');
     endOutgoingCall();
     
     // Очищаем состояния звонков
@@ -190,14 +195,14 @@ function ConsultationPage() {
     setForceResetCallButtons(true);
     setTimeout(() => setForceResetCallButtons(false), 100);
     
-    // Очищаем WebSocket соединения
+    // Закрываем ТОЛЬКО signaling WebSocket, НЕ трогаем глобальный WebSocket для уведомлений
     if (signalingSocket) {
-      console.log('🔌 Закрываем signaling WebSocket');
+      console.log('🔌 Закрываем signaling WebSocket (НЕ глобальный!)');
       signalingSocket.close();
       setSignalingSocket(null);
     }
     
-    console.log('✅ Завершение звонка в ConsultationPage завершено');
+    console.log('✅ Завершение звонка в ConsultationPage завершено, глобальный WebSocket должен продолжать работать');
   };
 
   // Функция для сброса состояния ожидания ответа
@@ -243,6 +248,7 @@ function ConsultationPage() {
     
     // Убираем глобальное уведомление только если оно есть
     if (currentCall || waitingForAnswer) {
+      console.log('🔔 Убираем глобальное уведомление при принудительном сбросе');
       endOutgoingCall();
     }
     
@@ -250,7 +256,7 @@ function ConsultationPage() {
     setForceResetCallButtons(true);
     setTimeout(() => setForceResetCallButtons(false), 100);
     
-    // Закрываем WebSocket соединения
+    // Закрываем ТОЛЬКО signaling WebSocket, НЕ трогаем глобальный WebSocket для уведомлений
     if (signalingSocket) {
       console.log('🔌 Закрываем signaling WebSocket (resetCallState)');
       signalingSocket.close();
@@ -684,11 +690,11 @@ function ConsultationPage() {
       
       // Проверяем активный звонок на сервере с повторными попытками
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 10; // Увеличиваем количество попыток
       
       const checkActiveCall = async () => {
         try {
-          console.log(`🔍 Проверяем активный звонок (попытка ${attempts + 1}/${maxAttempts})`);
+          // Проверяем активный звонок
           const activeCallResponse = await api.get(`/api/calls/active/${consultationId}`);
           
           if (activeCallResponse.data && activeCallResponse.data.status === 'active') {
@@ -706,27 +712,14 @@ function ConsultationPage() {
               setTimeout(() => {
                 console.log('🔄 Начинаем подключение к WebSocket после задержки для глобального принятия');
                 connectToCallWebSocket(callData.id, true); // Указываем что это глобальное принятие
-                
-                // Дополнительная проверка и инициализация видео
-                if (callType === 'video') {
-                  console.log('📹 Проверяем готовность видео после глобального принятия');
-                  setTimeout(() => {
-                    // Проверяем готовность peer соединения
-                    if (peerReady) {
-                      console.log('✅ WebRTC готов для глобального звонка, видео должно работать');
-                    } else {
-                      console.warn('⚠️ WebRTC еще не готов для глобального звонка');
-                    }
-                  }, 3000); // Увеличиваем время ожидания
-                }
-              }, 2500); // Увеличиваем задержку для полной инициализации UI
+              }, 3000); // Увеличиваем задержку до 3 секунд для стабильности
             }
             return true;
           }
           return false;
         } catch (error) {
           if (error.response?.status === 404) {
-            console.log(`ℹ️ Активный звонок не найден (попытка ${attempts + 1})`);
+            // Активный звонок не найден
           } else {
             console.error(`❌ Ошибка проверки активного звонка:`, error);
           }

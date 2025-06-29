@@ -233,37 +233,47 @@ const CallButtons = ({
   // Если есть активный звонок, показываем кнопку завершения
   if (activeCall) {
     return (
-      <div className="flex gap-2">
+      <div className="flex gap-3 items-center">
         {waitingForAnswer ? (
-          <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
-            <span className="text-sm text-gray-600">Ожидание ответа...</span>
+          <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-2xl border border-blue-200/50 shadow-lg backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+              <span className="text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Ожидание ответа...
+              </span>
+            </div>
             <Tooltip content="Отменить звонок">
               <Button
-                color="danger"
-                variant="flat"
-                size="sm"
                 isIconOnly
+                size="sm"
                 onPress={endCall}
-                className="bg-red-500 text-white hover:bg-red-600"
+                className="w-8 h-8 min-w-8 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full shadow-lg border border-red-400/50 transition-all duration-300 hover:scale-110"
               >
-                <PhoneOff size={16} />
+                <PhoneOff size={14} />
               </Button>
             </Tooltip>
           </div>
         ) : (
-          <Tooltip content="Завершить звонок">
-            <Button
-              color="danger"
-              variant="flat"
-              size="sm"
-              isIconOnly
-              onPress={endCall}
-              className="bg-red-500 text-white hover:bg-red-600"
-            >
-              <PhoneOff size={16} />
-            </Button>
-          </Tooltip>
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 rounded-2xl border border-green-200/50 shadow-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  Звонок активен
+                </span>
+              </div>
+              <Tooltip content="Завершить звонок">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  onPress={endCall}
+                  className="w-8 h-8 min-w-8 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full shadow-lg border border-red-400/50 transition-all duration-300 hover:scale-110"
+                >
+                  <PhoneOff size={14} />
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -275,34 +285,30 @@ const CallButtons = ({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-3">
       <Tooltip content="Аудиозвонок">
         <Button
-          color="success"
-          variant="flat"
-          size="sm"
           isIconOnly
+          size="sm"
           onPress={() => initiateCall('audio')}
           isLoading={isInitiatingCall}
           disabled={isInitiatingCall}
-          className="bg-green-500 text-white hover:bg-green-600"
+          className="w-10 h-10 min-w-10 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full shadow-lg border border-green-400/50 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Phone size={16} />
+          <Phone size={18} />
         </Button>
       </Tooltip>
       
       <Tooltip content="Видеозвонок">
         <Button
-          color="primary"
-          variant="flat"
-          size="sm"
           isIconOnly
+          size="sm"
           onPress={() => initiateCall('video')}
           isLoading={isInitiatingCall}
           disabled={isInitiatingCall}
-          className="bg-blue-500 text-white hover:bg-blue-600"
+          className="w-10 h-10 min-w-10 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full shadow-lg border border-blue-400/50 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Video size={16} />
+          <Video size={18} />
         </Button>
       </Tooltip>
     </div>
