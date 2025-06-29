@@ -219,11 +219,6 @@ export const CallsProvider = ({ children }) => {
         setGlobalCallsWebSocket(null);
       }
       
-      // Очищаем таймер исходящего звонка
-      if (outgoingCallTimeoutRef.current) {
-        clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
       
       stopRingtone();
     };
@@ -371,36 +366,14 @@ export const CallsProvider = ({ children }) => {
   };
 
   // Функции для управления исходящими звонками
-  const outgoingCallTimeoutRef = useRef(null);
-  
   const startOutgoingCall = (callData) => {
     console.log('📞 Начинаем исходящий звонок:', callData);
     setOutgoingCall(callData);
-    
-    // Автоматически очищаем исходящий звонок через 60 секунд если он не завершился
-    if (outgoingCallTimeoutRef.current) {
-      clearTimeout(outgoingCallTimeoutRef.current);
-    }
-    
-    outgoingCallTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ Автоматическое завершение исходящего звонка по таймауту');
-      setOutgoingCall(null);
-      toast.error('Звонок автоматически завершен (превышено время ожидания)', {
-        duration: 4000,
-        position: 'top-center',
-      });
-    }, 60000); // 60 секунд
   };
 
   const endOutgoingCall = () => {
     console.log('❌ Завершаем исходящий звонок');
     setOutgoingCall(null);
-    
-    // Очищаем таймер автоматического завершения
-    if (outgoingCallTimeoutRef.current) {
-      clearTimeout(outgoingCallTimeoutRef.current);
-      outgoingCallTimeoutRef.current = null;
-    }
   };
 
   const value = {
