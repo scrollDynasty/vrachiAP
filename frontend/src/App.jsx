@@ -37,6 +37,9 @@ import ProtectedRoute from './components/ProtectedRoute'
 // Импортируем компонент для проверки подтверждения email
 import EmailVerificationRequired from './components/EmailVerificationRequired'
 import MedicalLoader from './components/MedicalLoader'
+// Импортируем провайдер и компонент для глобальных звонков
+import { CallsProvider } from './contexts/CallsContext'
+import GlobalCallNotification from './components/calls/GlobalCallNotification'
 
 // Импортируем основные стили
 import './index.scss'
@@ -139,7 +142,8 @@ function App() {
   
   return (
     <LanguageProvider>
-      <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen relative overflow-hidden medical-theme">
+      <CallsProvider>
+        <div className="App bg-gradient-to-b from-blue-50/30 to-white min-h-screen relative overflow-hidden medical-theme">
       {/* Декоративные фоновые элементы для улучшения визуального вида */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         {/* Верхний градиентный круг */}
@@ -248,6 +252,9 @@ function App() {
       {/* Компонент для WebSocket-уведомлений */}
       {isAuthenticated && user && !error && <NotificationWebSocket />}
       
+      {/* Глобальные уведомления о звонках */}
+      {isAuthenticated && user && !error && <GlobalCallNotification />}
+      
       {/* Компонент для отображения toast-уведомлений */}
       <Toaster 
         position="top-right"
@@ -307,7 +314,8 @@ function App() {
       
       {/* Футер приложения (показываем только если пользователь аутентифицирован и нет ошибок) */}
       {isAuthenticated && user && !error && <Footer />}
-      </div>
+        </div>
+      </CallsProvider>
     </LanguageProvider>
   )
 }

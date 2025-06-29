@@ -42,20 +42,34 @@ const VideoCallModal = ({
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Автоматически воспроизводим видео при появлении
+  // Автоматически воспроизводим видео при появлении и изменении состояния минимизации
   useEffect(() => {
     if (isOpen) {
-      if (localVideoRef.current) {
-        localVideoRef.current.muted = true;
-        localVideoRef.current.autoplay = true;
-        localVideoRef.current.playsInline = true;
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.autoplay = true;
-        remoteVideoRef.current.playsInline = true;
-      }
+      const ensureVideoPlayback = () => {
+        if (localVideoRef.current) {
+          localVideoRef.current.muted = true;
+          localVideoRef.current.autoplay = true;
+          localVideoRef.current.playsInline = true;
+          // Принудительно запускаем воспроизведение
+          localVideoRef.current.play().catch(() => {});
+        }
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.autoplay = true;
+          remoteVideoRef.current.playsInline = true;
+          // Принудительно запускаем воспроизведение
+          remoteVideoRef.current.play().catch(() => {});
+        }
+      };
+
+      // Запускаем сразу
+      ensureVideoPlayback();
+      
+      // И повторяем через небольшую задержку для уверенности
+      const timeout = setTimeout(ensureVideoPlayback, 100);
+      
+      return () => clearTimeout(timeout);
     }
-  }, [isOpen, localVideoRef, remoteVideoRef]);
+  }, [isOpen, isMinimized, localVideoRef, remoteVideoRef]);
 
   // Скрытие контролов через 3 секунды
   useEffect(() => {
@@ -108,18 +122,43 @@ const VideoCallModal = ({
 
           {/* Видео контент */}
           {callType === 'video' ? (
-            <div className="h-full w-full relative">
+            <div className="h-full w-full relative bg-gray-800">
               <video 
                 ref={remoteVideoRef} 
                 className="w-full h-full object-cover" 
+                autoPlay
+                playsInline
               />
+              {/* Показываем заглушку только если нет активного видео потока */}
+              {(!remoteVideoRef.current?.srcObject || 
+                !remoteVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mb-2 mx-auto">
+                      <Users size={24} className="text-gray-300" />
+                    </div>
+                    <p className="text-xs text-gray-300">Собеседник</p>
+                  </div>
+                </div>
+              )}
+              
               {/* Локальное видео в углу */}
               <div className="absolute bottom-2 right-2 w-20 h-15 bg-gray-900 rounded overflow-hidden border border-white/20">
                 <video 
                   ref={localVideoRef} 
                   className="w-full h-full object-cover" 
                   muted
+                  autoPlay
+                  playsInline
                 />
+                {(!localVideoRef.current?.srcObject || 
+                  !localVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
+                    <div className="w-4 h-4 bg-gray-600 rounded-full flex items-center justify-center">
+                      <Users size={8} className="text-gray-300" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -233,7 +272,8 @@ const VideoCallModal = ({
                     className="w-full h-full object-contain bg-gray-900" 
                     poster=""
                   />
-                  {!remoteVideoRef.current?.srcObject && (
+                  {(!remoteVideoRef.current?.srcObject || 
+                    !remoteVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                       <div className="text-center">
                         <div className="w-32 h-32 bg-gray-600 rounded-full flex items-center justify-center mb-4 mx-auto">
@@ -252,7 +292,8 @@ const VideoCallModal = ({
                       className="w-full h-full object-cover" 
                       muted
                     />
-                    {!localVideoRef.current?.srcObject && (
+                    {(!localVideoRef.current?.srcObject || 
+                      !localVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
                         <div className="text-center">
                           <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mb-2 mx-auto">
