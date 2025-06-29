@@ -33,7 +33,11 @@ const CallButtons = ({
   // Проверяем активный звонок
   useEffect(() => {
     const checkActiveCall = async () => {
-      if (!consultationId) return;
+      // Проверяем только если есть консультация и она активна
+      if (!consultationId || !consultation || consultation.status !== 'active') {
+        setActiveCall(null);
+        return;
+      }
       
       try {
         const response = await api.get(`/api/calls/active/${consultationId}`);
@@ -53,13 +57,19 @@ const CallButtons = ({
       }
     };
 
-    checkActiveCall();
-    
-    // Проверяем каждые 5 секунд
-    const interval = setInterval(checkActiveCall, 5000);
-    
-    return () => clearInterval(interval);
-  }, [consultationId]);
+    // Запускаем только если консультация активна
+    if (consultation?.status === 'active') {
+      checkActiveCall();
+      
+      // Проверяем каждые 5 секунд только для активных консультаций
+      const interval = setInterval(checkActiveCall, 5000);
+      
+      return () => clearInterval(interval);
+    } else {
+      // Если консультация не активна, сбрасываем активный звонок
+      setActiveCall(null);
+    }
+  }, [consultationId, consultation]);
 
   const initiateCall = async (callType) => {
     if (!canInitiateCall) {

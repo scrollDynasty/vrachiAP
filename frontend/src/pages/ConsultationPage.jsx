@@ -44,6 +44,7 @@ function ConsultationPage() {
   const [incomingCallModalOpen, setIncomingCallModalOpen] = useState(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const [processedCallIds, setProcessedCallIds] = useState(new Set()); // Защита от дублирования
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -58,7 +59,9 @@ function ConsultationPage() {
     camEnabled,
     callActive,
     connectionState,
-    stop
+    stop,
+    createOffer,
+    peerReady
   } = useWebRTC({
     localVideoRef,
     remoteVideoRef,
@@ -102,6 +105,8 @@ function ConsultationPage() {
       setTimeout(() => {
         console.log('Запускаем WebRTC...');
         start();
+        
+        // НЕ создаем offer здесь - будем ждать готовности peer
       }, 1000);
     };
     
@@ -181,6 +186,16 @@ function ConsultationPage() {
     console.log('Сброс состояния ожидания ответа');
     setWaitingForAnswer(false);
   };
+
+  // useEffect для создания offer после готовности peer
+  useEffect(() => {
+    if (peerReady && signalingSocket && signalingSocket.readyState === WebSocket.OPEN && currentCall) {
+      console.log('Peer готов, создаем offer');
+      setTimeout(() => {
+        createOffer();
+      }, 200); // Небольшая задержка для стабильности
+    }
+  }, [peerReady, signalingSocket, currentCall, createOffer]);
 
   // Функция для принудительного сброса состояния звонка
   const resetCallState = () => {
@@ -680,11 +695,29 @@ function ConsultationPage() {
         }
         
         if (data.type === 'incoming_call' && data.call) {
+          // Проверяем, не обрабатывали ли мы уже этот звонок
+          const callKey = `incoming_${data.call.id}`;
+          if (processedCallIds.has(callKey)) {
+            console.log('Игнорируем дублированное уведомление о входящем звонке:', data.call.id);
+            return;
+          }
+          
+          setProcessedCallIds(prev => new Set(prev).add(callKey));
           setIncomingCall(data.call);
           setIncomingCallModalOpen(true);
           playNotificationSound();
         } else if (data.type === 'call_accepted') {
           console.log('Получено уведомление о принятии звонка:', data);
+          
+          // Проверяем дублирование для принятия звонка
+          const callKey = `accepted_${data.call_id || data.call?.id}`;
+          if (processedCallIds.has(callKey)) {
+            console.log('Игнорируем дублированное уведомление о принятии звонка:', callKey);
+            return;
+          }
+          
+          setProcessedCallIds(prev => new Set(prev).add(callKey));
+          
           // Обновляем состояние звонка и сбрасываем ожидание
           if (data.call) {
             setCurrentCall(data.call);
@@ -718,36 +751,7 @@ function ConsultationPage() {
     };
   }, [incomingCallWebSocket, signalingSocket, stop]);
 
-  // Периодическая проверка состояния звонка
-  useEffect(() => {
-    if (!currentCall || !consultationId) return;
-
-    const checkCallStatus = async () => {
-      try {
-        const response = await api.get(`/api/calls/active/${consultationId}`);
-        const activeCall = response.data;
-        
-        // Если активного звонка нет, но у нас есть currentCall, значит звонок завершился
-        if (!activeCall && currentCall) {
-          console.log('Звонок завершился на backend, сбрасываем состояние');
-          resetCallState();
-        }
-      } catch (error) {
-        console.error('Ошибка при проверке состояния звонка:', error);
-        // Если ошибка 404, значит звонка нет
-        if (error.response && error.response.status === 404) {
-          console.log('Звонок не найден, сбрасываем состояние');
-          resetCallState();
-        }
-      }
-    };
-
-    const interval = setInterval(checkCallStatus, 5000); // Проверяем каждые 5 секунд
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [currentCall, consultationId]);
+  // Проверка состояния звонка удалена - теперь используется только в CallButtons
 
   if (loading) {
     return (

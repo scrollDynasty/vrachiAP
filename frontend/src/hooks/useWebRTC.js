@@ -20,6 +20,7 @@ export default function useWebRTC({
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
   const [connectionState, setConnectionState] = useState('new');
+  const [peerReady, setPeerReady] = useState(false); // Флаг готовности peer
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
 
@@ -27,61 +28,75 @@ export default function useWebRTC({
   const handleOffer = useCallback(async (offer) => {
     const peer = peerRef.current;
     if (!peer) {
-      console.error('Peer соединение не готово');
+      console.error('❌ Peer соединение не готово для обработки offer');
       return;
     }
     
     try {
-      console.log('Устанавливаем remote description (offer):', offer);
-      await peer.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log('📥 ПОЛУЧЕН OFFER, устанавливаем remote description');
+      console.log('- Offer:', offer);
+      console.log('- Peer signaling state до:', peer.signalingState);
       
-      console.log('Создаем answer');
+      await peer.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log('✅ Remote description установлен');
+      console.log('- Peer signaling state после:', peer.signalingState);
+      
+      console.log('📤 Создаем answer');
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
+      console.log('✅ Local description (answer) установлен');
+      console.log('- Answer:', answer);
       
-      console.log('Отправляем answer через WebSocket');
       if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
         signalingSocket.send(JSON.stringify({ 
           type: 'answer', 
           sdp: answer 
         }));
-        console.log('Answer отправлен:', answer);
+        console.log('📤 Answer отправлен через WebSocket');
       } else {
-        console.error('WebSocket не готов для отправки answer');
+        console.error('❌ WebSocket не готов для отправки answer');
       }
     } catch (error) {
-      console.error('Ошибка при обработке offer:', error);
+      console.error('❌ Ошибка при обработке offer:', error);
     }
   }, [signalingSocket]);
 
   const handleAnswer = useCallback(async (answer) => {
     const peer = peerRef.current;
     if (!peer) {
-      console.error('Peer соединение не готово');
+      console.error('❌ Peer соединение не готово для обработки answer');
       return;
     }
     
     try {
-      console.log('Устанавливаем remote description (answer):', answer);
+      console.log('📥 ПОЛУЧЕН ANSWER, устанавливаем remote description');
+      console.log('- Answer:', answer);
+      console.log('- Peer signaling state до:', peer.signalingState);
+      
       await peer.setRemoteDescription(new RTCSessionDescription(answer));
-      console.log('Remote description установлен успешно');
+      console.log('✅ Remote description (answer) установлен успешно');
+      console.log('- Peer signaling state после:', peer.signalingState);
     } catch (error) {
-      console.error('Ошибка при обработке answer:', error);
+      console.error('❌ Ошибка при обработке answer:', error);
     }
   }, []);
 
   const handleIceCandidate = useCallback(async (candidate) => {
     const peer = peerRef.current;
     if (!peer) {
-      console.error('Peer соединение не готово');
+      console.error('❌ Peer соединение не готово для ICE кандидата');
       return;
     }
     
     try {
-      console.log('Добавляем ICE кандидат');
+      console.log('🧊 ПОЛУЧЕН ICE КАНДИДАТ, добавляем');
+      console.log('- Candidate:', candidate);
+      console.log('- Peer ICE connection state:', peer.iceConnectionState);
+      
       await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      console.log('✅ ICE кандидат добавлен успешно');
     } catch (error) {
-      console.error('Ошибка при добавлении ICE кандидата:', error);
+      console.error('❌ Ошибка при добавлении ICE кандидата:', error);
     }
   }, []);
 
@@ -140,47 +155,97 @@ export default function useWebRTC({
       // Обработчики событий peer connection
       peer.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('Отправляем ICE кандидат через WebSocket');
+          console.log('🧊 Отправляем ICE кандидат:', event.candidate);
           if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
             signalingSocket.send(JSON.stringify({
               type: 'ice-candidate',
               candidate: event.candidate
             }));
+            console.log('✅ ICE кандидат отправлен через WebSocket');
+          } else {
+            console.error('❌ WebSocket не готов для отправки ICE кандидата');
           }
+        } else {
+          console.log('🧊 ICE кандидат: null (сбор завершен)');
         }
       };
       
       peer.ontrack = (event) => {
-        console.log('Получен удаленный поток:', event.streams[0]);
-        if (remoteVideoRef.current && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-          remoteVideoRef.current.playsInline = true;
-          remoteVideoRef.current.autoplay = true;
+        console.log('🎥 ПОЛУЧЕН УДАЛЕННЫЙ ПОТОК!');
+        console.log('- Event:', event);
+        console.log('- Streams:', event.streams);
+        console.log('- Track:', event.track);
+        console.log('- Track kind:', event.track.kind);
+        console.log('- Track enabled:', event.track.enabled);
+        console.log('- Track readyState:', event.track.readyState);
+        
+        if (event.streams && event.streams[0]) {
+          const stream = event.streams[0];
+          console.log('- Stream tracks:', stream.getTracks().map(t => ({
+            kind: t.kind,
+            enabled: t.enabled,
+            label: t.label,
+            readyState: t.readyState
+          })));
           
-          // Попытка воспроизведения
-          remoteVideoRef.current.play().catch(e => {
-            console.log('Не удалось автоматически воспроизвести удаленное видео:', e);
-          });
+          if (remoteVideoRef.current) {
+            console.log('- Устанавливаем поток в remoteVideo элемент');
+            remoteVideoRef.current.srcObject = stream;
+            remoteVideoRef.current.playsInline = true;
+            remoteVideoRef.current.autoplay = true;
+            
+            // Попытка воспроизведения
+            remoteVideoRef.current.play().then(() => {
+              console.log('✅ Удаленное видео успешно воспроизводится');
+            }).catch(e => {
+              console.error('❌ Не удалось воспроизвести удаленное видео:', e);
+            });
+          } else {
+            console.error('❌ remoteVideoRef.current отсутствует!');
+          }
+        } else {
+          console.error('❌ Нет потоков в event.streams');
         }
       };
       
       peer.onconnectionstatechange = () => {
-        console.log('Состояние соединения изменилось:', peer.connectionState);
+        console.log('🔗 СОСТОЯНИЕ СОЕДИНЕНИЯ ИЗМЕНИЛОСЬ:', peer.connectionState);
+        console.log('- ICE connection state:', peer.iceConnectionState);
+        console.log('- ICE gathering state:', peer.iceGatheringState);
+        console.log('- Signaling state:', peer.signalingState);
+        
         setConnectionState(peer.connectionState);
         
         if (peer.connectionState === 'connected') {
-          console.log('WebRTC соединение установлено!');
+          console.log('✅ WebRTC соединение установлено!');
           setCallActive(true);
           // Сбрасываем состояние ожидания ответа при установке соединения
           if (onCallAccepted) {
             onCallAccepted();
           }
+        } else if (peer.connectionState === 'failed') {
+          console.error('❌ WebRTC соединение не удалось установить');
+        } else if (peer.connectionState === 'disconnected') {
+          console.warn('⚠️ WebRTC соединение разорвано');
         }
       };
       
-      // НЕ создаем offer сразу - дождемся готовности WebSocket
-      // Offer будет создан в отдельной функции после установки WebSocket соединения
-      console.log('WebRTC инициализирован, ожидаем готовности WebSocket для создания offer');
+      // Дополнительные обработчики для отладки
+      peer.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', peer.iceConnectionState);
+      };
+      
+      peer.onicegatheringstatechange = () => {
+        console.log('🔍 ICE gathering state:', peer.iceGatheringState);
+      };
+      
+      peer.onsignalingstatechange = () => {
+        console.log('📡 Signaling state:', peer.signalingState);
+      };
+      
+      // Устанавливаем флаг готовности peer соединения
+      setPeerReady(true);
+      console.log('WebRTC инициализирован, peer готов к использованию');
       
     } catch (error) {
       console.error('Ошибка при инициализации WebRTC:', error);
@@ -229,6 +294,7 @@ export default function useWebRTC({
     
     setCallActive(false);
     setConnectionState('closed');
+    setPeerReady(false); // Сбрасываем флаг готовности
     
     console.log('WebRTC остановлен');
   }, [localVideoRef, remoteVideoRef]);
@@ -345,11 +411,18 @@ export default function useWebRTC({
     }
   };
 
-  // Создание offer после готовности WebSocket
+  // Создание offer после готовности WebSocket И peer соединения
   const createOffer = useCallback(async () => {
+    console.log('Попытка создать offer. Peer готов:', peerReady, 'WebSocket готов:', signalingSocket?.readyState === WebSocket.OPEN);
+    
+    if (!peerReady) {
+      console.error('Peer соединение еще не готово для создания offer');
+      return;
+    }
+    
     const peer = peerRef.current;
     if (!peer) {
-      console.error('Peer соединение не готово для создания offer');
+      console.error('Peer соединение не найдено');
       return;
     }
     
@@ -372,7 +445,7 @@ export default function useWebRTC({
     } catch (error) {
       console.error('Ошибка при создании offer:', error);
     }
-  }, [signalingSocket]);
+  }, [signalingSocket, peerReady]);
 
   // Завершение звонка
   const endCall = () => {
@@ -423,6 +496,7 @@ export default function useWebRTC({
     callActive,
     connectionState,
     stop,
-    createOffer
+    createOffer,
+    peerReady
   };
 } 
