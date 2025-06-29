@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardBody, Spinner, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea } from '@nextui-org/react';
 import { toast } from 'react-hot-toast';
 import ConsultationChat from '../components/ConsultationChat';
@@ -11,11 +11,13 @@ import CallButtons from '../components/calls/CallButtons';
 import VideoCallModal from '../components/calls/VideoCallModal';
 import useWebRTC from '../hooks/useWebRTC';
 import IncomingCallNotification from '../components/calls/IncomingCallNotification';
+import { useCalls } from '../contexts/CallsContext';
 
 // Страница консультации
 function ConsultationPage() {
   const { consultationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [consultation, setConsultation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +32,7 @@ function ConsultationPage() {
 
   const { user } = useAuthStore();
   const { t } = useTranslation();
+  const { endOutgoingCall } = useCalls();
 
   const isDoctor = user?.id === consultation?.doctor_id;
   const isPatient = user?.id === consultation?.patient_id;
@@ -156,6 +159,9 @@ function ConsultationPage() {
     if (endCall) {
       endCall();
     }
+    
+    // Очищаем глобальное уведомление о исходящем звонке
+    endOutgoingCall();
     
     // Очищаем состояния звонков
     setCurrentCall(null);
@@ -615,6 +621,66 @@ function ConsultationPage() {
 
     loadData();
 
+    // Проверяем параметр openCall в URL для автоматического открытия звонка
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('openCall') === 'true') {
+      const callType = urlParams.get('callType') || 'video';
+      
+      // Очищаем URL параметры сразу
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Проверяем активный звонок на сервере с повторными попытками
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      const checkActiveCall = async () => {
+        try {
+          console.log(`🔍 Проверяем активный звонок (попытка ${attempts + 1}/${maxAttempts})`);
+          const activeCallResponse = await api.get(`/api/calls/active/${consultationId}`);
+          
+          if (activeCallResponse.data && activeCallResponse.data.status === 'active') {
+            console.log('📞 Найден активный звонок:', activeCallResponse.data);
+            const callData = activeCallResponse.data;
+            
+            setCurrentCall(callData);
+            setIsCallModalOpen(true);
+            setWaitingForAnswer(false);
+            
+            // Подключаемся к WebSocket для звонка
+            if (callData.id) {
+              console.log('🔗 Подключаемся к WebSocket для звонка:', callData.id);
+              setTimeout(() => connectToCallWebSocket(callData.id), 1000);
+            }
+            return true;
+          }
+          return false;
+        } catch (error) {
+          if (error.response?.status === 404) {
+            console.log(`ℹ️ Активный звонок не найден (попытка ${attempts + 1})`);
+          } else {
+            console.error(`❌ Ошибка проверки активного звонка:`, error);
+          }
+          return false;
+        }
+      };
+      
+      const tryFindActiveCall = async () => {
+        const found = await checkActiveCall();
+        if (!found && attempts < maxAttempts - 1) {
+          attempts++;
+          // Повторяем через 2 секунды
+          setTimeout(tryFindActiveCall, 2000);
+        } else if (!found) {
+          console.warn('⚠️ Активный звонок не найден после всех попыток');
+          toast.error('Звонок не найден или уже завершен');
+        }
+      };
+      
+      // Начинаем поиск через 1 секунду после загрузки
+      setTimeout(tryFindActiveCall, 1000);
+    }
+
     // WebSocket для входящих звонков
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -713,9 +779,15 @@ function ConsultationPage() {
           resetCallState();
         } else if (data.type === 'call_rejected') {
           console.log('Получено уведомление об отклонении звонка:', data);
-          setIncomingCallModalOpen(false);
-          setIncomingCall(null);
-          setWaitingForAnswer(false);
+          
+          // Полностью завершаем звонок при отклонении
+          resetCallState();
+          
+          // Показываем уведомление что звонок отклонен
+          toast.error('Звонок был отклонен', {
+            duration: 4000,
+            position: 'top-center',
+          });
         }
       } catch (error) {
         console.error('Error processing incoming call notification:', error);

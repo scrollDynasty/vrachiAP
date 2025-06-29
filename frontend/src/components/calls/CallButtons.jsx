@@ -4,6 +4,7 @@ import { Phone, Video, PhoneOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '../../api';
 import useAuthStore from '../../stores/authStore';
+import { useCalls } from '../../contexts/CallsContext';
 
 const CallButtons = ({ 
   consultationId, 
@@ -16,6 +17,7 @@ const CallButtons = ({
   const [activeCall, setActiveCall] = useState(null);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const { user } = useAuthStore();
+  const { startOutgoingCall, endOutgoingCall } = useCalls();
 
   // Проверяем, может ли пользователь инициировать звонки
   const canInitiateCall = consultation?.status === 'active' && 
@@ -57,7 +59,7 @@ const CallButtons = ({
           setActiveCall(null);
         }
       } catch (error) {
-        // Если активного звонка нет (404), сбрасываем состояние
+        // Если активного звонка нет (404), сбрасываем состояние тихо
         if (error.response?.status === 404) {
           setActiveCall(null);
         } else {
@@ -70,8 +72,8 @@ const CallButtons = ({
     if (consultation?.status === 'active') {
       checkActiveCall();
       
-      // Проверяем каждые 5 секунд только для активных консультаций
-      const interval = setInterval(checkActiveCall, 5000);
+      // Проверяем каждые 15 секунд только для активных консультаций (увеличили с 10 до 15 сек)
+      const interval = setInterval(checkActiveCall, 15000);
       
       return () => clearInterval(interval);
     } else {
@@ -103,6 +105,10 @@ const CallButtons = ({
       });
 
       setActiveCall(response.data);
+      
+      // Показываем глобальное уведомление о том что звонок идет
+      startOutgoingCall(response.data);
+      
       toast.success(`${callType === 'video' ? 'Видео' : 'Аудио'} звонок инициирован`);
       
       if (onCallInitiated) {
@@ -122,6 +128,10 @@ const CallButtons = ({
 
     try {
       await api.post(`/api/calls/${activeCall.id}/end`);
+      
+      // Убираем глобальное уведомление
+      endOutgoingCall();
+      
       setActiveCall(null);
       setWaitingForAnswer(false);
       toast.success('Звонок завершен');
@@ -132,6 +142,10 @@ const CallButtons = ({
     } catch (error) {
       console.error('Ошибка при завершении звонка:', error);
       toast.error('Ошибка при завершении звонка');
+      
+      // Убираем глобальное уведомление даже при ошибке
+      endOutgoingCall();
+      
       // Даже если запрос не прошел, сбрасываем состояние
       setActiveCall(null);
       setWaitingForAnswer(false);

@@ -165,6 +165,7 @@ export default function useWebRTC({
       };
       
       peer.onconnectionstatechange = () => {
+        console.log('🔗 Состояние соединения изменилось:', peer.connectionState);
         setConnectionState(peer.connectionState);
         
         if (peer.connectionState === 'connected') {
@@ -172,7 +173,44 @@ export default function useWebRTC({
           if (onCallAccepted) {
             onCallAccepted();
           }
+        } else if (peer.connectionState === 'failed') {
+          console.error('❌ Соединение не удалось');
+          if (onError) {
+            onError(new Error('Соединение не удалось. Попробуйте еще раз.'));
+          }
+        } else if (peer.connectionState === 'disconnected') {
+          console.warn('⚠️ Соединение потеряно');
+          // Можно добавить логику переподключения
         }
+      };
+      
+      // Мониторинг ICE соединения для обнаружения зависания
+      peer.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE состояние:', peer.iceConnectionState);
+        
+        if (peer.iceConnectionState === 'failed') {
+          console.error('❌ ICE соединение не удалось');
+          if (onError) {
+            onError(new Error('Не удалось установить прямое соединение. Попробуйте еще раз.'));
+          }
+        } else if (peer.iceConnectionState === 'disconnected') {
+          console.warn('⚠️ ICE соединение потеряно');
+        }
+      };
+      
+      // Добавляем таймер для обнаружения зависших соединений
+      const connectionTimeout = setTimeout(() => {
+        if (peer.connectionState !== 'connected') {
+          console.warn('⏰ Таймаут подключения - соединение не установлено за 30 секунд');
+          if (onError) {
+            onError(new Error('Таймаут подключения. Проверьте интернет-соединение.'));
+          }
+        }
+      }, 30000); // 30 секунд таймаут
+      
+      // Очищаем таймер при закрытии
+      peer.onclose = () => {
+        clearTimeout(connectionTimeout);
       };
       
       // Устанавливаем флаг готовности peer соединения
@@ -199,6 +237,7 @@ export default function useWebRTC({
 
   // Остановка WebRTC
   const stop = useCallback(() => {
+    console.log('🛑 Остановка WebRTC соединения');
     
     // Останавливаем локальный поток
     if (localStreamRef.current) {

@@ -136,6 +136,16 @@ function App() {
           navigate('/');
         }
       }
+    }
+    
+    // Дополнительная проверка: если мы на главной странице и не авторизованы - перенаправляем на логин
+    if (location.pathname === '/' && !isLoading && !isAuthenticated) {
+      navigate('/login');
+    }
+    
+    // Дополнительная агрессивная проверка для неавторизованных пользователей
+    if (!isLoading && !isAuthenticated && !isPublicRoute) {
+      navigate('/login');
     } 
   }, [isLoading, isAuthenticated, navigate, location.pathname, error, pendingVerificationEmail]);
 

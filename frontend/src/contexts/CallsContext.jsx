@@ -15,6 +15,7 @@ export const useCalls = () => {
 
 export const CallsProvider = ({ children }) => {
   const [incomingCall, setIncomingCall] = useState(null);
+  const [outgoingCall, setOutgoingCall] = useState(null); // Добавляем состояние для исходящих звонков
   const [globalCallsWebSocket, setGlobalCallsWebSocket] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected'); // disconnected, connecting, connected
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
@@ -123,14 +124,31 @@ export const CallsProvider = ({ children }) => {
             
           } else if (data.type === 'call_accepted') {
             console.log('✅ Звонок принят');
-            // Звонок принят
+            // Звонок принят - очищаем все состояния
             setIncomingCall(null);
+            setOutgoingCall(null);
             stopRingtone();
-          } else if (data.type === 'call_ended' || data.type === 'call_rejected') {
-            console.log('❌ Звонок завершен/отклонен');
-            // Звонок завершен или отклонен
+          } else if (data.type === 'call_ended') {
+            console.log('❌ Звонок завершен');
+            // Звонок завершен - очищаем все состояния
             setIncomingCall(null);
+            setOutgoingCall(null);
             stopRingtone();
+          } else if (data.type === 'call_rejected') {
+            console.log('🚫 Звонок отклонен');
+            // Звонок отклонен - очищаем все состояния
+            setIncomingCall(null);
+            setOutgoingCall(null);
+            stopRingtone();
+            
+            // Показываем уведомление об отклонении
+            toast.error('Звонок был отклонен', {
+              duration: 3000,
+              position: 'top-center',
+            });
+          } else if (data.type === 'keep-alive') {
+            // Игнорируем keep-alive сообщения
+            console.log('💓 Keep-alive получен от сервера');
           }
         } catch (error) {
           console.error('❌ Error processing global call message:', error);
@@ -200,6 +218,13 @@ export const CallsProvider = ({ children }) => {
         globalCallsWebSocket.close();
         setGlobalCallsWebSocket(null);
       }
+      
+      // Очищаем таймер исходящего звонка
+      if (outgoingCallTimeoutRef.current) {
+        clearTimeout(outgoingCallTimeoutRef.current);
+        outgoingCallTimeoutRef.current = null;
+      }
+      
       stopRingtone();
     };
   }, [user?.id]); // Убираем зависимости от connectionStatus и reconnectAttempts чтобы избежать лишних перерендеров
@@ -330,24 +355,64 @@ export const CallsProvider = ({ children }) => {
   // Отклонение звонка
   const rejectCall = async (callId) => {
     try {
+      console.log('📞 Отправляем запрос на отклонение звонка:', callId);
       await api.post(`/api/calls/${callId}/reject`);
+      console.log('✅ Звонок отклонен на сервере');
+      
       setIncomingCall(null);
+      setOutgoingCall(null); // Также очищаем исходящий звонок
       stopRingtone();
       return true;
     } catch (error) {
-      console.error('Error rejecting call:', error);
+      console.error('❌ Error rejecting call:', error);
       toast.error('Ошибка при отклонении звонка');
       return false;
     }
   };
 
+  // Функции для управления исходящими звонками
+  const outgoingCallTimeoutRef = useRef(null);
+  
+  const startOutgoingCall = (callData) => {
+    console.log('📞 Начинаем исходящий звонок:', callData);
+    setOutgoingCall(callData);
+    
+    // Автоматически очищаем исходящий звонок через 60 секунд если он не завершился
+    if (outgoingCallTimeoutRef.current) {
+      clearTimeout(outgoingCallTimeoutRef.current);
+    }
+    
+    outgoingCallTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Автоматическое завершение исходящего звонка по таймауту');
+      setOutgoingCall(null);
+      toast.error('Звонок автоматически завершен (превышено время ожидания)', {
+        duration: 4000,
+        position: 'top-center',
+      });
+    }, 60000); // 60 секунд
+  };
+
+  const endOutgoingCall = () => {
+    console.log('❌ Завершаем исходящий звонок');
+    setOutgoingCall(null);
+    
+    // Очищаем таймер автоматического завершения
+    if (outgoingCallTimeoutRef.current) {
+      clearTimeout(outgoingCallTimeoutRef.current);
+      outgoingCallTimeoutRef.current = null;
+    }
+  };
+
   const value = {
     incomingCall,
+    outgoingCall,
     acceptCall,
     rejectCall,
     stopRingtone,
     connectionStatus,
-    reconnectAttempts
+    reconnectAttempts,
+    startOutgoingCall,
+    endOutgoingCall
   };
 
   return (

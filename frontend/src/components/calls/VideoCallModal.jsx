@@ -271,6 +271,8 @@ const VideoCallModal = ({
                     ref={remoteVideoRef} 
                     className="w-full h-full object-contain bg-gray-900" 
                     poster=""
+                    autoPlay
+                    playsInline
                   />
                   {(!remoteVideoRef.current?.srcObject || 
                     !remoteVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
@@ -285,25 +287,28 @@ const VideoCallModal = ({
                     </div>
                   )}
                   
-                  {/* Local video - picture in picture с адаптивным размером */}
-                  <div className="absolute top-4 right-4 w-48 h-36 bg-gray-900 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl">
+                  {/* Local video - picture in picture с адаптивным размером для мобильных */}
+                  <div className="absolute top-4 right-4 w-32 h-24 sm:w-48 sm:h-36 bg-gray-900 rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl">
                     <video 
                       ref={localVideoRef} 
                       className="w-full h-full object-cover" 
                       muted
+                      autoPlay
+                      playsInline
                     />
                     {(!localVideoRef.current?.srcObject || 
                       !localVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
                         <div className="text-center">
-                          <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mb-2 mx-auto">
-                            <Users size={20} className="text-gray-300" />
+                          <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gray-600 rounded-full flex items-center justify-center mb-1 sm:mb-2 mx-auto">
+                            <Users size={16} className="text-gray-300 sm:hidden" />
+                            <Users size={20} className="text-gray-300 hidden sm:block" />
                           </div>
                           <p className="text-xs text-gray-300">Вы</p>
                         </div>
                       </div>
                     )}
-                    <span className="absolute bottom-2 left-2 text-white text-xs bg-black/60 px-2 py-1 rounded">
+                    <span className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 text-white text-xs bg-black/60 px-1 sm:px-2 py-1 rounded">
                       Вы
                     </span>
                   </div>
