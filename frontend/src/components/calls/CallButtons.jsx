@@ -9,7 +9,8 @@ const CallButtons = ({
   consultationId, 
   consultation, 
   onCallInitiated,
-  onCallEnded 
+  onCallEnded,
+  forceResetCall = false // Новый проп для принудительного сброса
 }) => {
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const [activeCall, setActiveCall] = useState(null);
@@ -29,6 +30,14 @@ const CallButtons = ({
     }
     return null;
   };
+
+  // Принудительный сброс состояния звонка
+  useEffect(() => {
+    if (forceResetCall) {
+      setActiveCall(null);
+      setWaitingForAnswer(false);
+    }
+  }, [forceResetCall]);
 
   // Проверяем активный звонок
   useEffect(() => {

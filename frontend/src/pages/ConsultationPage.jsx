@@ -45,6 +45,7 @@ function ConsultationPage() {
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [processedCallIds, setProcessedCallIds] = useState(new Set()); // Защита от дублирования
+  const [forceResetCallButtons, setForceResetCallButtons] = useState(false); // Для принудительного сброса CallButtons
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -93,25 +94,18 @@ function ConsultationPage() {
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/api/calls/ws/${callId}?token=${localStorage.getItem('auth_token')}`;
     
-    console.log('Подключаемся к WebSocket:', wsUrl);
-    
     // Открываем WebSocket для сигнализации
     const ws = new WebSocket(wsUrl);
     setSignalingSocket(ws);
     
     ws.onopen = () => {
-      console.log('WebSocket соединение установлено');
       // Запускаем WebRTC только после установки WebSocket соединения
       setTimeout(() => {
-        console.log('Запускаем WebRTC с переданным WebSocket...');
         start(ws); // Передаем WebSocket напрямую
-        
-        // НЕ создаем offer здесь - будем ждать готовности peer
       }, 1000);
     };
     
     ws.onclose = () => {
-      console.log('WebSocket соединение закрыто');
       setSignalingSocket(null);
     };
     
@@ -148,8 +142,20 @@ function ConsultationPage() {
   };
 
   // --- Call end ---
-  const handleCallEnded = () => {
-    console.log('Звонок завершен');
+  const handleCallEnded = async () => {
+    // Завершаем звонок на бэкенде
+    if (currentCall?.id) {
+      try {
+        await api.post(`/api/calls/${currentCall.id}/end`);
+      } catch (error) {
+        console.error('Error ending call on backend:', error);
+      }
+    }
+    
+    // Останавливаем WebRTC
+    if (endCall) {
+      endCall();
+    }
     
     // Очищаем состояния звонков
     setCurrentCall(null);
@@ -158,39 +164,25 @@ function ConsultationPage() {
     setIncomingCall(null);
     setIncomingCallModalOpen(false);
     
+    // Принудительно сбрасываем состояние CallButtons
+    setForceResetCallButtons(true);
+    setTimeout(() => setForceResetCallButtons(false), 100); // Сбрасываем флаг через короткое время
+    
     // Очищаем WebSocket соединения
     if (signalingSocket) {
       signalingSocket.close();
       setSignalingSocket(null);
     }
-    
-    // Останавливаем WebRTC
-    if (stop) {
-      stop();
-    }
-    
-    // Отправляем уведомление о завершении звонка через WebSocket для входящих звонков
-    if (incomingCallWebSocket && incomingCallWebSocket.readyState === WebSocket.OPEN) {
-      try {
-        incomingCallWebSocket.send(JSON.stringify({
-          type: 'call_ended'
-        }));
-      } catch (error) {
-        console.error('Ошибка при отправке уведомления о завершении звонка:', error);
-      }
-    }
   };
 
   // Функция для сброса состояния ожидания ответа
   const resetWaitingState = () => {
-    console.log('Сброс состояния ожидания ответа');
     setWaitingForAnswer(false);
   };
 
   // useEffect для создания offer после готовности peer
   useEffect(() => {
     if (peerReady && signalingSocket && signalingSocket.readyState === WebSocket.OPEN && currentCall) {
-      console.log('Peer готов, создаем offer');
       setTimeout(() => {
         createOffer();
       }, 200); // Небольшая задержка для стабильности
@@ -199,7 +191,6 @@ function ConsultationPage() {
 
   // Функция для принудительного сброса состояния звонка
   const resetCallState = () => {
-    console.log('Принудительный сброс состояния звонка');
     setCurrentCall(null);
     setWaitingForAnswer(false);
     setIsCallModalOpen(false);
@@ -218,7 +209,6 @@ function ConsultationPage() {
 
   // --- Incoming call handlers ---
   const handleIncomingCallAccept = (call) => {
-    console.log('Принятие входящего звонка:', call);
     setCurrentCall(call);
     setWaitingForAnswer(false);
     setIsCallModalOpen(true);
@@ -241,11 +231,8 @@ function ConsultationPage() {
   const playNotificationSound = () => {
     try {
       const audio = new Audio('/sounds/notification.mp3');
-      audio.play().catch(error => {
-        console.log('Не удалось воспроизвести звук:', error);
-      });
+      audio.play().catch(() => {});
     } catch (error) {
-      console.log('Ошибка при воспроизведении звука:', error);
     }
   };
 
@@ -649,12 +636,11 @@ function ConsultationPage() {
     };
     
     callsWs.onclose = () => {
-      console.log('WebSocket для входящих звонков закрыт');
       setIncomingCallWebSocket(null);
     };
     
     callsWs.onerror = (error) => {
-      console.error('WebSocket ошибка для входящих звонков:', error);
+      console.error('WebSocket error for incoming calls:', error);
     };
 
     return () => {
@@ -670,7 +656,6 @@ function ConsultationPage() {
     const handleIncomingCallMessage = (event) => {
       try {
         if (!event || !event.data) {
-          console.log('Получено пустое WebSocket сообщение');
           return;
         }
         
@@ -678,19 +663,15 @@ function ConsultationPage() {
         try {
           data = JSON.parse(event.data);
         } catch (parseError) {
-          console.error('Ошибка парсинга JSON:', parseError);
           return;
         }
         
-        console.log('Получено уведомление о входящем звонке:', data);
         
         if (!data || typeof data !== 'object') {
-          console.warn('Получено некорректное сообщение:', data);
           return;
         }
         
         if (!data.type) {
-          console.warn('Получено сообщение без типа:', data);
           return;
         }
         
@@ -698,7 +679,6 @@ function ConsultationPage() {
           // Проверяем, не обрабатывали ли мы уже этот звонок
           const callKey = `incoming_${data.call.id}`;
           if (processedCallIds.has(callKey)) {
-            console.log('Игнорируем дублированное уведомление о входящем звонке:', data.call.id);
             return;
           }
           
@@ -707,12 +687,10 @@ function ConsultationPage() {
           setIncomingCallModalOpen(true);
           playNotificationSound();
         } else if (data.type === 'call_accepted') {
-          console.log('Получено уведомление о принятии звонка:', data);
           
           // Проверяем дублирование для принятия звонка
           const callKey = `accepted_${data.call_id || data.call?.id}`;
           if (processedCallIds.has(callKey)) {
-            console.log('Игнорируем дублированное уведомление о принятии звонка:', callKey);
             return;
           }
           
@@ -740,7 +718,7 @@ function ConsultationPage() {
           setWaitingForAnswer(false);
         }
       } catch (error) {
-        console.error('Ошибка при обработке уведомления о входящем звонке:', error, 'Данные:', event?.data);
+        console.error('Error processing incoming call notification:', error);
       }
     };
 
@@ -826,6 +804,7 @@ function ConsultationPage() {
                   consultation={consultation}
                   onCallInitiated={handleCallInitiated}
                   onCallEnded={handleCallEnded}
+                  forceResetCall={forceResetCallButtons}
                 />
               )}
               <Button 
