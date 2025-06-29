@@ -36,51 +36,126 @@ const CallButtons = ({
   // Принудительный сброс состояния звонка
   useEffect(() => {
     if (forceResetCall) {
+      console.log('🔄 Принудительный сброс состояния CallButtons');
+      
+      // Сохраняем текущее состояние для логирования
+      const hadActiveCall = activeCall !== null;
+      const wasWaitingForAnswer = waitingForAnswer;
+      const wasInitiating = isInitiatingCall;
+      
+      // Сбрасываем состояния
       setActiveCall(null);
       setWaitingForAnswer(false);
+      setIsInitiatingCall(false);
+      
+      // Убираем глобальное уведомление только если был активный звонок
+      if (hadActiveCall || wasWaitingForAnswer || wasInitiating) {
+        console.log('🔔 Убираем глобальное уведомление при принудительном сбросе');
+        endOutgoingCall();
+      }
     }
-  }, [forceResetCall]);
+  }, [forceResetCall, endOutgoingCall]);
 
   // Проверяем активный звонок
   useEffect(() => {
+    // Флаг для отслеживания монтирования компонента
+    let mounted = true;
+    
     const checkActiveCall = async () => {
+      // Проверяем только если компонент все еще смонтирован
+      if (!mounted) return;
+      
       // Проверяем только если есть консультация и она активна
       if (!consultationId || !consultation || consultation.status !== 'active') {
-        setActiveCall(null);
+        // Если консультация не активна, полностью сбрасываем состояние только один раз
+        if (mounted && activeCall) {
+          console.log('🔄 Сброс состояния CallButtons - консультация не активна');
+          setActiveCall(null);
+          endOutgoingCall();
+        }
+        if (mounted && waitingForAnswer) {
+          setWaitingForAnswer(false);
+        }
+        if (mounted && isInitiatingCall) {
+          setIsInitiatingCall(false);
+        }
         return;
       }
       
       try {
         const response = await api.get(`/api/calls/active/${consultationId}`);
+        
+        // Проверяем что компонент все еще смонтирован перед обновлением состояния
+        if (!mounted) return;
+        
         // Проверяем, что звонок действительно активен (не завершен)
         if (response.data && response.data.status === 'active') {
           setActiveCall(response.data);
+          // Если звонок принят, убираем состояние ожидания
+          if (response.data.status === 'active' && waitingForAnswer) {
+            console.log('✅ Звонок принят, убираем ожидание');
+            setWaitingForAnswer(false);
+          }
         } else {
-          setActiveCall(null);
+          // Звонок не активен, сбрасываем все состояния только если они установлены
+          if (activeCall) {
+            console.log('🔄 Сброс состояния CallButtons - звонок не активен');
+            setActiveCall(null);
+            endOutgoingCall();
+          }
+          if (waitingForAnswer) {
+            setWaitingForAnswer(false);
+          }
+          if (isInitiatingCall) {
+            setIsInitiatingCall(false);
+          }
         }
       } catch (error) {
-        // Если активного звонка нет (404), сбрасываем состояние тихо
+        // Если компонент размонтирован, не обрабатываем ошибку
+        if (!mounted) return;
+        
+        // Если активного звонка нет (404), сбрасываем состояние
         if (error.response?.status === 404) {
-          setActiveCall(null);
+          if (activeCall) {
+            console.log('🔄 Сброс состояния CallButtons - звонок не найден (404)');
+            setActiveCall(null);
+            endOutgoingCall();
+          }
+          if (waitingForAnswer) {
+            setWaitingForAnswer(false);
+          }
+          if (isInitiatingCall) {
+            setIsInitiatingCall(false);
+          }
         } else {
-          console.error('Ошибка при проверке активного звонка:', error);
+          console.error('❌ Ошибка при проверке активного звонка:', error);
         }
       }
     };
 
-    // Запускаем только если консультация активна
+    // Запускаем проверку только если консультация активна
     if (consultation?.status === 'active') {
       checkActiveCall();
-      
-      // Проверяем каждые 15 секунд только для активных консультаций (увеличили с 10 до 15 сек)
-      const interval = setInterval(checkActiveCall, 15000);
-      
-      return () => clearInterval(interval);
-    } else {
-      // Если консультация не активна, сбрасываем активный звонок
-      setActiveCall(null);
     }
-  }, [consultationId, consultation]);
+    
+    // Если консультация активна и нет активного звонка, устанавливаем интервал проверки
+    let interval = null;
+    if (consultation?.status === 'active' && (!activeCall || activeCall.status === 'active')) {
+      // Проверяем каждые 10 секунд
+      interval = setInterval(() => {
+        if (mounted) {
+          checkActiveCall();
+        }
+      }, 10000);
+    }
+    
+    return () => {
+      mounted = false;
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [consultationId, consultation?.status]); // Убираем лишние зависимости чтобы избежать лишних перерендеров
 
   const initiateCall = async (callType) => {
     if (!canInitiateCall) {

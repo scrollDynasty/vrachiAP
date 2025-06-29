@@ -46,28 +46,58 @@ const VideoCallModal = ({
   useEffect(() => {
     if (isOpen) {
       const ensureVideoPlayback = () => {
-        if (localVideoRef.current) {
+        // Локальное видео
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
           localVideoRef.current.muted = true;
           localVideoRef.current.autoplay = true;
           localVideoRef.current.playsInline = true;
-          // Принудительно запускаем воспроизведение
+          
+          console.log('🎥 Попытка воспроизведения локального видео в модальном окне');
+          
+          // Обработчик загрузки метаданных
+          const onLoadedMetadata = () => {
+            console.log('✅ Метаданные локального видео загружены в модальном окне');
+            localVideoRef.current.play()
+              .then(() => console.log('✅ Локальное видео воспроизводится в модальном окне'))
+              .catch(error => console.warn('⚠️ Не удалось воспроизвести локальное видео в модальном окне:', error));
+          };
+          
+          if (localVideoRef.current.readyState >= 1) {
+            // Метаданные уже загружены
+            onLoadedMetadata();
+          } else {
+            localVideoRef.current.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+          }
+          
+          // Принудительная попытка воспроизведения
           localVideoRef.current.play().catch(() => {});
         }
-        if (remoteVideoRef.current) {
+        
+        // Удаленное видео
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
           remoteVideoRef.current.autoplay = true;
           remoteVideoRef.current.playsInline = true;
-          // Принудительно запускаем воспроизведение
-          remoteVideoRef.current.play().catch(() => {});
+          
+          console.log('📺 Попытка воспроизведения удаленного видео в модальном окне');
+          remoteVideoRef.current.play()
+            .then(() => console.log('✅ Удаленное видео воспроизводится в модальном окне'))
+            .catch(error => console.warn('⚠️ Не удалось воспроизвести удаленное видео в модальном окне:', error));
         }
       };
 
       // Запускаем сразу
       ensureVideoPlayback();
       
-      // И повторяем через небольшую задержку для уверенности
-      const timeout = setTimeout(ensureVideoPlayback, 100);
+      // Повторяем через разные интервалы для уверенности
+      const timeouts = [
+        setTimeout(ensureVideoPlayback, 100),
+        setTimeout(ensureVideoPlayback, 500),
+        setTimeout(ensureVideoPlayback, 1000)
+      ];
       
-      return () => clearTimeout(timeout);
+      return () => {
+        timeouts.forEach(timeout => clearTimeout(timeout));
+      };
     }
   }, [isOpen, isMinimized, localVideoRef, remoteVideoRef]);
 
@@ -81,6 +111,41 @@ const VideoCallModal = ({
     }
     return () => clearTimeout(timeout);
   }, [showControls, waitingForAnswer]);
+
+  // Обновление видео при изменении состояния потоков
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const updateVideoStreams = () => {
+      // Обновляем локальное видео
+      if (localVideoRef.current && localVideoRef.current.srcObject) {
+        const localStream = localVideoRef.current.srcObject;
+        const hasLocalVideo = localStream.getVideoTracks().some(track => track.enabled);
+        
+        if (hasLocalVideo && localVideoRef.current.paused) {
+          console.log('🔄 Перезапуск локального видео');
+          localVideoRef.current.play().catch(() => {});
+        }
+      }
+      
+      // Обновляем удаленное видео
+      if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+        const remoteStream = remoteVideoRef.current.srcObject;
+        const hasRemoteVideo = remoteStream.getVideoTracks().some(track => track.enabled);
+        
+        if (hasRemoteVideo && remoteVideoRef.current.paused) {
+          console.log('🔄 Перезапуск удаленного видео');
+          remoteVideoRef.current.play().catch(() => {});
+        }
+      }
+    };
+    
+    // Обновляем сразу и через небольшие интервалы
+    updateVideoStreams();
+    const interval = setInterval(updateVideoStreams, 2000);
+    
+    return () => clearInterval(interval);
+  }, [isOpen, localVideoRef, remoteVideoRef, connectionState]);
 
   // Обработчик закрытия модального окна
   const handleClose = () => {
@@ -128,10 +193,17 @@ const VideoCallModal = ({
                 className="w-full h-full object-cover" 
                 autoPlay
                 playsInline
+                onLoadedMetadata={() => {
+                  console.log('📺 Метаданные удаленного видео загружены в минимизированном окне');
+                  if (remoteVideoRef.current) {
+                    remoteVideoRef.current.play()
+                      .then(() => console.log('✅ Удаленное видео воспроизводится в минимизированном окне'))
+                      .catch(err => console.warn('⚠️ Не удалось воспроизвести удаленное видео в минимизированном окне:', err));
+                  }
+                }}
               />
               {/* Показываем заглушку только если нет активного видео потока */}
-              {(!remoteVideoRef.current?.srcObject || 
-                !remoteVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+              {!remoteVideoRef.current?.srcObject && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -150,9 +222,16 @@ const VideoCallModal = ({
                   muted
                   autoPlay
                   playsInline
+                  onLoadedMetadata={() => {
+                    console.log('🎥 Метаданные локального видео загружены в минимизированном окне');
+                    if (localVideoRef.current) {
+                      localVideoRef.current.play()
+                        .then(() => console.log('✅ Локальное видео воспроизводится в минимизированном окне'))
+                        .catch(err => console.warn('⚠️ Не удалось воспроизвести локальное видео в минимизированном окне:', err));
+                    }
+                  }}
                 />
-                {(!localVideoRef.current?.srcObject || 
-                  !localVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+                {!localVideoRef.current?.srcObject && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
                     <div className="w-4 h-4 bg-gray-600 rounded-full flex items-center justify-center">
                       <Users size={8} className="text-gray-300" />
@@ -273,9 +352,16 @@ const VideoCallModal = ({
                     poster=""
                     autoPlay
                     playsInline
+                    onLoadedMetadata={() => {
+                      console.log('📺 Метаданные удаленного видео загружены в полноэкранном режиме');
+                      if (remoteVideoRef.current) {
+                        remoteVideoRef.current.play()
+                          .then(() => console.log('✅ Удаленное видео воспроизводится в полноэкранном режиме'))
+                          .catch(err => console.warn('⚠️ Не удалось воспроизвести удаленное видео в полноэкранном режиме:', err));
+                      }
+                    }}
                   />
-                  {(!remoteVideoRef.current?.srcObject || 
-                    !remoteVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+                  {!remoteVideoRef.current?.srcObject && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                       <div className="text-center">
                         <div className="w-32 h-32 bg-gray-600 rounded-full flex items-center justify-center mb-4 mx-auto">
@@ -295,9 +381,16 @@ const VideoCallModal = ({
                       muted
                       autoPlay
                       playsInline
+                      onLoadedMetadata={() => {
+                        console.log('🎥 Метаданные локального видео загружены в полноэкранном режиме');
+                        if (localVideoRef.current) {
+                          localVideoRef.current.play()
+                            .then(() => console.log('✅ Локальное видео воспроизводится в полноэкранном режиме'))
+                            .catch(err => console.warn('⚠️ Не удалось воспроизвести локальное видео в полноэкранном режиме:', err));
+                        }
+                      }}
                     />
-                    {(!localVideoRef.current?.srcObject || 
-                      !localVideoRef.current?.srcObject.getVideoTracks().some(track => track.enabled)) && (
+                    {!localVideoRef.current?.srcObject && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
                         <div className="text-center">
                           <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gray-600 rounded-full flex items-center justify-center mb-1 sm:mb-2 mx-auto">

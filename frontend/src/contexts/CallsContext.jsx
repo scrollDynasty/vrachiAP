@@ -270,10 +270,10 @@ export const CallsProvider = ({ children }) => {
           });
       }
       
-      // Автоматически останавливаем через 30 секунд
+      // Автоматически останавливаем через 60 секунд (увеличиваем время)
       ringtoneTimeoutRef.current = setTimeout(() => {
         stopRingtone();
-      }, 30000);
+      }, 60000);
       
     } catch (error) {
       console.error('❌ Error playing ringtone:', error);
@@ -325,8 +325,8 @@ export const CallsProvider = ({ children }) => {
           notification.close();
         };
 
-        // Автоматически закрываем через 30 секунд
-        setTimeout(() => notification.close(), 30000);
+        // Автоматически закрываем через 60 секунд
+        setTimeout(() => notification.close(), 60000);
       }
     } catch (error) {
       console.error('Error showing browser notification:', error);
@@ -368,12 +368,21 @@ export const CallsProvider = ({ children }) => {
   // Функции для управления исходящими звонками
   const startOutgoingCall = (callData) => {
     console.log('📞 Начинаем исходящий звонок:', callData);
-    setOutgoingCall(callData);
+    // Очищаем предыдущее состояние перед новым звонком
+    setOutgoingCall(null);
+    setIncomingCall(null);
+    // Устанавливаем новый звонок с небольшой задержкой для избежания гонки состояний
+    setTimeout(() => {
+      setOutgoingCall(callData);
+    }, 50);
   };
 
   const endOutgoingCall = () => {
-    console.log('❌ Завершаем исходящий звонок');
-    setOutgoingCall(null);
+    // Очищаем только если звонок действительно активен
+    if (outgoingCall) {
+      console.log('❌ Завершаем исходящий звонок');
+      setOutgoingCall(null);
+    }
   };
 
   const value = {

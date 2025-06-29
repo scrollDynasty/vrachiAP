@@ -81,6 +81,83 @@ export default function useWebRTC({
     }
   }, []);
 
+  // Улучшенная функция настройки локального видео
+  const setupLocalVideo = useCallback((stream) => {
+    if (!localVideoRef || !localVideoRef.current) {
+      console.warn('⚠️ localVideoRef не доступен для настройки видео');
+      return;
+    }
+    
+    console.log('🎥 Настройка локального видео...');
+    console.log('📹 Видео элемент:', localVideoRef.current);
+    console.log('📹 Поток:', stream);
+    console.log('📹 Видео треки:', stream.getVideoTracks());
+    
+    // Очищаем старые обработчики
+    localVideoRef.current.onloadedmetadata = null;
+    localVideoRef.current.oncanplay = null;
+    
+    // Настраиваем видео элемент
+    localVideoRef.current.srcObject = stream;
+    localVideoRef.current.muted = true; // Отключаем эхо
+    localVideoRef.current.playsInline = true;
+    localVideoRef.current.autoplay = true;
+    localVideoRef.current.controls = false;
+    
+    // Убираем poster чтобы видео сразу показывалось
+    localVideoRef.current.poster = '';
+    
+    // Обработчики событий для лучшего контроля
+    localVideoRef.current.onloadedmetadata = () => {
+      console.log('✅ Метаданные локального видео загружены');
+      if (localVideoRef.current) {
+        localVideoRef.current.play()
+          .then(() => {
+            console.log('✅ Локальное видео успешно воспроизводится');
+          })
+          .catch((error) => {
+            console.warn('⚠️ Не удалось автоматически воспроизвести локальное видео:', error);
+          });
+      }
+    };
+    
+    localVideoRef.current.oncanplay = () => {
+      console.log('✅ Локальное видео готово к воспроизведению');
+      // Дополнительная попытка воспроизведения
+      if (localVideoRef.current && localVideoRef.current.paused) {
+        localVideoRef.current.play().catch(() => {});
+      }
+    };
+    
+    // Проверяем состояние видео элемента
+    console.log('📹 readyState:', localVideoRef.current.readyState);
+    console.log('📹 paused:', localVideoRef.current.paused);
+    
+    // Принудительное воспроизведение
+    const forcePlay = () => {
+      if (localVideoRef.current && localVideoRef.current.srcObject) {
+        console.log('🔄 Попытка принудительного воспроизведения локального видео');
+        localVideoRef.current.play()
+          .then(() => {
+            console.log('✅ Принудительное воспроизведение локального видео успешно');
+          })
+          .catch((error) => {
+            console.warn('⚠️ Принудительное воспроизведение не удалось:', error);
+          });
+      }
+    };
+    
+    // Немедленная попытка
+    forcePlay();
+    
+    // Несколько попыток с интервалами
+    setTimeout(forcePlay, 100);
+    setTimeout(forcePlay, 500);
+    setTimeout(forcePlay, 1000);
+    setTimeout(forcePlay, 2000);
+    
+  }, []);
+
   // Инициализация медиа и peer соединения
   const start = useCallback(async (passedSocket = null) => {
     // Используем переданный WebSocket или текущий
@@ -91,34 +168,67 @@ export default function useWebRTC({
       // Получаем медиа поток в зависимости от типа звонка
       const isVideoCall = callType === 'video';
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: isVideoCall,
-        audio: true
-      });
-      localStreamRef.current = stream;
+      console.log('🎥 Запрашиваем доступ к медиа устройствам...', { video: isVideoCall, audio: true });
       
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.muted = true; // Отключаем эхо
-        localVideoRef.current.playsInline = true;
-        localVideoRef.current.autoplay = true;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: isVideoCall ? {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 60 }
+        } : false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      localStreamRef.current = stream;
+      console.log('✅ Медиа поток получен:', stream.getTracks());
+      
+      // Настраиваем локальное видео с улучшенной логикой
+      if (isVideoCall) {
+        console.log('📹 Настройка локального видео для видеозвонка');
         
-        // Попытка воспроизведения
-        localVideoRef.current.play().catch(() => {});
+        // Функция для настройки видео с повторными попытками
+        const trySetupLocalVideo = (attemptNumber = 1) => {
+          if (localVideoRef && localVideoRef.current) {
+            console.log(`✅ localVideoRef доступен (попытка ${attemptNumber})`);
+            // Немедленно настраиваем видео элемент
+            localVideoRef.current.srcObject = stream;
+            localVideoRef.current.muted = true;
+            localVideoRef.current.playsInline = true;
+            localVideoRef.current.autoplay = true;
+            
+            // Дополнительная настройка через функцию
+            setupLocalVideo(stream);
+          } else if (attemptNumber < 10) {
+            console.warn(`⚠️ localVideoRef не доступен, попытка ${attemptNumber}/10`);
+            // Попробуем еще раз через короткий интервал
+            setTimeout(() => {
+              trySetupLocalVideo(attemptNumber + 1);
+            }, 200 * attemptNumber); // Увеличиваем интервал с каждой попыткой
+          } else {
+            console.error('❌ Не удалось настроить локальное видео после 10 попыток');
+          }
+        };
+        
+        // Начинаем попытки настройки видео
+        trySetupLocalVideo();
+      } else {
+        console.log('🎙️ Аудиозвонок - локальное видео не требуется');
       }
       
       // Создаем peer connection
       const peer = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+        iceServers: STUN_SERVERS
       });
       
       peerRef.current = peer;
       
       // Добавляем локальные треки
       stream.getTracks().forEach(track => {
+        console.log('➕ Добавляем трек:', track.kind, track.label);
         peer.addTrack(track, stream);
       });
       
@@ -141,6 +251,7 @@ export default function useWebRTC({
       };
       
       peer.ontrack = (event) => {
+        console.log('📺 Получен удаленный поток:', event);
         if (event.streams && event.streams[0]) {
           const stream = event.streams[0];
           
@@ -150,15 +261,19 @@ export default function useWebRTC({
                 remoteVideoRef.current.pause();
               }
               
+              console.log('🎥 Настройка удаленного видео...');
               remoteVideoRef.current.srcObject = stream;
               remoteVideoRef.current.playsInline = true;
               remoteVideoRef.current.autoplay = true;
               
-              setTimeout(() => {
-                if (remoteVideoRef.current && remoteVideoRef.current.srcObject === stream) {
-                  remoteVideoRef.current.play().catch(() => {});
-                }
-              }, 100);
+              // Немедленная попытка воспроизведения
+              remoteVideoRef.current.play()
+                .then(() => {
+                  console.log('✅ Удаленное видео воспроизводится');
+                })
+                .catch((error) => {
+                  console.warn('⚠️ Не удалось воспроизвести удаленное видео:', error);
+                });
             }
           }
         }
@@ -170,6 +285,40 @@ export default function useWebRTC({
         
         if (peer.connectionState === 'connected') {
           setCallActive(true);
+          console.log('✅ Звонок подключен!');
+          
+                  // Проверяем и настраиваем локальное видео при подключении
+        if (callType === 'video' && localStreamRef.current) {
+          console.log('🔄 Проверка локального видео после подключения');
+          
+          if (!localVideoRef || !localVideoRef.current) {
+            console.warn('⚠️ localVideoRef недоступен после подключения, попробуем позже');
+            // Попробуем еще раз через небольшой интервал
+            const retryCount = 5;
+            let attempts = 0;
+            
+            const retrySetupVideo = setInterval(() => {
+              attempts++;
+              if (localVideoRef && localVideoRef.current && localStreamRef.current) {
+                console.log('✅ localVideoRef теперь доступен, настраиваем видео');
+                setupLocalVideo(localStreamRef.current);
+                clearInterval(retrySetupVideo);
+              } else if (attempts >= retryCount) {
+                console.error('❌ Не удалось получить доступ к localVideoRef после нескольких попыток');
+                clearInterval(retrySetupVideo);
+              }
+            }, 500);
+          } else {
+            if (!localVideoRef.current.srcObject) {
+              console.log('⚠️ Локальное видео не настроено, настраиваем сейчас');
+              setupLocalVideo(localStreamRef.current);
+            } else if (localVideoRef.current.paused) {
+              console.log('⚠️ Локальное видео на паузе, запускаем воспроизведение');
+              localVideoRef.current.play().catch(() => {});
+            }
+          }
+        }
+          
           if (onCallAccepted) {
             onCallAccepted();
           }
@@ -180,7 +329,6 @@ export default function useWebRTC({
           }
         } else if (peer.connectionState === 'disconnected') {
           console.warn('⚠️ Соединение потеряно');
-          // Можно добавить логику переподключения
         }
       };
       
@@ -198,26 +346,12 @@ export default function useWebRTC({
         }
       };
       
-      // Добавляем таймер для обнаружения зависших соединений
-      const connectionTimeout = setTimeout(() => {
-        if (peer.connectionState !== 'connected') {
-          console.warn('⏰ Таймаут подключения - соединение не установлено за 30 секунд');
-          if (onError) {
-            onError(new Error('Таймаут подключения. Проверьте интернет-соединение.'));
-          }
-        }
-      }, 30000); // 30 секунд таймаут
-      
-      // Очищаем таймер при закрытии
-      peer.onclose = () => {
-        clearTimeout(connectionTimeout);
-      };
-      
       // Устанавливаем флаг готовности peer соединения
       setPeerReady(true);
+      console.log('✅ WebRTC инициализация завершена');
       
     } catch (error) {
-      console.error('Ошибка при инициализации WebRTC:', error);
+      console.error('❌ Ошибка при инициализации WebRTC:', error);
       
       // Более детальная обработка ошибок
       if (error.name === 'NotAllowedError') {
@@ -233,7 +367,7 @@ export default function useWebRTC({
         if (onError) onError(error);
       }
     }
-  }, [signalingSocket, localVideoRef, remoteVideoRef, callType]);
+  }, [signalingSocket, callType, onError, onCallAccepted, localVideoRef, remoteVideoRef]);
 
   // Остановка WebRTC
   const stop = useCallback(() => {
@@ -242,6 +376,7 @@ export default function useWebRTC({
     // Останавливаем локальный поток
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
+        console.log('🛑 Останавливаем трек:', track.kind);
         track.stop();
       });
       localStreamRef.current = null;
@@ -256,16 +391,19 @@ export default function useWebRTC({
     // Очищаем видео элементы
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
+      localVideoRef.current.pause();
     }
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
+      remoteVideoRef.current.pause();
     }
     
     setCallActive(false);
     setConnectionState('closed');
-    setPeerReady(false); // Сбрасываем флаг готовности
-    socketRef.current = null; // Очищаем ссылку на WebSocket
+    setPeerReady(false);
+    socketRef.current = null;
     
+    console.log('✅ WebRTC соединение остановлено');
   }, [localVideoRef, remoteVideoRef]);
 
   // Обработка сигнализации
@@ -350,24 +488,33 @@ export default function useWebRTC({
   }, [signalingSocket, handleOffer, handleAnswer, handleIceCandidate, onCallEnd, onCallAccepted]);
 
   // Управление микрофоном
-  const toggleMic = () => {
+  const toggleMic = useCallback(() => {
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
+      const audioTracks = localStreamRef.current.getAudioTracks();
+      audioTracks.forEach(track => {
         track.enabled = !track.enabled;
+        console.log('🎤 Микрофон:', track.enabled ? 'включен' : 'отключен');
         setMicEnabled(track.enabled);
       });
     }
-  };
+  }, []);
 
   // Управление камерой
-  const toggleCam = () => {
+  const toggleCam = useCallback(() => {
     if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach(track => {
+      const videoTracks = localStreamRef.current.getVideoTracks();
+      videoTracks.forEach(track => {
         track.enabled = !track.enabled;
+        console.log('📹 Камера:', track.enabled ? 'включена' : 'отключена');
         setCamEnabled(track.enabled);
       });
+      
+      // Если камера включена, попробуем снова настроить локальное видео
+      if (videoTracks.some(track => track.enabled) && localVideoRef.current) {
+        setupLocalVideo(localStreamRef.current);
+      }
     }
-  };
+  }, [setupLocalVideo]);
 
   // Создание offer после готовности WebSocket И peer соединения
   const createOffer = useCallback(async () => {
@@ -403,7 +550,8 @@ export default function useWebRTC({
   }, [signalingSocket, peerReady]);
 
   // Завершение звонка
-  const endCall = () => {
+  const endCall = useCallback(() => {
+    console.log('📞 Завершение звонка...');
     setCallActive(false);
     
     // Отправляем уведомление о завершении звонка через WebSocket
@@ -413,8 +561,9 @@ export default function useWebRTC({
         currentSocket.send(JSON.stringify({
           type: 'call-ended'
         }));
+        console.log('✅ Уведомление о завершении звонка отправлено');
       } catch (error) {
-        console.error('Ошибка при отправке уведомления о завершении звонка:', error);
+        console.error('❌ Ошибка при отправке уведомления о завершении звонка:', error);
       }
     }
     
@@ -424,21 +573,64 @@ export default function useWebRTC({
       peerRef.current = null;
     }
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach(track => {
+        console.log('🛑 Останавливаем трек при завершении:', track.kind);
+        track.stop();
+      });
       localStreamRef.current = null;
     }
     
     // Очищаем видео элементы
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
+      localVideoRef.current.pause();
     }
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
+      remoteVideoRef.current.pause();
     }
     
+    // Сбрасываем состояния
+    setConnectionState('closed');
+    setPeerReady(false);
+    socketRef.current = null;
+    
     // Вызываем callback
-    if (onCallEnd) onCallEnd();
-  };
+    if (onCallEnd) {
+      console.log('✅ Вызываем callback завершения звонка');
+      onCallEnd();
+    }
+    
+    console.log('✅ Звонок завершен');
+  }, [signalingSocket, localVideoRef, remoteVideoRef, onCallEnd]);
+
+  // Эффект для проверки и настройки локального видео
+  useEffect(() => {
+    if (callActive && callType === 'video' && localStreamRef.current && localVideoRef && localVideoRef.current) {
+      // Проверяем состояние локального видео каждые 2 секунды
+      const checkInterval = setInterval(() => {
+        if (!localVideoRef.current) {
+          clearInterval(checkInterval);
+          return;
+        }
+        
+        const hasVideoTracks = localStreamRef.current.getVideoTracks().length > 0;
+        const hasEnabledVideoTracks = localStreamRef.current.getVideoTracks().some(t => t.enabled);
+        
+        if (hasVideoTracks && hasEnabledVideoTracks) {
+          if (!localVideoRef.current.srcObject) {
+            console.log('⚠️ Локальное видео потеряло поток, восстанавливаем');
+            setupLocalVideo(localStreamRef.current);
+          } else if (localVideoRef.current.paused) {
+            console.log('⚠️ Локальное видео на паузе, перезапускаем');
+            localVideoRef.current.play().catch(() => {});
+          }
+        }
+      }, 2000);
+      
+      return () => clearInterval(checkInterval);
+    }
+  }, [callActive, callType, setupLocalVideo]);
 
   return {
     start,

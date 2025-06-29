@@ -32,7 +32,7 @@ function ConsultationPage() {
 
   const { user } = useAuthStore();
   const { t } = useTranslation();
-  const { endOutgoingCall } = useCalls();
+  const { outgoingCall, endOutgoingCall } = useCalls();
 
   const isDoctor = user?.id === consultation?.doctor_id;
   const isPatient = user?.id === consultation?.patient_id;
@@ -146,24 +146,31 @@ function ConsultationPage() {
 
   // --- Call end ---
   const handleCallEnded = async () => {
+    console.log('📞 Завершение звонка в ConsultationPage...');
+    
     // Завершаем звонок на бэкенде
     if (currentCall?.id) {
       try {
+        console.log('🔚 Отправляем запрос на завершение звонка на бэкенде');
         await api.post(`/api/calls/${currentCall.id}/end`);
+        console.log('✅ Звонок завершен на бэкенде');
       } catch (error) {
-        console.error('Error ending call on backend:', error);
+        console.error('❌ Ошибка завершения звонка на бэкенде:', error);
       }
     }
     
-    // Останавливаем WebRTC
+    // Останавливаем WebRTC (только один раз)
     if (endCall) {
+      console.log('🛑 Останавливаем WebRTC через endCall');
       endCall();
     }
     
     // Очищаем глобальное уведомление о исходящем звонке
+    console.log('🔔 Убираем глобальное уведомление');
     endOutgoingCall();
     
     // Очищаем состояния звонков
+    console.log('🧹 Очищаем состояния звонков');
     setCurrentCall(null);
     setWaitingForAnswer(false);
     setIsCallModalOpen(false);
@@ -171,14 +178,18 @@ function ConsultationPage() {
     setIncomingCallModalOpen(false);
     
     // Принудительно сбрасываем состояние CallButtons
+    console.log('🔄 Принудительно сбрасываем CallButtons');
     setForceResetCallButtons(true);
-    setTimeout(() => setForceResetCallButtons(false), 100); // Сбрасываем флаг через короткое время
+    setTimeout(() => setForceResetCallButtons(false), 100);
     
     // Очищаем WebSocket соединения
     if (signalingSocket) {
+      console.log('🔌 Закрываем signaling WebSocket');
       signalingSocket.close();
       setSignalingSocket(null);
     }
+    
+    console.log('✅ Завершение звонка в ConsultationPage завершено');
   };
 
   // Функция для сброса состояния ожидания ответа
@@ -195,22 +206,55 @@ function ConsultationPage() {
     }
   }, [peerReady, signalingSocket, currentCall, createOffer]);
 
+  // Флаг для предотвращения дублирования сброса
+  const resetInProgressRef = useRef(false);
+  
   // Функция для принудительного сброса состояния звонка
   const resetCallState = () => {
+    // Предотвращаем множественные вызовы
+    if (resetInProgressRef.current) {
+      console.log('⚠️ Сброс состояния уже выполняется, пропускаем');
+      return;
+    }
+    
+    resetInProgressRef.current = true;
+    console.log('🔄 Принудительный сброс состояния звонка');
+    
+    // Останавливаем WebRTC только если звонок активен
+    if (stop && (currentCall || waitingForAnswer)) {
+      console.log('🛑 Останавливаем WebRTC через stop (resetCallState)');
+      stop();
+    }
+    
+    // Очищаем состояния
     setCurrentCall(null);
     setWaitingForAnswer(false);
     setIsCallModalOpen(false);
     setIncomingCall(null);
     setIncomingCallModalOpen(false);
     
+    // Убираем глобальное уведомление только если оно есть
+    if (currentCall || waitingForAnswer) {
+      endOutgoingCall();
+    }
+    
+    // Принудительно сбрасываем CallButtons
+    setForceResetCallButtons(true);
+    setTimeout(() => setForceResetCallButtons(false), 100);
+    
+    // Закрываем WebSocket соединения
     if (signalingSocket) {
+      console.log('🔌 Закрываем signaling WebSocket (resetCallState)');
       signalingSocket.close();
       setSignalingSocket(null);
     }
     
-    if (stop) {
-      stop();
-    }
+    console.log('✅ Принудительный сброс состояния звонка завершен');
+    
+    // Сбрасываем флаг через небольшой таймаут
+    setTimeout(() => {
+      resetInProgressRef.current = false;
+    }, 500);
   };
 
   // --- Incoming call handlers ---
@@ -647,10 +691,24 @@ function ConsultationPage() {
             setIsCallModalOpen(true);
             setWaitingForAnswer(false);
             
-            // Подключаемся к WebSocket для звонка
+            // Подключаемся к WebSocket для звонка с задержкой для инициализации
             if (callData.id) {
               console.log('🔗 Подключаемся к WebSocket для звонка:', callData.id);
-              setTimeout(() => connectToCallWebSocket(callData.id), 1000);
+              // Увеличиваем задержку для глобального принятия звонка
+              setTimeout(() => {
+                connectToCallWebSocket(callData.id);
+                
+                // Дополнительная проверка и инициализация видео
+                if (callType === 'video') {
+                  console.log('📹 Проверяем локальное видео после глобального принятия');
+                  setTimeout(() => {
+                    // Проверяем готовность WebRTC
+                    if (webrtcRef.current && webrtcRef.current.peerReady) {
+                      console.log('✅ WebRTC готов, видео должно работать');
+                    }
+                  }, 2000);
+                }
+              }, 1500);
             }
             return true;
           }
@@ -775,19 +833,36 @@ function ConsultationPage() {
           resetWaitingState();
         } else if (data.type === 'call_ended') {
           console.log('Получено уведомление о завершении звонка:', data);
-          // Завершаем звонок локально
-          resetCallState();
+          
+          // Проверяем, относится ли это к нашему текущему звонку
+          if (currentCall && (data.call_id === currentCall.id || data.call?.id === currentCall.id)) {
+            console.log('📞 Завершение нашего текущего звонка');
+            // Завершаем звонок локально
+            resetCallState();
+          } else if (!currentCall && (incomingCall || outgoingCall)) {
+            console.log('📞 Завершение входящего/исходящего звонка');
+            // Также сбрасываем если есть входящий или исходящий звонок
+            resetCallState();
+          } else {
+            console.log('⚠️ Получено уведомление о завершении другого звонка, игнорируем');
+          }
         } else if (data.type === 'call_rejected') {
           console.log('Получено уведомление об отклонении звонка:', data);
           
-          // Полностью завершаем звонок при отклонении
-          resetCallState();
-          
-          // Показываем уведомление что звонок отклонен
-          toast.error('Звонок был отклонен', {
-            duration: 4000,
-            position: 'top-center',
-          });
+          // Проверяем, относится ли это к нашему звонку
+          if ((currentCall && (data.call_id === currentCall.id || data.call?.id === currentCall.id)) ||
+              (waitingForAnswer)) {
+            // Полностью завершаем звонок при отклонении
+            resetCallState();
+            
+            // Показываем уведомление что звонок отклонен
+            toast.error('Звонок был отклонен', {
+              duration: 4000,
+              position: 'top-center',
+            });
+          } else {
+            console.log('⚠️ Получено уведомление об отклонении другого звонка, игнорируем');
+          }
         }
       } catch (error) {
         console.error('Error processing incoming call notification:', error);
