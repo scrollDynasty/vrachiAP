@@ -1,0 +1,45 @@
+/* Стили для иконки приложения */
+.app-icon {
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: 3px solid #0070F3; /* Синяя рамка */
+}
+
+.app-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+} 
+
+/* Стили для аватарки пользователя */
+.user-avatar {
+  border-radius: 50% !important; /* Полностью круглая */
+  overflow: hidden;
+}
+
+/* Переопределение стилей NextUI для Avatar */
+.nextui-avatar-img {
+  border-radius: 50% !important;
+}
+
+/* Стили для favicon сайта */
+link[rel="icon"], link[rel="shortcut icon"] {
+  border-radius: 50% !important;
+}
+
+/* Стили для иконки во вкладке браузера */
+:root {
+  --favicon-border-radius: 50%;
+} 

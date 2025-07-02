@@ -1,0 +1,337 @@
+/* ОПТИМИЗАЦИЯ: Анимации для компонентов звонка с GPU-ускорением */
+
+/* ОПТИМИЗАЦИЯ: Анимация для пульсирующих колец с GPU-ускорением */
+@keyframes pulse-rings {
+  0% {
+    transform: translate3d(0, 0, 0) scale3d(0.8, 0.8, 1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(0, 0, 0) scale3d(1.1, 1.1, 1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1.4, 1.4, 1);
+    opacity: 0;
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация для плавного появления с GPU-ускорением */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация для покачивания кнопок с GPU-ускорением */
+@keyframes wiggle {
+  0%, 7% {
+    transform: translate3d(0, 0, 0) rotateZ(0);
+  }
+  15% {
+    transform: translate3d(0, 0, 0) rotateZ(-15deg);
+  }
+  20% {
+    transform: translate3d(0, 0, 0) rotateZ(10deg);
+  }
+  25% {
+    transform: translate3d(0, 0, 0) rotateZ(-10deg);
+  }
+  30% {
+    transform: translate3d(0, 0, 0) rotateZ(6deg);
+  }
+  35% {
+    transform: translate3d(0, 0, 0) rotateZ(-4deg);
+  }
+  40%, 100% {
+    transform: translate3d(0, 0, 0) rotateZ(0);
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация для сияния градиента с GPU-ускорением */
+@keyframes gradient-shine {
+  0% {
+    background-position: -200% center;
+    transform: translateZ(0);
+  }
+  100% {
+    background-position: 200% center;
+    transform: translateZ(0);
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация для пульса с разными задержками и GPU-ускорением */
+@keyframes pulse-delayed-1 {
+  0%, 40%, 100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+  20% {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale3d(1.05, 1.05, 1);
+  }
+}
+
+@keyframes pulse-delayed-2 {
+  0%, 60%, 100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+  30% {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale3d(1.05, 1.05, 1);
+  }
+}
+
+@keyframes pulse-delayed-3 {
+  0%, 80%, 100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+  40% {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale3d(1.05, 1.05, 1);
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация для вращения с bounce эффектом и GPU-ускорением */
+@keyframes rotate-bounce {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale3d(1, 1, 1);
+  }
+  25% {
+    transform: translate3d(0, 0, 0) rotate(90deg) scale3d(1.1, 1.1, 1);
+  }
+  50% {
+    transform: translate3d(0, 0, 0) rotate(180deg) scale3d(1, 1, 1);
+  }
+  75% {
+    transform: translate3d(0, 0, 0) rotate(270deg) scale3d(1.1, 1.1, 1);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(360deg) scale3d(1, 1, 1);
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Классы для применения анимаций с GPU-ускорением */
+.pulse-rings {
+  animation: pulse-rings 2s infinite;
+  will-change: transform, opacity;
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+.wiggle-animation {
+  animation: wiggle 2s ease-in-out infinite;
+  will-change: transform;
+  contain: layout style;
+}
+
+.gradient-shine {
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: gradient-shine 2s infinite;
+  will-change: background-position, transform;
+  transform: translateZ(0);
+}
+
+.pulse-delayed-1 {
+  animation: pulse-delayed-1 3s infinite;
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+.pulse-delayed-2 {
+  animation: pulse-delayed-2 3s infinite;
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+.pulse-delayed-3 {
+  animation: pulse-delayed-3 3s infinite;
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+.rotate-bounce {
+  animation: rotate-bounce 4s linear infinite;
+  will-change: transform;
+  contain: layout style;
+}
+
+/* ОПТИМИЗАЦИЯ: Эффекты для кнопок с GPU-ускорением */
+.call-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, filter;
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+.call-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.call-button:hover::before {
+  left: 100%;
+}
+
+.call-button:hover {
+  transform: translate3d(0, 0, 0) scale3d(1.05, 1.05, 1);
+  /* ОПТИМИЗАЦИЯ: Заменяем box-shadow на filter для лучшей производительности */
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.2));
+}
+
+/* ОПТИМИЗАЦИЯ: Специальные эффекты для типов звонков с GPU-ускорением */
+.video-call-glow {
+  /* ОПТИМИЗАЦИЯ: Заменяем box-shadow на filter */
+  filter: 
+    drop-shadow(0 0 20px rgba(59, 130, 246, 0.4))
+    drop-shadow(0 0 40px rgba(147, 197, 253, 0.2));
+  will-change: filter;
+  transform: translateZ(0);
+}
+
+.audio-call-glow {
+  /* ОПТИМИЗАЦИЯ: Заменяем box-shadow на filter */
+  filter: 
+    drop-shadow(0 0 20px rgba(34, 197, 94, 0.4))
+    drop-shadow(0 0 40px rgba(74, 222, 128, 0.2));
+  will-change: filter;
+  transform: translateZ(0);
+}
+
+.end-call-glow {
+  /* ОПТИМИЗАЦИЯ: Заменяем box-shadow на filter */
+  filter: 
+    drop-shadow(0 0 20px rgba(239, 68, 68, 0.4))
+    drop-shadow(0 0 40px rgba(248, 113, 113, 0.2));
+  will-change: filter;
+  transform: translateZ(0);
+}
+
+.call-backdrop {
+  backdrop-filter: blur(10px);
+  will-change: backdrop-filter;
+  contain: strict;
+  transform: translateZ(0);
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация индикатора соединения с GPU-ускорением */
+@keyframes connection-pulse {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(0, 0, 0) scale3d(1.2, 1.2, 1);
+    opacity: 0.7;
+  }
+}
+
+.connection-indicator {
+  animation: connection-pulse 2s infinite;
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+/* ОПТИМИЗАЦИЯ: Анимация звуковых волн с GPU-ускорением */
+@keyframes sound-wave {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+  50% {
+    transform: translate3d(0, 0, 0) scaleY(0.3);
+  }
+}
+
+.sound-wave {
+  animation: sound-wave 1s infinite;
+  will-change: transform;
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+.sound-wave:nth-child(1) { animation-delay: 0s; }
+.sound-wave:nth-child(2) { animation-delay: 0.1s; }
+.sound-wave:nth-child(3) { animation-delay: 0.2s; }
+.sound-wave:nth-child(4) { animation-delay: 0.3s; }
+.sound-wave:nth-child(5) { animation-delay: 0.4s; }
+
+/* ОПТИМИЗАЦИЯ: Стеклянный эффект с GPU-ускорением */
+.glass-effect {
+  backdrop-filter: blur(12px) saturate(180%);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  will-change: backdrop-filter;
+  contain: layout style paint;
+  transform: translateZ(0);
+}
+
+/* ОПТИМИЗАЦИЯ: Неоновое свечение с GPU-ускорением */
+.neon-glow {
+  /* ОПТИМИЗАЦИЯ: Заменяем box-shadow на filter */
+  filter: 
+    drop-shadow(0 0 10px currentColor)
+    drop-shadow(0 0 20px currentColor)
+    drop-shadow(0 0 30px currentColor);
+  will-change: filter;
+  transform: translateZ(0);
+}
+
+/* ОПТИМИЗАЦИЯ: Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+  .call-button {
+    transition: transform 0.2s ease; /* Более быстрые переходы на мобильных */
+  }
+  
+  .call-button:hover {
+    transform: translate3d(0, 0, 0) scale3d(1.02, 1.02, 1); /* Меньший масштаб на мобильных */
+  }
+  
+  /* ОПТИМИЗАЦИЯ: Отключаем тяжелые анимации на слабых устройствах */
+  .pulse-rings,
+  .gradient-shine,
+  .rotate-bounce {
+    animation-duration: 3s; /* Увеличиваем длительность для экономии ресурсов */
+  }
+}
+
+/* ОПТИМИЗАЦИЯ: Темная тема без изменения производительности */
+@media (prefers-color-scheme: dark) {
+  .glass-effect {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+} 

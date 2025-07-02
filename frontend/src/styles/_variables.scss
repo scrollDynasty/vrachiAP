@@ -1,0 +1,46 @@
+// frontend/src/styles/_variables.scss
+
+@use "sass:color"; // Добавляем для использования color.adjust
+
+// Цветовая палитра
+$color-primary: #007bff; // Пример: Синий
+$color-secondary: #6c757d; // Пример: Серый
+$color-success: #28a745; // Пример: Зеленый (для успешных действий)
+$color-danger: #dc3545; // Пример: Красный (для ошибок)
+$color-warning: #ffc107; // Пример: Желтый (для предупреждений)
+$color-info: #17a2b8; // Пример: Голубой (для информации)
+
+$color-light: #f8f9fa; // Пример: Светло-серый
+$color-dark: #343a40; // Пример: Темно-серый
+$color-white: #fff;
+$color-black: #000;
+
+// Цвета для врачебного стиля
+$color-medical-blue: #0056b3; // Более темный, спокойный синий
+$color-medical-green: #218838; // Более темный, спокойный зеленый
+$color-background-light: #e9ecef; // Очень светлый, почти белый фон
+$color-border: #ced4da; // Цвет границ форм и элементов
+
+// Оттенки серого
+$gray-100: #f8f9fa;
+$gray-200: #e9ecef;
+$gray-300: #dee2e6;
+$gray-400: #ced4da;
+$gray-500: #adb5bd;
+$gray-600: #6c757d;
+$gray-700: #495057;
+$gray-800: #343a40;
+$gray-900: #212529;
+
+// Шрифты
+$font-family-base: 'Arial', sans-serif; // Пример базового шрифта. Можно выбрать другие шрифты, например, 'Roboto', 'Open Sans' с Google Fonts.
+
+// Отступы и размеры
+$spacing-unit: 8px; // Базовая единица для отступов (используем для создания других отступов: $spacing-unit * 2, $spacing-unit * 3 и т.д.)
+$border-radius: 4px; // Скругление углов
+
+// Брейкпоинты для адаптивности (пример)
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;

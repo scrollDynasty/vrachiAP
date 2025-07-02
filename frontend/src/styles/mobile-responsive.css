@@ -1,0 +1,419 @@
+ /* Универсальная мобильная адаптация для сайта Healzy */
+
+/* Общие правила для мобильных устройств */
+@media (max-width: 767px) {
+    /* Контейнеры */
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  
+    /* Заголовки */
+    h1 {
+      font-size: 1.875rem !important; /* 30px */
+      line-height: 2.25rem !important;
+    }
+  
+    h2 {
+      font-size: 1.5rem !important; /* 24px */
+      line-height: 2rem !important;
+    }
+  
+    h3 {
+      font-size: 1.25rem !important; /* 20px */
+      line-height: 1.75rem !important;
+    }
+  
+    /* Кнопки */
+    .btn-mobile {
+      min-height: 44px; /* Apple рекомендует минимум 44px для touch-таргетов */
+      font-size: 0.875rem;
+      padding: 0.75rem 1rem;
+    }
+  
+    /* Карточки */
+    .card-mobile {
+      margin-bottom: 0.75rem;
+      padding: 1rem;
+      border-radius: 0.75rem;
+    }
+  
+    /* Формы */
+    .form-mobile input,
+    .form-mobile select,
+    .form-mobile textarea {
+      min-height: 44px;
+      font-size: 1rem; /* Предотвращает зум на iOS */
+    }
+  
+    /* Навигация */
+    .nav-mobile {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 0.5rem;
+    }
+  
+    /* Модальные окна */
+    .modal-mobile {
+      margin: 1rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+  
+    /* Изображения */
+    .img-responsive {
+      max-width: 100%;
+      height: auto;
+    }
+  
+    /* Таблицы */
+    .table-mobile {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+  
+    /* Скрытие элементов на мобильных */
+    .hide-mobile {
+      display: none !important;
+    }
+  
+    /* Показывать только на мобильных */
+    .show-mobile {
+      display: block !important;
+    }
+  }
+  
+  /* Планшеты */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  
+    .hide-tablet {
+      display: none !important;
+    }
+  
+    .show-tablet {
+      display: block !important;
+    }
+  }
+  
+  /* Десктоп */
+  @media (min-width: 1024px) {
+    .hide-desktop {
+      display: none !important;
+    }
+  
+    .show-desktop {
+      display: block !important;
+    }
+  }
+  
+  /* Специальные классы для touch-устройств */
+  @media (hover: none) and (pointer: coarse) {
+    /* Увеличиваем область нажатия для touch-устройств */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0.75rem;
+    }
+  
+    /* Убираем hover-эффекты на touch-устройствах */
+    .no-touch-hover:hover {
+      transform: none !important;
+      box-shadow: inherit !important;
+    }
+  }
+  
+  /* Accessibility improvements */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Высококонтрастный режим */
+  @media (prefers-contrast: high) {
+    .card {
+      border: 2px solid #000;
+    }
+    
+    .btn {
+      border: 2px solid #000;
+    }
+  }
+  
+  /* Темная тема */
+  @media (prefers-color-scheme: dark) {
+    .auto-dark {
+      background-color: #1f2937;
+      color: #f9fafb;
+    }
+  }
+  
+  /* Дополнительные утилиты для мобильной адаптации */
+  .mobile-padding {
+    padding: 1rem;
+  }
+  
+  .mobile-margin {
+    margin: 0.75rem;
+  }
+  
+  .mobile-text {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .mobile-heading {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+  }
+  
+  /* Фиксированные размеры для touch-интерфейса */
+  .touch-button {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Адаптивная сетка */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .mobile-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  /* Улучшенная типография для мобильных */
+  .mobile-typography {
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+  
+  .mobile-typography h1,
+  .mobile-typography h2,
+  .mobile-typography h3 {
+    margin-bottom: 1rem;
+    line-height: 1.3;
+  }
+  
+  .mobile-typography p {
+    margin-bottom: 1rem;
+  }
+  
+  /* Оптимизация для iOS Safari */
+  @supports (-webkit-touch-callout: none) {
+    .ios-fix {
+      -webkit-appearance: none;
+      border-radius: 0;
+    }
+  }
+  
+  /* Дополнительные стили для страницы настроек профиля */
+  .profile-page-container {
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  
+  /* Улучшенная адаптация для карточек профиля */
+  .profile-card {
+    margin: 0 8px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+  
+  .profile-header {
+    padding: 16px 20px;
+    text-align: center;
+  }
+  
+  .profile-avatar {
+    width: 80px !important;
+    height: 80px !important;
+    margin: 0 auto 12px;
+  }
+  
+  .profile-form-container {
+    padding: 16px 20px;
+  }
+  
+  .profile-input-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .profile-button-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .profile-button-group button {
+    width: 100%;
+    min-height: 44px;
+  }
+  
+  /* Адаптация для планшетов */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .profile-card {
+      margin: 0 16px;
+    }
+    
+    .profile-input-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+  }
+  
+  /* Улучшенные стили для декоративных элементов */
+  @media (max-width: 640px) {
+    .decorative-blur {
+      opacity: 0.3;
+      transform: scale(0.7);
+    }
+  }
+  
+  /* Адаптивные отступы для уведомлений */
+  .notification-alert {
+    margin: 12px 16px 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  
+  @media (min-width: 640px) {
+    .notification-alert {
+      margin: 16px 0 20px;
+      padding: 16px 20px;
+      font-size: 16px;
+    }
+  }
+  
+  /* Стили для мобильной адаптации форм */
+  .mobile-form-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+  }
+  
+  .mobile-form-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-form-title {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+  }
+  
+  /* Адаптивные кнопки действий */
+  .action-button-mobile {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+  
+  @media (min-width: 640px) {
+    .action-button-mobile {
+      min-height: auto;
+      font-size: 16px;
+      padding: 10px 20px;
+      border-radius: 10px;
+    }
+  }
+  
+  /* Улучшенная типографика для мобильных */
+  .mobile-typography h1 {
+    font-size: 20px;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-typography h2 {
+    font-size: 18px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  
+  .mobile-typography p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-typography h1 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    
+    .mobile-typography h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    
+    .mobile-typography p {
+      font-size: 16px;
+    }
+  }
+  
+  /* Стили для улучшения touch-взаимодействия */
+  .touch-optimized {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  
+  .touch-optimized:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease-out;
+  }
+  
+  /* Адаптивные размеры иконок */
+  .mobile-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-icon {
+      width: 20px;
+      height: 20px;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .mobile-icon {
+      width: 24px;
+      height: 24px;
+    }
+  } 

@@ -1,0 +1,56 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme based on frontend design -->
+    <style name="Base.Theme.VrachiApp" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary colors from frontend (#3b82f6) -->
+        <item name="colorPrimary">@color/medical_primary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/medical_primary_light</item>
+        <item name="colorOnPrimaryContainer">@color/medical_primary_dark</item>
+        
+        <!-- Secondary colors -->
+        <item name="colorSecondary">@color/medical_secondary</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSecondaryContainer">@color/gray_100</item>
+        <item name="colorOnSecondaryContainer">@color/gray_800</item>
+        
+        <!-- Tertiary colors -->
+        <item name="colorTertiary">@color/medical_accent</item>
+        <item name="colorOnTertiary">@color/white</item>
+        <item name="colorTertiaryContainer">@color/gray_50</item>
+        <item name="colorOnTertiaryContainer">@color/gray_900</item>
+        
+        <!-- Surface colors like frontend -->
+        <item name="colorSurface">@color/white</item>
+        <item name="colorOnSurface">@color/medical_text</item>
+        <item name="colorSurfaceVariant">@color/gray_50</item>
+        <item name="colorOnSurfaceVariant">@color/medical_text_secondary</item>
+        
+        <!-- Error colors -->
+        <item name="colorError">@color/medical_error</item>
+        <item name="colorOnError">@color/white</item>
+        <item name="colorErrorContainer">@color/medical_error</item>
+        <item name="colorOnErrorContainer">@color/white</item>
+        
+        <!-- System bars -->
+        <item name="android:windowBackground">@color/medical_background</item>
+        <item name="android:statusBarColor">@color/medical_primary</item>
+        <item name="android:navigationBarColor">@color/medical_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!-- Main application theme -->
+    <style name="Theme.VrachiApp" parent="Base.Theme.VrachiApp" />
+    
+    <!-- Splash screen theme with blue primary color -->
+    <style name="Theme.VrachiApp.Splash" parent="Base.Theme.VrachiApp">
+        <item name="android:windowBackground">@color/medical_primary</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@color/medical_primary</item>
+        <item name="android:navigationBarColor">@color/medical_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

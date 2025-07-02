@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Primary colors from frontend -->
+    <color name="medical_primary">#3b82f6</color>
+    <color name="medical_primary_dark">#1d4ed8</color>
+    <color name="medical_primary_light">#93c5fd</color>
+    
+    <!-- Secondary colors from frontend -->
+    <color name="medical_secondary">#64748b</color>
+    <color name="medical_accent">#6366f1</color>
+    
+    <!-- Status colors from frontend -->
+    <color name="medical_success">#22c55e</color>
+    <color name="medical_warning">#f59e0b</color>
+    <color name="medical_error">#ef4444</color>
+    <color name="medical_info">#06b6d4</color>
+    
+    <!-- Gray scale from frontend -->
+    <color name="medical_background">#ffffff</color>
+    <color name="medical_surface">#f8fafc</color>
+    <color name="gray_50">#f8fafc</color>
+    <color name="gray_100">#f1f5f9</color>
+    <color name="gray_200">#e2e8f0</color>
+    <color name="gray_300">#cbd5e1</color>
+    <color name="gray_400">#94a3b8</color>
+    <color name="gray_500">#64748b</color>
+    <color name="gray_600">#475569</color>
+    <color name="gray_700">#334155</color>
+    <color name="gray_800">#1e293b</color>
+    <color name="gray_900">#0f172a</color>
+    
+    <!-- Text colors from frontend -->
+    <color name="medical_text">#1e293b</color>
+    <color name="medical_text_secondary">#64748b</color>
+    <color name="medical_text_light">#94a3b8</color>
+    
+    <!-- Card and component colors -->
+    <color name="medical_card_background">#ffffff</color>
+    <color name="medical_divider">#e2e8f0</color>
+    
+    <!-- Gradient colors for use in gradients -->
+    <color name="gradient_start">#3b82f6</color>
+    <color name="gradient_mid">#60a5fa</color>
+    <color name="gradient_end">#93c5fd</color>
+    
+    <!-- Additional gradient combinations -->
+    <color name="gradient_indigo_start">#4f46e5</color>
+    <color name="gradient_indigo_end">#6366f1</color>
+    <color name="gradient_purple_start">#7c3aed</color>
+    <color name="gradient_purple_end">#a855f7</color>
+</resources>
