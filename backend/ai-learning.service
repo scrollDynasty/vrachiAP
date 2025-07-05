@@ -1,0 +1,36 @@
+[Unit]
+Description=Healzy AI Continuous Learning System
+Documentation=https://healzy.uz/docs/ai-learning
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/healzy.app/backend
+Environment="PATH=/var/www/healzy.app/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/var/www/healzy.app/backend"
+Environment="PYTHONUNBUFFERED=1"
+
+# Команда запуска
+ExecStart=/var/www/healzy.app/venv/bin/python ai_continuous_learning.py
+
+# Перезапуск при сбоях
+Restart=always
+RestartSec=10
+
+# Лимиты ресурсов
+CPUQuota=50%
+MemoryLimit=2G
+MemorySwapMax=0
+
+# Логирование
+StandardOutput=append:/var/log/healzy/ai-learning.log
+StandardError=append:/var/log/healzy/ai-learning-error.log
+
+# Таймауты
+TimeoutStartSec=300
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target 

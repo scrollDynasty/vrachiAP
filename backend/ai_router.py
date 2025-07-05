@@ -1,5 +1,5 @@
 """
-AI Router - API роутер для AI диагностики
+AI Router - API роутер для реальной AI диагностики с интеграцией БД
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
@@ -12,8 +12,13 @@ import json
 
 # Импорты из основного проекта
 from auth import get_current_user, require_role
-from models import User, get_db
-from ai_service import MedicalAI, DataCollector, ModelTrainer
+from models import (
+    User, get_db, AIDiagnosis, AITrainingData, AIModel, 
+    AIModelTraining, AIFeedback
+)
+from ai_service.inference import MedicalAI
+from ai_service.data_collector import RealDataCollector
+from ai_service.model_trainer import ModelTrainer
 from ai_service.utils import monitor_performance, format_response, generate_request_id
 from pydantic import BaseModel, Field
 
@@ -26,7 +31,7 @@ router = APIRouter(prefix="/api/ai", tags=["AI Диагностика"])
 
 # Глобальные экземпляры AI сервисов
 medical_ai = MedicalAI()
-data_collector = DataCollector()
+data_collector = RealDataCollector()
 model_trainer = ModelTrainer()
 
 
@@ -54,25 +59,28 @@ class DiagnosisResponse(BaseModel):
 
 class TrainingRequest(BaseModel):
     """Запрос на обучение модели"""
-    data_source: str = Field("synthetic", description="Источник данных для обучения")
-    model_type: str = Field("sklearn", description="Тип модели для обучения")
+    data_source: str = Field("collected", description="Источник данных для обучения")
+    model_type: str = Field("all", description="Тип модели для обучения")
     retrain_all: bool = Field(False, description="Переобучить все модели")
+    epochs: Optional[int] = Field(10, description="Количество эпох обучения")
+    learning_rate: Optional[float] = Field(0.001, description="Скорость обучения")
 
 
 class DataCollectionRequest(BaseModel):
     """Запрос на сбор данных"""
-    max_pages: int = Field(50, description="Максимальное количество страниц для сбора", ge=1, le=500)
+    max_articles: int = Field(50, description="Максимальное количество статей для сбора", ge=1, le=500)
     sources: Optional[List[str]] = Field(None, description="Источники для сбора данных")
+    languages: Optional[List[str]] = Field(['en', 'ru'], description="Языки для сбора")
 
 
-class KnowledgeBaseUpdate(BaseModel):
-    """Обновление базы знаний"""
-    diseases: Optional[Dict] = Field(None, description="Новые данные о заболеваниях")
-    symptoms: Optional[Dict] = Field(None, description="Новые данные о симптомах")
-    treatments: Optional[Dict] = Field(None, description="Новые данные о лечении")
+class AIFeedbackCreate(BaseModel):
+    diagnosis_id: int
+    was_correct: bool
+    actual_disease: Optional[str] = None
+    additional_notes: Optional[str] = None
 
 
-@router.post("/diagnosis", response_model=DiagnosisResponse, summary="Диагностика симптомов")
+@router.post("/diagnosis", response_model=DiagnosisResponse, summary="Реальная AI диагностика симптомов")
 @monitor_performance
 async def diagnose_symptoms(
     request: DiagnosisRequest,
@@ -80,7 +88,7 @@ async def diagnose_symptoms(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Анализ симптомов пациента и предоставление рекомендаций
+    Реальный анализ симптомов пациента с использованием AI и сохранением в БД
     
     - **symptoms_description**: Описание симптомов пациента
     - **patient_age**: Возраст пациента (опционально)
@@ -91,7 +99,14 @@ async def diagnose_symptoms(
         start_time = datetime.now()
         request_id = generate_request_id()
         
-        logger.info(f"Новый запрос на диагностику от пользователя {current_user.id}, request_id: {request_id}")
+        logger.info(f"Новый запрос на AI диагностику от пользователя {current_user.id}, request_id: {request_id}")
+        
+        # Проверяем роль пользователя
+        if current_user.role != 'patient':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="AI диагностика доступна только для пациентов"
+            )
         
         # Формируем полный текст для анализа
         full_text = request.symptoms_description
@@ -105,8 +120,8 @@ async def diagnose_symptoms(
             gender_text = {"male": "мужчина", "female": "женщина", "other": "другой пол"}
             full_text += f" Пол: {gender_text.get(request.patient_gender, request.patient_gender)}"
         
-        # Выполняем анализ
-        analysis_result = await medical_ai.analyze_symptoms(full_text)
+        # Выполняем реальный AI анализ
+        analysis_result = await medical_ai.analyze_symptoms(full_text, patient_id=current_user.id)
         
         # Рассчитываем время обработки
         processing_time = (datetime.now() - start_time).total_seconds()
@@ -117,108 +132,193 @@ async def diagnose_symptoms(
             extracted_symptoms=analysis_result.get("extracted_symptoms", []),
             possible_diseases=analysis_result.get("possible_diseases", []),
             recommendations=analysis_result.get("recommendations", []),
-            urgency=analysis_result.get("urgency", "unknown"),
+            urgency=analysis_result.get("urgency", "medium"),
             confidence=analysis_result.get("confidence", 0.0),
-            disclaimer=analysis_result.get("disclaimer", "Это предварительный анализ. Обязательно проконсультируйтесь с врачом."),
+            disclaimer=analysis_result.get("disclaimer", "Это предварительный анализ AI. Обязательно проконсультируйтесь с врачом."),
             processing_time=processing_time,
             timestamp=datetime.now().isoformat()
         )
         
-        logger.info(f"Диагностика завершена, request_id: {request_id}, время: {processing_time:.2f}с")
+        logger.info(f"AI диагностика завершена, request_id: {request_id}, время: {processing_time:.2f}с")
         
         return response
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Ошибка при диагностике: {str(e)}")
+        logger.error(f"Ошибка при AI диагностике: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при анализе симптомов: {str(e)}"
         )
 
 
-@router.get("/disease/{disease_name}", summary="Информация о заболевании")
+@router.get("/patient/history", summary="История AI диагностики пациента")
 @monitor_performance
-async def get_disease_info(
-    disease_name: str,
+async def get_patient_diagnosis_history(
+    limit: int = 20,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Получение подробной информации о заболевании
-    
-    - **disease_name**: Название заболевания
+    Получение истории AI диагностики текущего пациента
     """
     try:
-        logger.info(f"Запрос информации о заболевании: {disease_name}")
-        
-        disease_info = await medical_ai.get_disease_info(disease_name)
-        
-        if "error" in disease_info:
+        if current_user.role != 'patient':
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=disease_info["error"]
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Доступ только для пациентов"
             )
         
-        return format_response(disease_info, message=f"Информация о заболевании: {disease_name}")
+        # Получаем историю диагностики
+        diagnoses = db.query(AIDiagnosis).filter(
+            AIDiagnosis.patient_id == current_user.id
+        ).order_by(AIDiagnosis.created_at.desc()).offset(offset).limit(limit).all()
+        
+        # Подсчитываем общее количество
+        total = db.query(AIDiagnosis).filter(
+            AIDiagnosis.patient_id == current_user.id
+        ).count()
+        
+        # Форматируем данные
+        diagnosis_history = []
+        for diagnosis in diagnoses:
+            diagnosis_history.append({
+                "id": diagnosis.id,
+                "symptoms_description": diagnosis.symptoms_description,
+                "extracted_symptoms": diagnosis.extracted_symptoms or [],
+                "possible_diseases": diagnosis.possible_diseases or [],
+                "recommendations": diagnosis.recommendations or [],
+                "urgency_level": diagnosis.urgency_level,
+                "confidence_score": diagnosis.confidence_score,
+                "processing_time": diagnosis.processing_time,
+                "model_version": diagnosis.model_version,
+                "created_at": diagnosis.created_at.isoformat(),
+                "feedback_rating": diagnosis.feedback_rating
+            })
+        
+        return format_response({
+            "diagnosis_history": diagnosis_history,
+            "total": total,
+            "offset": offset,
+            "limit": limit
+        }, message="История AI диагностики получена")
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Ошибка при получении информации о заболевании: {str(e)}")
+        logger.error(f"Ошибка при получении истории диагностики: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении информации: {str(e)}"
+            detail=f"Ошибка при получении истории: {str(e)}"
         )
 
 
-@router.post("/admin/train", summary="Обучение AI моделей")
-@monitor_performance
-async def train_ai_models(
-    request: TrainingRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+@router.post("/feedback")
+async def submit_feedback(
+    feedback: AIFeedbackCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Обучение AI моделей (доступно только администраторам)
-    
-    - **data_source**: Источник данных (synthetic, collected)
-    - **model_type**: Тип модели (sklearn, transformer)
-    - **retrain_all**: Переобучить все модели
+    Сохранение обратной связи для улучшения AI
+    Позволяет системе обучаться на реальных случаях
     """
     try:
-        logger.info(f"Администратор {current_user.id} запустил обучение моделей")
+        # Проверяем, существует ли диагноз
+        diagnosis = db.query(AIDiagnosis).filter(
+            AIDiagnosis.id == feedback.diagnosis_id,
+            AIDiagnosis.user_id == current_user.id
+        ).first()
         
-        # Запускаем обучение в фоновом режиме
-        if request.retrain_all:
-            background_tasks.add_task(
-                train_all_models_background,
-                request.data_source,
-                request.model_type
-            )
-            message = "Запущено обучение всех моделей в фоновом режиме"
+        if not diagnosis:
+            raise HTTPException(status_code=404, detail="Диагноз не найден")
+        
+        # Проверяем, не оставлял ли пользователь уже отзыв
+        existing_feedback = db.query(AIFeedback).filter(
+            AIFeedback.diagnosis_id == feedback.diagnosis_id,
+            AIFeedback.user_id == current_user.id
+        ).first()
+        
+        if existing_feedback:
+            # Обновляем существующий отзыв
+            existing_feedback.was_correct = feedback.was_correct
+            existing_feedback.actual_disease = feedback.actual_disease
+            existing_feedback.additional_notes = feedback.additional_notes
+            existing_feedback.updated_at = datetime.now()
         else:
-            background_tasks.add_task(
-                train_specific_model_background,
-                request.data_source,
-                request.model_type
+            # Создаем новый отзыв
+            ai_feedback = AIFeedback(
+                user_id=current_user.id,
+                diagnosis_id=feedback.diagnosis_id,
+                was_correct=feedback.was_correct,
+                actual_disease=feedback.actual_disease,
+                additional_notes=feedback.additional_notes
             )
-            message = "Запущено обучение модели в фоновом режиме"
+            db.add(ai_feedback)
         
-        return format_response(
-            {"status": "training_started", "data_source": request.data_source, "model_type": request.model_type},
-            message=message
-        )
+        db.commit()
+        
+        # Логируем для системы обучения
+        logger.info(f"Получена обратная связь: диагноз #{feedback.diagnosis_id}, "
+                   f"корректность: {feedback.was_correct}")
+        
+        return {
+            "success": True,
+            "message": "Спасибо за обратную связь! Это поможет улучшить систему.",
+            "feedback_status": "updated" if existing_feedback else "created"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении обратной связи: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при сохранении отзыва")
+
+
+@router.get("/feedback/stats")
+async def get_feedback_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Получение статистики по обратной связи пользователя
+    """
+    try:
+        user_feedbacks = db.query(AIFeedback).filter(
+            AIFeedback.user_id == current_user.id
+        ).all()
+        
+        total_feedback = len(user_feedbacks)
+        correct_diagnoses = sum(1 for f in user_feedbacks if f.was_correct)
+        
+        # Статистика по заболеваниям
+        disease_stats = {}
+        for feedback in user_feedbacks:
+            if feedback.actual_disease:
+                disease = feedback.actual_disease.lower()
+                if disease not in disease_stats:
+                    disease_stats[disease] = 0
+                disease_stats[disease] += 1
+        
+        return {
+            "total_feedback": total_feedback,
+            "correct_diagnoses": correct_diagnoses,
+            "accuracy": correct_diagnoses / total_feedback if total_feedback > 0 else 0,
+            "common_diseases": sorted(
+                disease_stats.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:5]  # Топ-5 заболеваний
+        }
         
     except Exception as e:
-        logger.error(f"Ошибка при запуске обучения: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при запуске обучения: {str(e)}"
-        )
+        logger.error(f"Ошибка при получении статистики: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка при получении статистики")
 
 
-@router.post("/admin/collect-data", summary="Сбор медицинских данных")
+@router.post("/admin/collect-data", summary="Запуск сбора медицинских данных")
 @monitor_performance
 async def collect_medical_data(
     request: DataCollectionRequest,
@@ -227,25 +327,24 @@ async def collect_medical_data(
     current_user: User = Depends(require_role("admin"))
 ):
     """
-    Сбор медицинских данных из интернета (доступно только администраторам)
-    
-    - **max_pages**: Максимальное количество страниц для сбора
-    - **sources**: Список источников (опционально)
+    Запуск реального сбора медицинских данных из источников (только для администраторов)
     """
     try:
-        logger.info(f"Администратор {current_user.id} запустил сбор данных")
+        logger.info(f"Администратор {current_user.id} запустил сбор медицинских данных")
         
         # Запускаем сбор данных в фоновом режиме
         background_tasks.add_task(
             collect_data_background,
-            request.max_pages,
-            request.sources
+            request.max_articles,
+            request.sources,
+            request.languages
         )
         
-        return format_response(
-            {"status": "data_collection_started", "max_pages": request.max_pages},
-            message="Запущен сбор медицинских данных в фоновом режиме"
-        )
+        return format_response({
+            "message": f"Запущен сбор медицинских данных (лимит: {request.max_articles})",
+            "status": "started",
+            "expected_duration": "5-15 минут"
+        })
         
     except Exception as e:
         logger.error(f"Ошибка при запуске сбора данных: {str(e)}")
@@ -255,84 +354,117 @@ async def collect_medical_data(
         )
 
 
-@router.put("/admin/knowledge-base", summary="Обновление базы знаний")
+@router.post("/admin/train", summary="Запуск обучения AI моделей")
 @monitor_performance
-async def update_knowledge_base(
-    request: KnowledgeBaseUpdate,
+async def train_ai_models(
+    request: TrainingRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
     """
-    Обновление базы знаний AI (доступно только администраторам)
-    
-    - **diseases**: Новые данные о заболеваниях
-    - **symptoms**: Новые данные о симптомах
-    - **treatments**: Новые данные о лечении
+    Запуск обучения AI моделей (только для администраторов)
     """
     try:
-        logger.info(f"Администратор {current_user.id} обновляет базу знаний")
+        logger.info(f"Администратор {current_user.id} запустил обучение AI моделей")
         
-        # Подготавливаем данные для обновления
-        update_data = {}
-        if request.diseases:
-            update_data['diseases'] = request.diseases
-        if request.symptoms:
-            update_data['symptoms'] = request.symptoms
-        if request.treatments:
-            update_data['treatments'] = request.treatments
+        # Запускаем обучение в фоновом режиме
+        background_tasks.add_task(
+            train_models_background,
+            request.data_source,
+            request.model_type,
+            request.epochs,
+            request.learning_rate,
+            current_user.id
+        )
         
-        if not update_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Не предоставлены данные для обновления"
-            )
+        return format_response({
+            "message": f"Запущено обучение AI моделей ({request.model_type})",
+            "status": "started",
+            "parameters": {
+                "data_source": request.data_source,
+                "model_type": request.model_type,
+                "epochs": request.epochs,
+                "learning_rate": request.learning_rate
+            },
+            "expected_duration": "10-30 минут"
+        })
         
-        # Обновляем базу знаний
-        result = await medical_ai.update_knowledge_base(update_data)
-        
-        if result.get('status') == 'error':
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('message', 'Ошибка при обновлении базы знаний')
-            )
-        
-        return format_response(result, message="База знаний успешно обновлена")
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Ошибка при обновлении базы знаний: {str(e)}")
+        logger.error(f"Ошибка при запуске обучения моделей: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при обновлении базы знаний: {str(e)}"
+            detail=f"Ошибка при запуске обучения: {str(e)}"
         )
 
 
-@router.get("/admin/stats", summary="Статистика AI сервиса")
+@router.get("/admin/stats", summary="Статистика AI системы")
 @monitor_performance
 async def get_ai_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
     """
-    Получение статистики AI сервиса (доступно только администраторам)
+    Получение статистики AI системы (только для администраторов)
     """
     try:
-        # Получаем статистику обучения
-        training_stats = model_trainer.get_training_stats()
+        # Статистика диагностики
+        total_diagnoses = db.query(AIDiagnosis).count()
+        today_diagnoses = db.query(AIDiagnosis).filter(
+            AIDiagnosis.created_at >= datetime.now().date()
+        ).count()
         
-        # Получаем статистику производительности
-        from ai_service.utils import performance_monitor
-        performance_stats = performance_monitor.get_metrics()
+        # Статистика моделей
+        active_models = db.query(AIModel).filter(AIModel.is_active == True).count()
+        total_models = db.query(AIModel).count()
         
-        stats = {
-            "training_statistics": training_stats,
-            "performance_metrics": performance_stats,
-            "service_status": "active",
-            "timestamp": datetime.now().isoformat()
-        }
+        # Статистика обучающих данных
+        total_training_data = db.query(AITrainingData).count()
+        processed_data = db.query(AITrainingData).filter(
+            AITrainingData.is_processed == True
+        ).count()
         
-        return format_response(stats, message="Статистика AI сервиса")
+        # Статистика обратной связи
+        total_feedback = db.query(AIFeedback).count()
+        avg_rating = db.query(AIFeedback.rating).scalar() or 0
+        
+        # Последние обучения
+        recent_trainings = db.query(AIModelTraining).order_by(
+            AIModelTraining.created_at.desc()
+        ).limit(5).all()
+        
+        training_history = []
+        for training in recent_trainings:
+            training_history.append({
+                "id": training.id,
+                "model_type": training.model.model_type if training.model else "unknown",
+                "status": training.status,
+                "started_at": training.started_at.isoformat() if training.started_at else None,
+                "duration": training.duration,
+                "created_at": training.created_at.isoformat()
+            })
+        
+        return format_response({
+            "diagnoses": {
+                "total": total_diagnoses,
+                "today": today_diagnoses
+            },
+            "models": {
+                "active": active_models,
+                "total": total_models
+            },
+            "training_data": {
+                "total": total_training_data,
+                "processed": processed_data,
+                "processed_percentage": round((processed_data / max(1, total_training_data)) * 100, 1)
+            },
+            "feedback": {
+                "total": total_feedback,
+                "average_rating": round(avg_rating, 1)
+            },
+            "recent_trainings": training_history,
+            "system_status": "operational"
+        }, message="Статистика AI системы")
         
     except Exception as e:
         logger.error(f"Ошибка при получении статистики: {str(e)}")
@@ -342,104 +474,58 @@ async def get_ai_stats(
         )
 
 
-@router.get("/patient/history", summary="История диагностики пациента")
-@monitor_performance
-async def get_patient_diagnosis_history(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("patient"))
-):
-    """
-    Получение истории диагностики для пациента
-    """
-    try:
-        # Здесь можно добавить логику для сохранения и получения истории диагностики
-        # Пока возвращаем заглушку
-        history = {
-            "patient_id": current_user.id,
-            "diagnosis_history": [],
-            "total_diagnoses": 0,
-            "last_diagnosis": None
-        }
-        
-        return format_response(history, message="История диагностики пациента")
-        
-    except Exception as e:
-        logger.error(f"Ошибка при получении истории диагностики: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при получении истории: {str(e)}"
-        )
-
-
 # Фоновые задачи
-async def train_all_models_background(data_source: str, model_type: str):
-    """Фоновая задача для обучения всех моделей"""
+async def collect_data_background(max_articles: int, sources: Optional[List[str]] = None, languages: Optional[List[str]] = None):
+    """Фоновый сбор данных"""
     try:
-        logger.info(f"Запуск обучения всех моделей: {data_source}, {model_type}")
+        logger.info(f"Запуск фонового сбора данных: {max_articles} статей")
+        
+        collector = RealDataCollector()
+        result = await collector.collect_all_sources(limit=max_articles)
+        
+        logger.info(f"Фоновый сбор данных завершен: {result}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в фоновом сборе данных: {e}")
+
+
+async def train_models_background(data_source: str, model_type: str, epochs: int, learning_rate: float, user_id: int):
+    """Фоновое обучение моделей"""
+    try:
+        logger.info(f"Запуск фонового обучения моделей: {model_type}")
+        
+        trainer = ModelTrainer()
         
         # Загружаем данные
-        success = model_trainer.load_training_data(data_source)
-        if not success:
-            logger.error("Не удалось загрузить данные для обучения")
-            return
+        trainer.load_training_data(data_source)
         
-        # Обучаем все модели
-        results = await model_trainer.train_all_models()
+        # Запускаем обучение
+        if model_type == "all":
+            result = await trainer.train_all_models()
+        else:
+            # Обучение конкретного типа модели
+            if model_type == "symptom_classifier":
+                result = await trainer.train_symptom_classifier()
+            elif model_type == "disease_classifier":
+                result = await trainer.train_disease_classifier()
+            else:
+                raise ValueError(f"Неизвестный тип модели: {model_type}")
         
-        logger.info(f"Обучение завершено: {results}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в фоновом обучении: {str(e)}")
-
-
-async def train_specific_model_background(data_source: str, model_type: str):
-    """Фоновая задача для обучения конкретной модели"""
-    try:
-        logger.info(f"Запуск обучения модели: {data_source}, {model_type}")
-        
-        # Загружаем данные
-        success = model_trainer.load_training_data(data_source)
-        if not success:
-            logger.error("Не удалось загрузить данные для обучения")
-            return
-        
-        # Обучаем модель симптомов
-        results = await model_trainer.train_symptom_classifier(model_type)
-        
-        logger.info(f"Обучение модели завершено: {results}")
+        logger.info(f"Фоновое обучение моделей завершено: {result}")
         
     except Exception as e:
-        logger.error(f"Ошибка в фоновом обучении модели: {str(e)}")
+        logger.error(f"Ошибка в фоновом обучении моделей: {e}")
 
 
-async def collect_data_background(max_pages: int, sources: Optional[List[str]] = None):
-    """Фоновая задача для сбора данных"""
-    try:
-        logger.info(f"Запуск сбора данных: {max_pages} страниц")
-        
-        async with data_collector:
-            await data_collector.collect_medical_data(max_pages)
-        
-        logger.info("Сбор данных завершен")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в фоновом сборе данных: {str(e)}")
-
-
-# Инициализация AI сервиса при старте
 @router.on_event("startup")
 async def startup_ai_service():
-    """Инициализация AI сервиса при старте приложения"""
+    """Инициализация AI сервиса при старте"""
     try:
         logger.info("Инициализация AI сервиса...")
-        
-        # Здесь можно добавить инициализацию моделей
-        # Например, загрузку предобученных моделей
-        
-        logger.info("AI сервис инициализирован")
-        
+        # Здесь можно добавить дополнительную инициализацию
+        logger.info("AI сервис инициализирован успешно")
     except Exception as e:
-        logger.error(f"Ошибка при инициализации AI сервиса: {str(e)}")
+        logger.error(f"Ошибка при инициализации AI сервиса: {e}")
 
 
 @router.on_event("shutdown")
@@ -447,10 +533,7 @@ async def shutdown_ai_service():
     """Завершение работы AI сервиса"""
     try:
         logger.info("Завершение работы AI сервиса...")
-        
-        # Здесь можно добавить очистку ресурсов
-        
+        # Здесь можно добавить cleanup логику
         logger.info("AI сервис завершен")
-        
     except Exception as e:
-        logger.error(f"Ошибка при завершении AI сервиса: {str(e)}") 
+        logger.error(f"Ошибка при завершении AI сервиса: {e}") 

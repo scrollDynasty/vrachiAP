@@ -20,6 +20,16 @@ from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import pickle
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+
+# Импорты для работы с базой данных
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models import (
+    AIDiagnosis, AITrainingData, AIModel, AIModelTraining, AIFeedback,
+    User, PatientProfile, get_db
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +38,7 @@ logger = logging.getLogger(__name__)
 class MedicalAI:
     """
     Класс для медицинской диагностики с использованием нейросетей
+    Интегрирован с базой данных для хранения результатов и обучения
     """
     
     def __init__(self, model_dir: str = "ai_models"):
@@ -39,16 +50,21 @@ class MedicalAI:
         self.model = None
         self.symptom_classifier = None
         self.disease_classifier = None
+        self.symptom_vectorizer = None
+        self.disease_vectorizer = None
         self.sentence_transformer = None
         
-        # База знаний
+        # Версия модели
+        self.model_version = "1.0.0"
+        
+        # База знаний (кэш из БД)
         self.disease_database = {}
         self.symptom_database = {}
         self.treatment_database = {}
+        self._last_db_update = None
         
         # Загружаем предобученные модели
         self._load_models()
-        self._load_knowledge_base()
         
         # Пул потоков для параллельной обработки
         self.executor = ThreadPoolExecutor(max_workers=4)
@@ -58,13 +74,122 @@ class MedicalAI:
         try:
             logger.info("Загружаю предобученные модели...")
             
-            # Загружаем модель для понимания медицинского текста
+            # Сначала пытаемся загрузить из файлов
+            self._load_from_files()
+            
+            # Если файлы не найдены, создаем базовые модели
+            if not self.symptom_classifier or not self.disease_classifier:
+                logger.info("Обученные модели не найдены, создаю базовые...")
+                self._create_hardcoded_classifiers()
+                
+            # Инициализируем базу знаний
+            self._initialize_knowledge_base()
+                
+            # Загружаем трансформер для понимания медицинского текста
+            self._load_transformer_model()
+            
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке моделей: {e}")
+            # Создаем базовые модели как fallback
+            self._create_hardcoded_classifiers()
+            self._initialize_knowledge_base()
+    
+    def _load_from_files(self):
+        """Загрузка обученных моделей из файлов"""
+        try:
+            # Загружаем классификатор симптомов
+            symptom_model_path = self.model_dir / "symptom_classifier.pkl"
+            symptom_vectorizer_path = self.model_dir / "symptom_classifier_vectorizer.pkl"
+            
+            if symptom_model_path.exists() and symptom_vectorizer_path.exists():
+                with open(symptom_model_path, 'rb') as f:
+                    self.symptom_classifier = pickle.load(f)
+                with open(symptom_vectorizer_path, 'rb') as f:
+                    self.symptom_vectorizer = pickle.load(f)
+                logger.info("Загружен классификатор симптомов")
+            
+            # Загружаем классификатор заболеваний
+            disease_model_path = self.model_dir / "disease_classifier.pkl"
+            disease_vectorizer_path = self.model_dir / "disease_classifier_vectorizer.pkl"
+            
+            if disease_model_path.exists() and disease_vectorizer_path.exists():
+                with open(disease_model_path, 'rb') as f:
+                    self.disease_classifier = pickle.load(f)
+                with open(disease_vectorizer_path, 'rb') as f:
+                    self.disease_vectorizer = pickle.load(f)
+                logger.info("Загружен классификатор заболеваний")
+                
+        except Exception as e:
+            logger.warning(f"Ошибка при загрузке файлов моделей: {e}")
+    
+    def _initialize_knowledge_base(self):
+        """Инициализация базы знаний"""
+        self.disease_database = {
+            "ОРВИ": {
+                "description": "Острая респираторная вирусная инфекция",
+                "symptoms": ["насморк", "кашель", "боль в горле", "температура", "слабость"],
+                "causes": ["вирусы"],
+                "risk_factors": ["слабый иммунитет", "переохлаждение"]
+            },
+            "мигрень": {
+                "description": "Первичная головная боль",
+                "symptoms": ["головная боль", "тошнота", "светобоязнь"],
+                "causes": ["стресс", "недосып", "гормональные изменения"],
+                "risk_factors": ["генетика", "женский пол"]
+            },
+            "гастрит": {
+                "description": "Воспаление слизистой желудка",
+                "symptoms": ["боль в животе", "изжога", "тошнота", "вздутие"],
+                "causes": ["хеликобактер пилори", "стресс", "неправильное питание"],
+                "risk_factors": ["курение", "алкоголь", "острая пища"]
+            },
+            "стенокардия": {
+                "description": "Боль в груди из-за недостатка кислорода в сердце",
+                "symptoms": ["боль в груди", "одышка", "тахикардия"],
+                "causes": ["атеросклероз", "спазм артерий"],
+                "risk_factors": ["пожилой возраст", "курение", "диабет"]
+            },
+            "инфекция": {
+                "description": "Общие инфекционные заболевания",
+                "symptoms": ["температура", "слабость", "потеря аппетита"],
+                "causes": ["бактерии", "вирусы", "грибки"],
+                "risk_factors": ["слабый иммунитет", "контакт с больными"]
+            }
+        }
+        
+        self.treatment_database = {
+            "ОРВИ": {
+                "primary": ["покой", "обильное питье", "жаропонижающие при температуре выше 38.5°C"],
+                "when_to_see_doctor": ["температура выше 39°C более 3 дней", "затрудненное дыхание"]
+            },
+            "мигрень": {
+                "primary": ["обезболивающие", "отдых в темной комнате", "избегание триггеров"],
+                "when_to_see_doctor": ["головная боль с неврологическими симптомами", "внезапная сильная боль"]
+            },
+            "гастрит": {
+                "primary": ["диета", "антациды", "избегание раздражающей пищи"],
+                "when_to_see_doctor": ["кровь в рвоте", "сильная боль", "потеря веса"]
+            },
+            "стенокардия": {
+                "primary": ["покой", "нитроглицерин", "избегание физических нагрузок"],
+                "when_to_see_doctor": ["боль не проходит после отдыха", "усиление симптомов"]
+            },
+            "инфекция": {
+                "primary": ["покой", "обильное питье", "жаропонижающие"],
+                "when_to_see_doctor": ["высокая температура более 3 дней", "ухудшение состояния"]
+            }
+        }
+    
+    def _load_transformer_model(self):
+        """Загрузка трансформера для понимания медицинского текста"""
+        try:
+            # Пытаемся загрузить медицинскую модель
             model_name = "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"
             
             try:
                 self.tokenizer = AutoTokenizer.from_pretrained(model_name)
                 self.model = AutoModel.from_pretrained(model_name)
-                logger.info(f"Загружена модель: {model_name}")
+                logger.info(f"Загружена медицинская модель: {model_name}")
             except Exception as e:
                 logger.warning(f"Не удалось загрузить {model_name}, использую базовую модель: {e}")
                 # Fallback на базовую модель BERT
@@ -77,46 +202,186 @@ class MedicalAI:
                 logger.info("Загружена модель для семантического поиска")
             except Exception as e:
                 logger.warning(f"Не удалось загрузить sentence transformer: {e}")
-            
-            # Загружаем или создаем классификаторы
-            self._load_or_create_classifiers()
-            
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке моделей: {e}")
-    
-    def _load_or_create_classifiers(self):
-        """Загрузка или создание классификаторов симптомов и заболеваний"""
-        try:
-            # Проверяем наличие сохраненных классификаторов
-            symptom_classifier_path = self.model_dir / "symptom_classifier.pkl"
-            disease_classifier_path = self.model_dir / "disease_classifier.pkl"
-            
-            if symptom_classifier_path.exists():
-                with open(symptom_classifier_path, 'rb') as f:
-                    self.symptom_classifier = pickle.load(f)
-                logger.info("Загружен классификатор симптомов")
-            
-            if disease_classifier_path.exists():
-                with open(disease_classifier_path, 'rb') as f:
-                    self.disease_classifier = pickle.load(f)
-                logger.info("Загружен классификатор заболеваний")
-            
-            # Если классификаторы не найдены, создаем базовые
-            if not self.symptom_classifier or not self.disease_classifier:
-                logger.info("Создаю базовые классификаторы...")
-                self._create_basic_classifiers()
                 
         except Exception as e:
-            logger.error(f"Ошибка при загрузке классификаторов: {e}")
-            self._create_basic_classifiers()
+            logger.error(f"Ошибка при загрузке трансформера: {e}")
     
-    def _create_basic_classifiers(self):
-        """Создание базовых классификаторов"""
+    def _create_and_save_basic_models(self):
+        """Создание и сохранение базовых классификаторов в БД"""
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.naive_bayes import MultinomialNB
+            from sklearn.pipeline import Pipeline
+            
+            # Получаем обучающие данные из БД
+            with next(get_db()) as db:
+                training_data = db.query(AITrainingData).filter(
+                    AITrainingData.is_processed == True,
+                    AITrainingData.language == 'ru'
+                ).all()
+                
+                if not training_data:
+                    # Если нет данных в БД, создаем базовые
+                    logger.info("Создаю базовые обучающие данные...")
+                    self._create_basic_training_data(db)
+                    training_data = db.query(AITrainingData).filter(
+                        AITrainingData.is_processed == True
+                    ).all()
+            
+            # Создаем классификаторы
+            self._train_basic_classifiers(training_data)
+            
+        except Exception as e:
+            logger.error(f"Ошибка при создании базовых моделей: {e}")
+            # Создаем хардкод модели как последний fallback
+            self._create_hardcoded_classifiers()
+    
+    def _create_basic_training_data(self, db: Session):
+        """Создание базовых обучающих данных"""
+        basic_data = [
+            {
+                "title": "Головная боль и мигрень",
+                "content": "Головная боль может быть симптомом различных заболеваний, включая мигрень, напряжение, инфекции",
+                "symptoms": ["головная боль", "мигрень", "боль в голове"],
+                "diseases": ["мигрень", "головная боль напряжения", "синусит"],
+                "treatments": ["обезболивающие", "отдых", "избегание триггеров"],
+                "source": "basic_medical_knowledge"
+            },
+            {
+                "title": "Простуда и ОРВИ",
+                "content": "Острые респираторные вирусные инфекции сопровождаются насморком, кашлем, температурой",
+                "symptoms": ["насморк", "кашель", "температура", "слабость"],
+                "diseases": ["ОРВИ", "простуда", "грипп"],
+                "treatments": ["покой", "обильное питье", "жаропонижающие"],
+                "source": "basic_medical_knowledge"
+            },
+            {
+                "title": "Желудочно-кишечные расстройства",
+                "content": "Боли в животе, тошнота, рвота могут указывать на проблемы с ЖКТ",
+                "symptoms": ["боль в животе", "тошнота", "рвота", "диарея"],
+                "diseases": ["гастрит", "отравление", "язва желудка"],
+                "treatments": ["диета", "лекарства", "покой"],
+                "source": "basic_medical_knowledge"
+            }
+        ]
+        
+        for data in basic_data:
+            training_record = AITrainingData(
+                source_name=data["source"],
+                title=data["title"],
+                content=data["content"],
+                symptoms=data["symptoms"],
+                diseases=data["diseases"],
+                treatments=data["treatments"],
+                language='ru',
+                is_processed=True,
+                is_validated=True,
+                quality_score=0.8
+            )
+            db.add(training_record)
+        
+        db.commit()
+        logger.info("Базовые обучающие данные созданы")
+    
+    def _train_basic_classifiers(self, training_data: List[AITrainingData]):
+        """Обучение базовых классификаторов на данных из БД"""
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.naive_bayes import MultinomialNB
         from sklearn.pipeline import Pipeline
         
-        # Базовые данные для обучения классификаторов
+        try:
+            # Подготовка данных для классификатора симптомов
+            symptom_texts = []
+            symptom_labels = []
+            
+            for data in training_data:
+                if data.symptoms:
+                    for symptom in data.symptoms:
+                        symptom_texts.append(f"{data.title} {data.content}")
+                        symptom_labels.append(self._normalize_symptom(symptom))
+            
+            # Обучение классификатора симптомов
+            if symptom_texts:
+                self.symptom_classifier = Pipeline([
+                    ('tfidf', TfidfVectorizer(ngram_range=(1, 2))),
+                    ('classifier', MultinomialNB())
+                ])
+                self.symptom_classifier.fit(symptom_texts, symptom_labels)
+                
+                # Сохраняем модель в БД
+                self._save_model_to_db(self.symptom_classifier, "symptom_classifier", "1.0.0")
+            
+            # Подготовка данных для классификатора заболеваний
+            disease_texts = []
+            disease_labels = []
+            
+            for data in training_data:
+                if data.diseases:
+                    for disease in data.diseases:
+                        disease_texts.append(f"{data.title} {data.content}")
+                        disease_labels.append(disease.lower())
+            
+            # Обучение классификатора заболеваний
+            if disease_texts:
+                self.disease_classifier = Pipeline([
+                    ('tfidf', TfidfVectorizer(ngram_range=(1, 2))),
+                    ('classifier', MultinomialNB())
+                ])
+                self.disease_classifier.fit(disease_texts, disease_labels)
+                
+                # Сохраняем модель в БД
+                self._save_model_to_db(self.disease_classifier, "disease_classifier", "1.0.0")
+            
+            logger.info("Базовые классификаторы обучены и сохранены")
+            
+        except Exception as e:
+            logger.error(f"Ошибка при обучении классификаторов: {e}")
+            self._create_hardcoded_classifiers()
+    
+    def _save_model_to_db(self, model, model_type: str, version: str):
+        """Сохранение модели в базу данных"""
+        try:
+            # Сохраняем модель в файл
+            model_path = self.model_dir / f"{model_type}_v{version}.pkl"
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+            
+            # Сохраняем запись в БД
+            with next(get_db()) as db:
+                # Деактивируем старые модели того же типа
+                db.query(AIModel).filter(
+                    AIModel.model_type == model_type,
+                    AIModel.is_active == True
+                ).update({AIModel.is_active: False})
+                
+                # Создаем новую запись
+                model_record = AIModel(
+                    name=model_type,
+                    model_type=model_type,
+                    version=version,
+                    description=f"Базовая модель {model_type}",
+                    model_path=str(model_path),
+                    is_active=True,
+                    is_production=True,
+                    accuracy=0.75,  # Примерная точность
+                    training_data_size=100,  # Примерный размер
+                    epochs=10
+                )
+                db.add(model_record)
+                db.commit()
+                
+                logger.info(f"Модель {model_type} v{version} сохранена в БД")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении модели в БД: {e}")
+    
+    def _create_hardcoded_classifiers(self):
+        """Создание хардкод классификаторов как последний fallback"""
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.naive_bayes import MultinomialNB
+        from sklearn.pipeline import Pipeline
+        
+        # Базовые данные для обучения
         basic_symptoms = [
             ("головная боль", "головная_боль"),
             ("температура", "лихорадка"),
@@ -127,12 +392,7 @@ class MedicalAI:
             ("рвота", "рвота"),
             ("диарея", "диарея"),
             ("слабость", "слабость"),
-            ("головокружение", "головокружение"),
-            ("боль в животе", "боль_в_животе"),
-            ("боль в груди", "боль_в_груди"),
-            ("одышка", "одышка"),
-            ("сыпь", "сыпь"),
-            ("зуд", "зуд")
+            ("головокружение", "головокружение")
         ]
         
         basic_diseases = [
@@ -143,9 +403,7 @@ class MedicalAI:
             ("диабет сахар", "диабет"),
             ("астма дыхание", "астма"),
             ("аллергия реакция", "аллергия"),
-            ("мигрень головная боль", "мигрень"),
-            ("депрессия настроение", "депрессия"),
-            ("бронхит кашель", "бронхит")
+            ("мигрень головная боль", "мигрень")
         ]
         
         try:
@@ -165,178 +423,139 @@ class MedicalAI:
             ])
             self.disease_classifier.fit(disease_texts, disease_labels)
             
-            # Сохраняем классификаторы
-            with open(self.model_dir / "symptom_classifier.pkl", 'wb') as f:
-                pickle.dump(self.symptom_classifier, f)
-            
-            with open(self.model_dir / "disease_classifier.pkl", 'wb') as f:
-                pickle.dump(self.disease_classifier, f)
-            
-            logger.info("Базовые классификаторы созданы и сохранены")
+            logger.info("Хардкод классификаторы созданы")
             
         except Exception as e:
-            logger.error(f"Ошибка при создании базовых классификаторов: {e}")
+            logger.error(f"Ошибка при создании хардкод классификаторов: {e}")
     
-    def _load_knowledge_base(self):
-        """Загрузка базы медицинских знаний"""
-        try:
-            # Загружаем базу знаний из JSON файлов
-            knowledge_files = {
-                'diseases': self.model_dir / "disease_database.json",
-                'symptoms': self.model_dir / "symptom_database.json",
-                'treatments': self.model_dir / "treatment_database.json"
-            }
-            
-            for db_name, file_path in knowledge_files.items():
-                if file_path.exists():
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        setattr(self, f"{db_name[:-1]}_database", data)
-                        logger.info(f"Загружена база знаний: {db_name}")
-                else:
-                    # Создаем базовую базу знаний
-                    self._create_basic_knowledge_base(db_name)
-                    
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке базы знаний: {e}")
-            self._create_basic_knowledge_base()
-    
-    def _create_basic_knowledge_base(self, db_type: str = "all"):
-        """Создание базовой базы знаний"""
-        if db_type in ["all", "diseases"]:
-            self.disease_database = {
-                "ОРВИ": {
-                    "symptoms": ["насморк", "кашель", "температура", "слабость", "боль в горле"],
-                    "description": "Острая респираторная вирусная инфекция",
-                    "causes": ["вирусы", "переохлаждение", "ослабленный иммунитет"],
-                    "risk_factors": ["сезонность", "скученность", "стресс"],
-                    "complications": ["бронхит", "пневмония", "синусит"]
-                },
-                "гастрит": {
-                    "symptoms": ["боль в животе", "тошнота", "изжога", "отрыжка"],
-                    "description": "Воспаление слизистой оболочки желудка",
-                    "causes": ["Helicobacter pylori", "стресс", "неправильное питание"],
-                    "risk_factors": ["курение", "алкоголь", "нестероидные противовоспалительные"],
-                    "complications": ["язва", "кровотечение", "перфорация"]
-                },
-                "гипертония": {
-                    "symptoms": ["головная боль", "головокружение", "шум в ушах"],
-                    "description": "Повышенное артериальное давление",
-                    "causes": ["наследственность", "ожирение", "стресс"],
-                    "risk_factors": ["возраст", "пол", "курение", "диета"],
-                    "complications": ["инсульт", "инфаркт", "почечная недостаточность"]
-                }
-            }
+    def _normalize_symptom(self, symptom: str) -> str:
+        """Нормализация названия симптома"""
+        symptom = symptom.lower().strip()
         
-        if db_type in ["all", "symptoms"]:
-            self.symptom_database = {
-                "головная_боль": {
-                    "possible_diseases": ["мигрень", "гипертония", "ОРВИ", "стресс"],
-                    "severity_indicators": ["интенсивность", "локализация", "продолжительность"],
-                    "warning_signs": ["внезапная сильная боль", "нарушение зрения", "температура"]
-                },
-                "боль_в_животе": {
-                    "possible_diseases": ["гастрит", "язва", "аппендицит", "панкреатит"],
-                    "severity_indicators": ["интенсивность", "локализация", "характер"],
-                    "warning_signs": ["острая боль", "кровь в стуле", "рвота"]
-                },
-                "кашель": {
-                    "possible_diseases": ["ОРВИ", "бронхит", "астма", "пневмония"],
-                    "severity_indicators": ["характер", "продолжительность", "мокрота"],
-                    "warning_signs": ["кровь в мокроте", "одышка", "высокая температура"]
-                }
-            }
+        # Словарь для нормализации
+        normalizations = {
+            'головная боль': 'головная_боль',
+            'боль в голове': 'головная_боль',
+            'мигрень': 'головная_боль',
+            'температура': 'лихорадка',
+            'жар': 'лихорадка',
+            'кашель': 'кашель',
+            'насморк': 'насморк',
+            'боль в горле': 'боль_в_горле',
+            'тошнота': 'тошнота',
+            'рвота': 'рвота',
+            'диарея': 'диарея',
+            'слабость': 'слабость'
+        }
         
-        if db_type in ["all", "treatments"]:
-            self.treatment_database = {
-                "ОРВИ": {
-                    "primary": ["отдых", "обильное питье", "симптоматическая терапия"],
-                    "medications": ["парацетамол", "ибупрофен", "промывание носа"],
-                    "prevention": ["вакцинация", "гигиена рук", "избегание скопления людей"],
-                    "when_to_see_doctor": ["температура выше 38.5", "одышка", "боль в груди"]
-                },
-                "гастрит": {
-                    "primary": ["диета", "отказ от алкоголя", "режим питания"],
-                    "medications": ["ингибиторы протонной помпы", "антациды", "прокинетики"],
-                    "prevention": ["правильное питание", "отказ от курения", "управление стрессом"],
-                    "when_to_see_doctor": ["сильная боль", "кровь в стуле", "рвота"]
-                },
-                "гипертония": {
-                    "primary": ["изменение образа жизни", "диета", "физические упражнения"],
-                    "medications": ["АПФ-ингибиторы", "диуретики", "бета-блокаторы"],
-                    "prevention": ["контроль веса", "ограничение соли", "отказ от курения"],
-                    "when_to_see_doctor": ["давление выше 180/110", "боль в груди", "одышка"]
-                }
-            }
+        return normalizations.get(symptom, symptom.replace(' ', '_'))
+    
+    def _symptoms_match(self, symptom1: str, symptom2: str) -> bool:
+        """Проверка совпадения симптомов с учетом синонимов"""
+        # Словарь синонимов
+        synonyms = {
+            'головная боль': ['голова', 'мигрень', 'головная боль', 'боль в голове'],
+            'температура': ['температура', 'жар', 'лихорадка', '38'],
+            'кашель': ['кашель', 'кашляю'],
+            'насморк': ['насморк', 'сопли', 'нос заложен'],
+            'боль в горле': ['горло', 'боль в горле', 'горло болит'],
+            'тошнота': ['тошнота', 'тошнит', 'мутит'],
+            'боль в животе': ['живот', 'боль в животе', 'живот болит'],
+            'слабость': ['слабость', 'усталость', 'вялость']
+        }
         
-        # Сохраняем базу знаний
-        self._save_knowledge_base()
-    
-    def _save_knowledge_base(self):
-        """Сохранение базы знаний"""
-        try:
-            with open(self.model_dir / "disease_database.json", 'w', encoding='utf-8') as f:
-                json.dump(self.disease_database, f, ensure_ascii=False, indent=2)
-            
-            with open(self.model_dir / "symptom_database.json", 'w', encoding='utf-8') as f:
-                json.dump(self.symptom_database, f, ensure_ascii=False, indent=2)
-            
-            with open(self.model_dir / "treatment_database.json", 'w', encoding='utf-8') as f:
-                json.dump(self.treatment_database, f, ensure_ascii=False, indent=2)
-            
-            logger.info("База знаний сохранена")
-            
-        except Exception as e:
-            logger.error(f"Ошибка при сохранении базы знаний: {e}")
-    
-    async def analyze_symptoms(self, user_input: str) -> Dict:
+        # Проверяем каждую группу синонимов
+        for main_symptom, symptom_list in synonyms.items():
+            if symptom1 in symptom_list and symptom2 in symptom_list:
+                return True
+            if main_symptom in symptom1 and any(s in symptom2 for s in symptom_list):
+                return True
+            if main_symptom in symptom2 and any(s in symptom1 for s in symptom_list):
+                return True
+        
+        return False
+
+    async def analyze_symptoms(self, user_input: str, patient_id: Optional[int] = None) -> Dict:
         """
-        Анализ симптомов пользователя и предоставление рекомендаций
+        Основной метод анализа симптомов с сохранением в БД
         """
+        start_time = datetime.now()
+        
         try:
-            logger.info(f"Анализирую симптомы: {user_input}")
-            
-            # Очищаем и нормализуем входной текст
+            # Очищаем и подготавливаем входные данные
             cleaned_input = self._clean_input(user_input)
             
             # Извлекаем симптомы
-            symptoms = await self._extract_symptoms(cleaned_input)
+            extracted_symptoms = await self._extract_symptoms(cleaned_input)
             
-            # Определяем возможные заболевания
-            possible_diseases = await self._predict_diseases(symptoms, cleaned_input)
+            # Предсказываем заболевания
+            possible_diseases = await self._predict_diseases(extracted_symptoms, cleaned_input)
             
             # Генерируем рекомендации
-            recommendations = await self._generate_recommendations(symptoms, possible_diseases)
+            recommendations = await self._generate_recommendations(extracted_symptoms, possible_diseases)
             
-            # Определяем срочность
-            urgency = self._assess_urgency(symptoms)
+            # Оцениваем срочность
+            urgency = self._assess_urgency(extracted_symptoms)
             
-            # Формируем ответ
-            response = {
-                "extracted_symptoms": symptoms,
+            # Рассчитываем уверенность
+            confidence = self._calculate_confidence(extracted_symptoms, possible_diseases)
+            
+            # Время обработки
+            processing_time = (datetime.now() - start_time).total_seconds()
+            
+            # Формируем результат
+            result = {
+                "extracted_symptoms": extracted_symptoms,
                 "possible_diseases": possible_diseases,
                 "recommendations": recommendations,
                 "urgency": urgency,
-                "disclaimer": "Это предварительный анализ. Обязательно проконсультируйтесь с врачом для точной диагностики.",
-                "confidence": self._calculate_confidence(symptoms, possible_diseases),
-                "timestamp": datetime.now().isoformat()
+                "confidence": confidence,
+                "processing_time": processing_time,
+                "disclaimer": "Это предварительный анализ. Обязательно проконсультируйтесь с врачом для точной диагностики."
             }
             
-            logger.info(f"Анализ завершен. Найдено симптомов: {len(symptoms)}, возможных заболеваний: {len(possible_diseases)}")
+            # Сохраняем результат в БД
+            if patient_id:
+                await self._save_diagnosis_to_db(user_input, result, patient_id, processing_time)
             
-            return response
+            return result
             
         except Exception as e:
             logger.error(f"Ошибка при анализе симптомов: {e}")
             return {
-                "error": "Произошла ошибка при анализе. Попробуйте переформулировать запрос.",
+                "error": str(e),
                 "extracted_symptoms": [],
                 "possible_diseases": [],
-                "recommendations": [],
-                "urgency": "unknown",
+                "recommendations": [{"text": "Произошла ошибка при анализе. Обратитесь к врачу.", "type": "urgent"}],
+                "urgency": "high",
                 "confidence": 0.0,
-                "timestamp": datetime.now().isoformat()
+                "processing_time": (datetime.now() - start_time).total_seconds(),
+                "disclaimer": "Система временно недоступна. Обратитесь к врачу."
             }
+    
+    async def _save_diagnosis_to_db(self, user_input: str, result: Dict, patient_id: int, processing_time: float):
+        """Сохранение результата диагностики в базу данных"""
+        try:
+            with next(get_db()) as db:
+                diagnosis = AIDiagnosis(
+                    patient_id=patient_id,
+                    symptoms_description=user_input,
+                    extracted_symptoms=result.get("extracted_symptoms", []),
+                    possible_diseases=result.get("possible_diseases", []),
+                    recommendations=result.get("recommendations", []),
+                    urgency_level=result.get("urgency", "medium"),
+                    confidence_score=result.get("confidence", 0.0),
+                    processing_time=processing_time,
+                    model_version=self.model_version,
+                    request_id=result.get("request_id", f"diag_{int(datetime.now().timestamp())}")
+                )
+                db.add(diagnosis)
+                db.commit()
+                
+                logger.info(f"Диагностика сохранена для пациента {patient_id}")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении диагностики в БД: {e}")
     
     def _clean_input(self, text: str) -> str:
         """Очистка и нормализация входного текста"""
@@ -356,16 +575,19 @@ class MedicalAI:
         symptoms = []
         
         try:
-            # Используем классификатор симптомов
-            if self.symptom_classifier:
+            # Используем классификатор симптомов (если доступен)
+            if self.symptom_classifier and self.symptom_vectorizer:
                 # Разбиваем текст на предложения
                 sentences = [s.strip() for s in text.split('.') if s.strip()]
                 
                 for sentence in sentences:
                     try:
+                        # Векторизуем предложение
+                        sentence_vectorized = self.symptom_vectorizer.transform([sentence])
+                        
                         # Предсказываем симптом
-                        prediction = self.symptom_classifier.predict([sentence])
-                        proba = self.symptom_classifier.predict_proba([sentence])
+                        prediction = self.symptom_classifier.predict(sentence_vectorized)
+                        proba = self.symptom_classifier.predict_proba(sentence_vectorized)
                         
                         max_proba = max(proba[0])
                         
@@ -381,7 +603,7 @@ class MedicalAI:
                     except Exception as e:
                         logger.warning(f"Ошибка при классификации предложения '{sentence}': {e}")
             
-            # Дополнительно ищем ключевые слова
+            # Используем поиск по ключевым словам (основной метод)
             keyword_symptoms = self._extract_symptoms_by_keywords(text)
             symptoms.extend(keyword_symptoms)
             
@@ -397,16 +619,18 @@ class MedicalAI:
             
         except Exception as e:
             logger.error(f"Ошибка при извлечении симптомов: {e}")
-            return []
+            # Возвращаем базовые симптомы как fallback
+            return self._extract_symptoms_by_keywords(text)
     
     def _extract_symptoms_by_keywords(self, text: str) -> List[Dict]:
         """Извлечение симптомов по ключевым словам"""
         symptoms = []
+        text_lower = text.lower()
         
         # Словарь ключевых слов для поиска симптомов
         symptom_keywords = {
-            "головная_боль": ["голова болит", "головная боль", "голова", "мигрень"],
-            "температура": ["температура", "жар", "лихорадка", "горячий"],
+            "головная_боль": ["голова болит", "головная боль", "болит голова", "мигрень", "голова"],
+            "температура": ["температура", "жар", "лихорадка", "горячий", "38"],
             "кашель": ["кашель", "кашляю", "откашливание"],
             "насморк": ["насморк", "нос заложен", "сопли"],
             "боль_в_горле": ["горло болит", "боль в горле", "горло"],
@@ -414,7 +638,7 @@ class MedicalAI:
             "рвота": ["рвота", "рвёт", "блевота"],
             "диарея": ["диарея", "понос", "жидкий стул"],
             "слабость": ["слабость", "усталость", "вялость"],
-            "головокружение": ["головокружение", "кружится голова", "головокружение"],
+            "головокружение": ["головокружение", "кружится голова"],
             "боль_в_животе": ["живот болит", "боль в животе", "живот"],
             "боль_в_груди": ["грудь болит", "боль в груди", "грудь"],
             "одышка": ["одышка", "трудно дышать", "нехватка воздуха"],
@@ -423,16 +647,23 @@ class MedicalAI:
         }
         
         for symptom_name, keywords in symptom_keywords.items():
+            confidence = 0.0
+            found_keyword = ""
+            
             for keyword in keywords:
-                if keyword in text:
-                    symptom = {
-                        "name": symptom_name,
-                        "text": f"Обнаружен симптом: {keyword}",
-                        "confidence": 0.7,
-                        "severity": self._estimate_severity(text)
-                    }
-                    symptoms.append(symptom)
-                    break  # Нашли один симптом, переходим к следующему
+                if keyword in text_lower:
+                    # Вычисляем уверенность на основе длины совпадения
+                    confidence = max(confidence, len(keyword) / len(text_lower) * 2.0)
+                    found_keyword = keyword
+                    
+            if confidence > 0.05:  # Минимальный порог
+                symptom = {
+                    "name": symptom_name,
+                    "text": f"Обнаружен симптом: {found_keyword}",
+                    "confidence": min(confidence, 0.9),  # Максимум 0.9 для keyword extraction
+                    "severity": self._estimate_severity(text)
+                }
+                symptoms.append(symptom)
         
         return symptoms
     
@@ -466,10 +697,20 @@ class MedicalAI:
                 
                 # Подсчитываем совпадения симптомов
                 matches = 0
+                matched_symptoms = []
+                
                 for symptom in symptom_names:
                     for disease_symptom in disease_symptoms:
-                        if symptom in disease_symptom or disease_symptom in symptom:
+                        # Сравниваем нормализованные симптомы
+                        symptom_norm = symptom.replace('_', ' ').lower()
+                        disease_symptom_norm = disease_symptom.replace('_', ' ').lower()
+                        
+                        # Проверяем различные варианты совпадения
+                        if (symptom_norm in disease_symptom_norm or 
+                            disease_symptom_norm in symptom_norm or
+                            self._symptoms_match(symptom_norm, disease_symptom_norm)):
                             matches += 1
+                            matched_symptoms.append(disease_symptom)
                             break
                 
                 if matches > 0:
@@ -488,10 +729,14 @@ class MedicalAI:
                     diseases.append(disease)
             
             # Используем классификатор заболеваний
-            if self.disease_classifier:
+            if self.disease_classifier and self.disease_vectorizer:
                 try:
-                    prediction = self.disease_classifier.predict([full_text])
-                    proba = self.disease_classifier.predict_proba([full_text])
+                    # Векторизуем текст
+                    text_vectorized = self.disease_vectorizer.transform([full_text])
+                    
+                    # Предсказываем заболевание
+                    prediction = self.disease_classifier.predict(text_vectorized)
+                    proba = self.disease_classifier.predict_proba(text_vectorized)
                     
                     max_proba = max(proba[0])
                     

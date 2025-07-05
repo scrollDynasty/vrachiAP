@@ -16,6 +16,9 @@ const AIDiagnosisPage = () => {
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [diagnosisHistory, setDiagnosisHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [error, setError] = useState(null);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -27,11 +30,12 @@ const AIDiagnosisPage = () => {
   const fetchDiagnosisHistory = async () => {
     try {
       const response = await api.get('/api/ai/patient/history');
-      if (response.data.success) {
-        setDiagnosisHistory(response.data.data.diagnosis_history || []);
+      if (response.data && response.data.success) {
+        setDiagnosisHistory(response.data.data?.diagnosis_history || []);
       }
     } catch (error) {
       console.error('Ошибка загрузки истории диагностики:', error);
+      // Не показываем ошибку пользователю для истории
     }
   };
 
@@ -41,41 +45,81 @@ const AIDiagnosisPage = () => {
       ...prev,
       [name]: value
     }));
+    // Очищаем ошибки при изменении полей
+    if (error) {
+      setError(null);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Валидация
     if (!formData.symptoms_description.trim()) {
+      setError('Пожалуйста, опишите ваши симптомы');
       toast.error('Пожалуйста, опишите ваши симптомы');
       return;
     }
 
     if (formData.symptoms_description.length < 10) {
+      setError('Описание симптомов должно содержать минимум 10 символов');
       toast.error('Описание симптомов должно содержать минимум 10 символов');
       return;
     }
 
     setIsLoading(true);
+    setError(null);
+    setDiagnosisResult(null);
     
     try {
       const requestData = {
-        symptoms_description: formData.symptoms_description,
-        additional_info: formData.additional_info
+        symptoms_description: formData.symptoms_description.trim(),
+        additional_info: formData.additional_info.trim() || undefined
       };
 
-      if (formData.patient_age && !isNaN(formData.patient_age)) {
+      // Добавляем возраст только если он указан и корректен
+      if (formData.patient_age && !isNaN(formData.patient_age) && formData.patient_age > 0) {
         requestData.patient_age = parseInt(formData.patient_age);
       }
 
+      // Добавляем пол только если он выбран
       if (formData.patient_gender) {
         requestData.patient_gender = formData.patient_gender;
       }
 
+      console.log('Отправляю запрос:', requestData);
+
       const response = await api.post('/api/ai/diagnosis', requestData);
       
+      console.log('Получен ответ:', response.data);
+      
       if (response.data) {
-        setDiagnosisResult(response.data);
+        // Обрабатываем ответ - API может возвращать данные в разных форматах
+        const result = response.data.data || response.data;
+        
+        // Безопасная обработка данных
+        const processedResult = {
+          ...result,
+          extracted_symptoms: Array.isArray(result.extracted_symptoms) 
+            ? result.extracted_symptoms 
+            : [],
+          possible_diseases: Array.isArray(result.possible_diseases) 
+            ? result.possible_diseases 
+            : [],
+          recommendations: Array.isArray(result.recommendations) 
+            ? result.recommendations.map(rec => ({
+                text: typeof rec === 'string' ? rec : (rec.text || rec.message || String(rec)),
+                type: rec.type || 'general',
+                priority: rec.priority || 'medium'
+              }))
+            : [],
+          confidence: typeof result.confidence === 'number' ? result.confidence : 0.5,
+          urgency: result.urgency || 'medium',
+          disclaimer: result.disclaimer || 'Это предварительный анализ. Обязательно проконсультируйтесь с врачом.',
+          processing_time: result.processing_time || 0
+        };
+
+        setDiagnosisResult(processedResult);
         toast.success('Анализ симптомов завершен');
         
         // Обновляем историю
@@ -91,12 +135,56 @@ const AIDiagnosisPage = () => {
       }
     } catch (error) {
       console.error('Ошибка при анализе симптомов:', error);
-      toast.error(
-        error.response?.data?.detail || 
-        'Произошла ошибка при анализе симптомов. Попробуйте еще раз.'
-      );
+      
+      let errorMessage = 'Произошла ошибка при анализе симптомов. Попробуйте еще раз.';
+      
+      if (error.response) {
+        // Сервер вернул ошибку
+        if (error.response.status === 422) {
+          errorMessage = 'Проверьте правильность заполнения формы.';
+        } else if (error.response.status === 502) {
+          errorMessage = 'Сервис временно недоступен. Попробуйте позже.';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      } else if (error.request) {
+        // Проблема с сетью
+        errorMessage = 'Проблема с подключением к серверу. Проверьте интернет-соединение.';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFeedback = async (wasCorrect, actualDisease = null) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ai/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          diagnosis_id: diagnosisResult.analysis_id,
+          was_correct: wasCorrect,
+          actual_disease: actualDisease,
+          additional_notes: formData.additionalInfo
+        })
+      });
+
+      if (response.ok) {
+        setFeedbackSent(true);
+        setShowFeedbackForm(false);
+        toast.success('Спасибо за обратную связь! Это поможет улучшить систему.');
+      } else {
+        toast.error('Ошибка при отправке отзыва');
+      }
+    } catch (error) {
+      console.error('Ошибка отправки отзыва:', error);
+      toast.error('Не удалось отправить отзыв');
     }
   };
 
@@ -125,6 +213,23 @@ const AIDiagnosisPage = () => {
     if (confidence >= 0.6) return 'text-yellow-600';
     return 'text-red-600';
   };
+
+  // Компонент для отображения ошибок
+  const ErrorDisplay = ({ error }) => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
+          <p className="mt-1 text-sm text-red-700">{error}</p>
+        </div>
+      </div>
+    </div>
+  );
 
   if (user?.role !== 'patient') {
     return (
@@ -197,6 +302,9 @@ const AIDiagnosisPage = () => {
             История диагностики
           </button>
         </div>
+
+        {/* Отображение ошибок */}
+        {error && <ErrorDisplay error={error} />}
 
         <AnimatePresence mode="wait">
           {!showHistory ? (
@@ -414,29 +522,110 @@ const AIDiagnosisPage = () => {
                           Рекомендации
                         </h3>
                         <div className="space-y-3">
-                          {diagnosisResult.recommendations.map((recommendation, index) => (
-                            <div 
-                              key={index} 
-                              className={`p-3 rounded-lg border-l-4 ${
-                                recommendation.priority === 'urgent' 
-                                  ? 'bg-red-50 border-red-400 text-red-800'
-                                  : recommendation.priority === 'high'
-                                  ? 'bg-orange-50 border-orange-400 text-orange-800'
-                                  : recommendation.priority === 'medium'
-                                  ? 'bg-yellow-50 border-yellow-400 text-yellow-800'
-                                  : 'bg-blue-50 border-blue-400 text-blue-800'
-                              }`}
-                            >
-                              <div className="font-medium">
-                                {recommendation.type === 'urgent' && '🚨 '}
-                                {recommendation.type === 'warning' && '⚠️ '}
-                                {recommendation.type === 'treatment' && '💊 '}
-                                {recommendation.type === 'general' && '💡 '}
-                                {recommendation.text}
+                          {diagnosisResult.recommendations.map((recommendation, index) => {
+                            // Безопасная обработка рекомендации
+                            const text = recommendation?.text || recommendation?.message || (typeof recommendation === 'string' ? recommendation : 'Рекомендация не указана');
+                            const type = recommendation?.type || 'general';
+                            const priority = recommendation?.priority || 'medium';
+                            
+                            return (
+                              <div 
+                                key={index} 
+                                className={`p-3 rounded-lg border-l-4 ${
+                                  priority === 'urgent' 
+                                    ? 'bg-red-50 border-red-400 text-red-800'
+                                    : priority === 'high'
+                                    ? 'bg-orange-50 border-orange-400 text-orange-800'
+                                    : priority === 'medium'
+                                    ? 'bg-yellow-50 border-yellow-400 text-yellow-800'
+                                    : 'bg-blue-50 border-blue-400 text-blue-800'
+                                }`}
+                              >
+                                <div className="font-medium">
+                                  {type === 'urgent' && '🚨 '}
+                                  {type === 'warning' && '⚠️ '}
+                                  {type === 'treatment' && '💊 '}
+                                  {type === 'general' && '💡 '}
+                                  {text}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Блок обратной связи */}
+                    {!feedbackSent && (
+                      <div className="bg-gray-50 p-6 rounded-lg">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                          Помогите улучшить AI диагностику
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                          Была ли диагностика точной? Ваш отзыв поможет системе обучаться и становиться лучше.
+                        </p>
+                        
+                        {!showFeedbackForm ? (
+                          <div className="flex gap-4">
+                            <button
+                              onClick={() => handleFeedback(true)}
+                              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                              ✓ Да, диагноз точный
+                            </button>
+                            <button
+                              onClick={() => setShowFeedbackForm(true)}
+                              className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              ✗ Нет, неточный
+                            </button>
+                          </div>
+                        ) : (
+                          <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const actualDisease = e.target.actualDisease.value;
+                            handleFeedback(false, actualDisease);
+                          }} className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Какой был реальный диагноз врача?
+                              </label>
+                              <input
+                                type="text"
+                                name="actualDisease"
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                placeholder="Например: ОРВИ, гастрит, мигрень..."
+                                required
+                              />
+                            </div>
+                            <div className="flex gap-4">
+                              <button
+                                type="submit"
+                                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                Отправить отзыв
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowFeedbackForm(false)}
+                                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                    
+                    {feedbackSent && (
+                      <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <p className="text-green-800 flex items-center">
+                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          Спасибо! Ваш отзыв поможет улучшить точность диагностики.
+                        </p>
                       </div>
                     )}
 

@@ -1,5 +1,5 @@
 """
-Utilities for AI Service - Утилиты для AI сервиса
+AI Service Utils - Утилиты для AI сервиса
 """
 
 import re
@@ -16,6 +16,9 @@ from dataclasses import dataclass
 import numpy as np
 from collections import Counter
 import unicodedata
+import time
+import functools
+import os
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -425,217 +428,255 @@ class FileManager:
             )
 
 
+class CacheManager:
+    """
+    Простой кэш-менеджер для AI сервиса
+    """
+    
+    def __init__(self, cache_dir: str = "cache", max_size: int = 1000):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(exist_ok=True)
+        self.max_size = max_size
+        self.cache = {}
+        self.access_times = {}
+    
+    def _get_cache_key(self, data: Any) -> str:
+        """Создание ключа кэша"""
+        if isinstance(data, dict):
+            data_str = json.dumps(data, sort_keys=True)
+        else:
+            data_str = str(data)
+        return hashlib.md5(data_str.encode()).hexdigest()
+    
+    def get(self, key: str) -> Optional[Any]:
+        """Получение данных из кэша"""
+        if key in self.cache:
+            self.access_times[key] = time.time()
+            return self.cache[key]
+        
+        # Проверяем файловый кэш
+        cache_file = self.cache_dir / f"{key}.json"
+        if cache_file.exists():
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.cache[key] = data
+                    self.access_times[key] = time.time()
+                    return data
+            except Exception as e:
+                logger.warning(f"Ошибка при чтении кэша {key}: {e}")
+        
+        return None
+    
+    def set(self, key: str, value: Any, ttl: int = 3600) -> None:
+        """Сохранение данных в кэш"""
+        # Проверяем размер кэша
+        if len(self.cache) >= self.max_size:
+            self._evict_oldest()
+        
+        self.cache[key] = value
+        self.access_times[key] = time.time()
+        
+        # Сохраняем в файл
+        cache_file = self.cache_dir / f"{key}.json"
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(value, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Ошибка при сохранении кэша {key}: {e}")
+    
+    def _evict_oldest(self) -> None:
+        """Удаление самого старого элемента"""
+        if not self.access_times:
+            return
+        
+        oldest_key = min(self.access_times, key=self.access_times.get)
+        self.cache.pop(oldest_key, None)
+        self.access_times.pop(oldest_key, None)
+    
+    def clear_all(self) -> None:
+        """Очистка всего кэша"""
+        self.cache.clear()
+        self.access_times.clear()
+        
+        # Очищаем файловый кэш
+        for cache_file in self.cache_dir.glob("*.json"):
+            try:
+                cache_file.unlink()
+            except Exception as e:
+                logger.warning(f"Ошибка при удалении файла кэша {cache_file}: {e}")
+
+
 class PerformanceMonitor:
-    """Класс для мониторинга производительности AI сервиса"""
+    """
+    Мониторинг производительности AI сервиса
+    """
     
     def __init__(self):
         self.metrics = {
-            'requests_count': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'average_response_time': 0,
-            'total_response_time': 0,
-            'start_time': datetime.now()
+            'request_count': 0,
+            'total_processing_time': 0,
+            'error_count': 0,
+            'last_request_time': None,
+            'avg_processing_time': 0
         }
-        
-        self.response_times = []
     
-    def record_request(self, response_time: float, success: bool = True):
+    def record_request(self, processing_time: float, success: bool = True) -> None:
         """Запись метрики запроса"""
-        self.metrics['requests_count'] += 1
-        self.metrics['total_response_time'] += response_time
-        self.response_times.append(response_time)
+        self.metrics['request_count'] += 1
+        self.metrics['total_processing_time'] += processing_time
+        self.metrics['last_request_time'] = datetime.now()
         
-        if success:
-            self.metrics['successful_requests'] += 1
-        else:
-            self.metrics['failed_requests'] += 1
+        if not success:
+            self.metrics['error_count'] += 1
         
-        # Обновляем среднее время ответа
-        self.metrics['average_response_time'] = (
-            self.metrics['total_response_time'] / self.metrics['requests_count']
+        self.metrics['avg_processing_time'] = (
+            self.metrics['total_processing_time'] / self.metrics['request_count']
         )
-        
-        # Ограничиваем размер списка времен ответа
-        if len(self.response_times) > 1000:
-            self.response_times = self.response_times[-1000:]
     
     def get_metrics(self) -> Dict:
-        """Получение метрик производительности"""
-        uptime = datetime.now() - self.metrics['start_time']
-        
-        metrics = self.metrics.copy()
-        metrics.update({
-            'uptime_seconds': uptime.total_seconds(),
-            'requests_per_second': self.metrics['requests_count'] / uptime.total_seconds() if uptime.total_seconds() > 0 else 0,
-            'success_rate': (self.metrics['successful_requests'] / self.metrics['requests_count']) * 100 if self.metrics['requests_count'] > 0 else 0,
-            'percentile_95': np.percentile(self.response_times, 95) if self.response_times else 0,
-            'percentile_99': np.percentile(self.response_times, 99) if self.response_times else 0,
-            'min_response_time': min(self.response_times) if self.response_times else 0,
-            'max_response_time': max(self.response_times) if self.response_times else 0
-        })
-        
-        return metrics
-    
-    def reset_metrics(self):
-        """Сброс метрик"""
-        self.metrics = {
-            'requests_count': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'average_response_time': 0,
-            'total_response_time': 0,
-            'start_time': datetime.now()
-        }
-        self.response_times = []
-
-
-class ConfigManager:
-    """Класс для управления конфигурацией AI сервиса"""
-    
-    def __init__(self, config_file: str = "ai_config.json"):
-        self.config_file = Path(config_file)
-        self.config = self._load_default_config()
-        self.load_config()
-    
-    def _load_default_config(self) -> Dict:
-        """Загрузка конфигурации по умолчанию"""
+        """Получение метрик"""
         return {
-            'model_settings': {
-                'max_text_length': 1000,
-                'confidence_threshold': 0.3,
-                'max_symptoms': 10,
-                'max_diseases': 5
-            },
-            'data_collection': {
-                'max_pages_per_source': 100,
-                'request_delay': 2,
-                'max_retries': 3,
-                'timeout': 30
-            },
-            'training': {
-                'batch_size': 32,
-                'learning_rate': 0.001,
-                'epochs': 10,
-                'validation_split': 0.2
-            },
-            'performance': {
-                'cache_size': 1000,
-                'max_concurrent_requests': 10,
-                'request_timeout': 60
-            }
+            **self.metrics,
+            'error_rate': self.metrics['error_count'] / max(1, self.metrics['request_count']),
+            'requests_per_hour': self._calculate_requests_per_hour()
         }
     
-    def load_config(self):
-        """Загрузка конфигурации из файла"""
-        try:
-            if self.config_file.exists():
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    saved_config = json.load(f)
-                    # Обновляем конфигурацию, сохраняя значения по умолчанию
-                    self._update_config(self.config, saved_config)
-                logger.info(f"Конфигурация загружена из {self.config_file}")
-            else:
-                self.save_config()
-                logger.info("Создана конфигурация по умолчанию")
-        except Exception as e:
-            logger.error(f"Ошибка загрузки конфигурации: {e}")
-    
-    def save_config(self):
-        """Сохранение конфигурации в файл"""
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, ensure_ascii=False, indent=2)
-            logger.info(f"Конфигурация сохранена в {self.config_file}")
-        except Exception as e:
-            logger.error(f"Ошибка сохранения конфигурации: {e}")
-    
-    def _update_config(self, base_config: Dict, update_config: Dict):
-        """Рекурсивное обновление конфигурации"""
-        for key, value in update_config.items():
-            if key in base_config and isinstance(base_config[key], dict) and isinstance(value, dict):
-                self._update_config(base_config[key], value)
-            else:
-                base_config[key] = value
-    
-    def get(self, key: str, default=None):
-        """Получение значения из конфигурации"""
-        keys = key.split('.')
-        value = self.config
-        
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                return default
-        
-        return value
-    
-    def set(self, key: str, value):
-        """Установка значения в конфигурацию"""
-        keys = key.split('.')
-        config = self.config
-        
-        for k in keys[:-1]:
-            if k not in config:
-                config[k] = {}
-            config = config[k]
-        
-        config[keys[-1]] = value
-        self.save_config()
+    def _calculate_requests_per_hour(self) -> float:
+        """Расчет запросов в час"""
+        # Простой расчет - можно улучшить
+        if self.metrics['request_count'] == 0:
+            return 0
+        return self.metrics['request_count'] * 60  # Примерный расчет
 
 
-# Глобальные экземпляры утилит
-text_processor = TextProcessor()
-file_manager = FileManager()
+class InputValidator:
+    """
+    Валидация входных данных
+    """
+    
+    @staticmethod
+    def validate_symptoms(symptoms_text: str) -> bool:
+        """Валидация описания симптомов"""
+        if not symptoms_text or not isinstance(symptoms_text, str):
+            return False
+        
+        # Проверка длины
+        if len(symptoms_text.strip()) < 5:
+            return False
+        
+        # Проверка на подозрительные паттерны
+        suspicious_patterns = [
+            r'<script',
+            r'javascript:',
+            r'onclick=',
+            r'onerror=',
+            r'eval\(',
+            r'document\.',
+            r'window\.',
+        ]
+        
+        for pattern in suspicious_patterns:
+            if re.search(pattern, symptoms_text.lower()):
+                return False
+        
+        return True
+    
+    @staticmethod
+    def sanitize_input(user_input: str) -> str:
+        """Очистка пользовательского ввода"""
+        if not user_input:
+            return ""
+        
+        # Удаляем потенциально опасные символы
+        sanitized = re.sub(r'[<>"\']', '', user_input)
+        
+        # Ограничиваем длину
+        sanitized = sanitized[:2000]
+        
+        return sanitized.strip()
+
+
+class AlertSystem:
+    """
+    Система алертов для AI сервиса
+    """
+    
+    def __init__(self):
+        self.thresholds = {
+            'response_time': 5.0,  # секунды
+            'error_rate': 0.1,     # 10%
+            'accuracy': 0.7        # 70%
+        }
+        self.alerts = []
+    
+    def set_threshold(self, metric: str, value: float) -> None:
+        """Установка порога для метрики"""
+        self.thresholds[metric] = value
+    
+    def check_alerts(self) -> List[Dict]:
+        """Проверка алертов"""
+        # Здесь можно добавить логику проверки различных метрик
+        return self.alerts
+    
+    def add_alert(self, message: str, severity: str = 'warning') -> None:
+        """Добавление алерта"""
+        alert = {
+            'message': message,
+            'severity': severity,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.alerts.append(alert)
+        logger.warning(f"ALERT [{severity}]: {message}")
+
+
+# Глобальные экземпляры
+cache_manager = CacheManager()
 performance_monitor = PerformanceMonitor()
-config_manager = ConfigManager()
+input_validator = InputValidator()
+alert_system = AlertSystem()
+
+
+def get_system_stats() -> Dict:
+    """
+    Получение статистики системы
+    """
+    return {
+        'performance': performance_monitor.get_metrics(),
+        'cache_size': len(cache_manager.cache),
+        'alerts': len(alert_system.alerts),
+        'uptime': time.time() - _start_time if '_start_time' in globals() else 0
+    }
+
+
+# Время запуска
+_start_time = time.time()
 
 
 # Декораторы для мониторинга
 def monitor_performance(func):
     """Декоратор для мониторинга производительности"""
-    import time
-    import asyncio
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        start_time = time.time()
+        
+        try:
+            result = await func(*args, **kwargs)
+            processing_time = time.time() - start_time
+            
+            logger.info(f"Функция {func.__name__} выполнена за {processing_time:.2f}с")
+            return result
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            logger.error(f"Ошибка в {func.__name__} за {processing_time:.2f}с: {e}")
+            raise
     
-    if asyncio.iscoroutinefunction(func):
-        async def async_wrapper(*args, **kwargs):
-            start_time = time.time()
-            success = True
-            try:
-                result = await func(*args, **kwargs)
-                return result
-            except Exception as e:
-                success = False
-                raise e
-            finally:
-                end_time = time.time()
-                response_time = end_time - start_time
-                performance_monitor.record_request(response_time, success)
-        
-        return async_wrapper
-    else:
-        def sync_wrapper(*args, **kwargs):
-            start_time = time.time()
-            success = True
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
-                success = False
-                raise e
-            finally:
-                end_time = time.time()
-                response_time = end_time - start_time
-                performance_monitor.record_request(response_time, success)
-        
-        return sync_wrapper
+    return wrapper
 
 
 def log_errors(func):
     """Декоратор для логирования ошибок"""
-    import functools
-    
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -650,7 +691,7 @@ def log_errors(func):
 # Вспомогательные функции
 def generate_request_id() -> str:
     """Генерация уникального ID запроса"""
-    return str(uuid.uuid4())
+    return f"ai_diag_{int(time.time())}_{uuid.uuid4().hex[:8]}"
 
 
 def sanitize_filename(filename: str) -> str:
@@ -671,4 +712,137 @@ def format_response(data: Any, success: bool = True, message: str = "", request_
         'message': message,
         'request_id': request_id or generate_request_id(),
         'timestamp': datetime.now().isoformat()
+    }
+
+
+def extract_medical_entities(text: str) -> Dict:
+    """
+    Извлечение медицинских сущностей из текста
+    Использует NLP для определения симптомов, заболеваний и лечения
+    """
+    text_lower = text.lower()
+    
+    # Определяем язык текста
+    language = 'ru' if any(char in 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя' for char in text_lower) else 'en'
+    
+    # Словари медицинских терминов
+    symptom_patterns = {
+        'ru': [
+            'боль', 'болит', 'болезненный', 'ноет', 'режет', 'колет',
+            'температура', 'жар', 'лихорадка', 'озноб',
+            'кашель', 'кашляет', 'откашливается',
+            'насморк', 'заложенность носа', 'сопли',
+            'тошнота', 'тошнит', 'мутит', 'рвота',
+            'головокружение', 'кружится голова', 'шатает',
+            'слабость', 'усталость', 'вялость', 'разбитость',
+            'одышка', 'нехватка воздуха', 'задыхается',
+            'зуд', 'чешется', 'зудит',
+            'сыпь', 'высыпания', 'покраснение',
+            'отек', 'опухоль', 'припухлость',
+            'изжога', 'жжение', 'горечь во рту',
+            'диарея', 'понос', 'жидкий стул',
+            'запор', 'затруднение дефекации',
+            'бессонница', 'не может спать', 'нарушение сна',
+            'тревога', 'беспокойство', 'паника',
+            'сердцебиение', 'тахикардия', 'аритмия',
+            'давление', 'гипертония', 'гипотония',
+            'судороги', 'спазмы', 'сводит'
+        ],
+        'en': [
+            'pain', 'ache', 'hurt', 'sore',
+            'fever', 'temperature', 'chills',
+            'cough', 'coughing',
+            'runny nose', 'nasal congestion',
+            'nausea', 'vomiting', 'sick',
+            'dizziness', 'vertigo', 'lightheaded',
+            'weakness', 'fatigue', 'tired',
+            'shortness of breath', 'dyspnea',
+            'itching', 'itch', 'pruritus',
+            'rash', 'eruption', 'hives',
+            'swelling', 'edema', 'inflammation',
+            'heartburn', 'acid reflux',
+            'diarrhea', 'loose stools',
+            'constipation', 'difficult bowel',
+            'insomnia', 'sleep disorder',
+            'anxiety', 'panic', 'worry',
+            'palpitations', 'rapid heartbeat',
+            'hypertension', 'hypotension',
+            'cramps', 'spasms'
+        ]
+    }
+    
+    disease_patterns = {
+        'ru': [
+            'грипп', 'ОРВИ', 'простуда', 'ангина', 'бронхит', 'пневмония',
+            'гастрит', 'язва', 'панкреатит', 'холецистит',
+            'диабет', 'гипертония', 'гипотония', 'аритмия', 'стенокардия',
+            'астма', 'аллергия', 'дерматит', 'экзема', 'псориаз',
+            'артрит', 'остеохондроз', 'радикулит', 'невралгия',
+            'цистит', 'пиелонефрит', 'простатит',
+            'мигрень', 'невроз', 'депрессия', 'ВСД',
+            'гепатит', 'цирроз', 'желтуха',
+            'анемия', 'лейкоз', 'тромбоз',
+            'инфаркт', 'инсульт', 'эпилепсия'
+        ],
+        'en': [
+            'flu', 'influenza', 'cold', 'pharyngitis', 'bronchitis', 'pneumonia',
+            'gastritis', 'ulcer', 'pancreatitis', 'cholecystitis',
+            'diabetes', 'hypertension', 'hypotension', 'arrhythmia', 'angina',
+            'asthma', 'allergy', 'dermatitis', 'eczema', 'psoriasis',
+            'arthritis', 'osteochondrosis', 'sciatica', 'neuralgia',
+            'cystitis', 'pyelonephritis', 'prostatitis',
+            'migraine', 'neurosis', 'depression', 'anxiety disorder',
+            'hepatitis', 'cirrhosis', 'jaundice',
+            'anemia', 'leukemia', 'thrombosis',
+            'heart attack', 'stroke', 'epilepsy'
+        ]
+    }
+    
+    treatment_patterns = {
+        'ru': [
+            'антибиотик', 'противовирусный', 'жаропонижающий',
+            'обезболивающий', 'анальгетик', 'спазмолитик',
+            'антигистаминный', 'противовоспалительный',
+            'витамины', 'пробиотики', 'иммуномодулятор',
+            'ингаляции', 'физиотерапия', 'массаж',
+            'диета', 'покой', 'обильное питье',
+            'операция', 'химиотерапия', 'лучевая терапия'
+        ],
+        'en': [
+            'antibiotic', 'antiviral', 'antipyretic',
+            'painkiller', 'analgesic', 'antispasmodic',
+            'antihistamine', 'anti-inflammatory',
+            'vitamins', 'probiotics', 'immunomodulator',
+            'inhalation', 'physiotherapy', 'massage',
+            'diet', 'rest', 'hydration',
+            'surgery', 'chemotherapy', 'radiation'
+        ]
+    }
+    
+    # Извлекаем сущности
+    extracted_symptoms = []
+    extracted_diseases = []
+    extracted_treatments = []
+    
+    # Поиск симптомов
+    for symptom in symptom_patterns.get(language, []):
+        if symptom in text_lower:
+            extracted_symptoms.append(symptom)
+    
+    # Поиск заболеваний
+    for disease in disease_patterns.get(language, []):
+        if disease in text_lower:
+            extracted_diseases.append(disease)
+    
+    # Поиск методов лечения
+    for treatment in treatment_patterns.get(language, []):
+        if treatment in text_lower:
+            extracted_treatments.append(treatment)
+    
+    # Убираем дубликаты и возвращаем результат
+    return {
+        'symptoms': list(set(extracted_symptoms))[:10],  # Максимум 10 симптомов
+        'diseases': list(set(extracted_diseases))[:5],   # Максимум 5 заболеваний
+        'treatments': list(set(extracted_treatments))[:10], # Максимум 10 методов лечения
+        'language': language
     } 

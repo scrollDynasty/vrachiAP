@@ -497,6 +497,226 @@ class NewsTranslation(Base):
     )
 
 
+# Модели для AI диагностики
+
+class AIDiagnosis(Base):
+    """
+    Модель для хранения результатов AI диагностики
+    """
+    __tablename__ = "ai_diagnoses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    # Входные данные
+    symptoms_description = Column(Text, nullable=False)  # Описание симптомов
+    patient_age = Column(Integer, nullable=True)  # Возраст пациента
+    patient_gender = Column(String(10), nullable=True)  # Пол пациента
+    additional_info = Column(Text, nullable=True)  # Дополнительная информация
+    
+    # Результаты анализа
+    extracted_symptoms = Column(JSON, nullable=True)  # Обнаруженные симптомы
+    possible_diseases = Column(JSON, nullable=True)  # Возможные заболевания
+    recommendations = Column(JSON, nullable=True)  # Рекомендации
+    urgency_level = Column(String(20), nullable=True)  # Уровень срочности
+    confidence_score = Column(Float, nullable=True)  # Уровень уверенности
+    
+    # Метаданные
+    processing_time = Column(Float, nullable=True)  # Время обработки в секундах
+    model_version = Column(String(50), nullable=True)  # Версия модели
+    request_id = Column(String(100), nullable=True)  # Уникальный ID запроса
+    
+    # Обратная связь
+    feedback_rating = Column(Integer, nullable=True)  # Оценка пациента (1-5)
+    feedback_comment = Column(Text, nullable=True)  # Комментарий пациента
+    
+    # Даты
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Отношения
+    patient = relationship("User", foreign_keys=[patient_id])
+    
+    # Индексы
+    __table_args__ = (
+        Index('idx_ai_diagnosis_patient', 'patient_id'),
+        Index('idx_ai_diagnosis_created', 'created_at'),
+        Index('idx_ai_diagnosis_urgency', 'urgency_level'),
+        Index('idx_ai_diagnosis_request', 'request_id'),
+    )
+
+
+class AITrainingData(Base):
+    """
+    Модель для хранения данных для обучения AI моделей
+    """
+    __tablename__ = "ai_training_data"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Источник данных
+    source_name = Column(String(100), nullable=False)  # mayo_clinic, webmd, pubmed и т.д.
+    source_url = Column(String(512), nullable=True)  # URL источника
+    
+    # Данные
+    title = Column(String(255), nullable=False)  # Заголовок статьи
+    content = Column(Text, nullable=False)  # Содержание статьи
+    symptoms = Column(JSON, nullable=True)  # Массив симптомов
+    diseases = Column(JSON, nullable=True)  # Массив заболеваний
+    treatments = Column(JSON, nullable=True)  # Массив методов лечения
+    
+    # Метаданные
+    language = Column(String(10), nullable=False, default='en')  # Язык статьи
+    category = Column(String(100), nullable=True)  # Категория (кардиология, неврология и т.д.)
+    quality_score = Column(Float, nullable=True)  # Оценка качества данных
+    
+    # Обработка
+    is_processed = Column(Boolean, default=False)  # Обработано ли для обучения
+    is_validated = Column(Boolean, default=False)  # Валидировано ли вручную
+    
+    # Даты
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Индексы
+    __table_args__ = (
+        Index('idx_training_data_source', 'source_name'),
+        Index('idx_training_data_language', 'language'),
+        Index('idx_training_data_processed', 'is_processed'),
+        Index('idx_training_data_created', 'created_at'),
+    )
+
+
+class AIModel(Base):
+    """
+    Модель для хранения информации о AI моделях
+    """
+    __tablename__ = "ai_models"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Информация о модели
+    name = Column(String(100), nullable=False)  # Название модели
+    model_type = Column(String(50), nullable=False)  # Тип модели (symptom_classifier, disease_classifier)
+    version = Column(String(20), nullable=False)  # Версия модели
+    description = Column(Text, nullable=True)  # Описание модели
+    
+    # Пути к файлам
+    model_path = Column(String(512), nullable=False)  # Путь к файлу модели
+    config_path = Column(String(512), nullable=True)  # Путь к конфигурации
+    
+    # Метрики производительности
+    accuracy = Column(Float, nullable=True)  # Точность
+    precision = Column(Float, nullable=True)  # Точность
+    recall = Column(Float, nullable=True)  # Полнота
+    f1_score = Column(Float, nullable=True)  # F1 мера
+    
+    # Данные об обучении
+    training_data_size = Column(Integer, nullable=True)  # Размер обучающей выборки
+    validation_data_size = Column(Integer, nullable=True)  # Размер валидационной выборки
+    training_time = Column(Float, nullable=True)  # Время обучения в секундах
+    epochs = Column(Integer, nullable=True)  # Количество эпох обучения
+    
+    # Статус
+    is_active = Column(Boolean, default=False)  # Активна ли модель
+    is_production = Column(Boolean, default=False)  # Используется ли в продакшене
+    
+    # Даты
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Индексы
+    __table_args__ = (
+        Index('idx_ai_model_name_version', 'name', 'version'),
+        Index('idx_ai_model_type', 'model_type'),
+        Index('idx_ai_model_active', 'is_active'),
+        Index('idx_ai_model_production', 'is_production'),
+        # Уникальная комбинация имени и версии
+        UniqueConstraint('name', 'version', name='uq_ai_model_name_version'),
+    )
+
+
+class AIModelTraining(Base):
+    """
+    Модель для хранения истории обучения AI моделей
+    """
+    __tablename__ = "ai_model_training"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    model_id = Column(Integer, ForeignKey("ai_models.id", ondelete="CASCADE"), nullable=False)
+    
+    # Параметры обучения
+    training_parameters = Column(JSON, nullable=True)  # Параметры обучения
+    training_data_ids = Column(JSON, nullable=True)  # ID данных для обучения
+    
+    # Результаты
+    training_log = Column(Text, nullable=True)  # Лог обучения
+    final_metrics = Column(JSON, nullable=True)  # Итоговые метрики
+    
+    # Статус
+    status = Column(String(20), default='pending')  # pending, training, completed, failed
+    error_message = Column(Text, nullable=True)  # Сообщение об ошибке
+    
+    # Время
+    started_at = Column(DateTime, nullable=True)  # Время начала обучения
+    completed_at = Column(DateTime, nullable=True)  # Время завершения обучения
+    duration = Column(Float, nullable=True)  # Продолжительность в секундах
+    
+    # Метаданные
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # Кто запустил обучение
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    model = relationship("AIModel")
+    creator = relationship("User", foreign_keys=[created_by])
+    
+    # Индексы
+    __table_args__ = (
+        Index('idx_training_model', 'model_id'),
+        Index('idx_training_status', 'status'),
+        Index('idx_training_created', 'created_at'),
+    )
+
+
+class AIFeedback(Base):
+    """
+    Модель для хранения обратной связи пользователей по AI диагностике
+    """
+    __tablename__ = "ai_feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    diagnosis_id = Column(Integer, ForeignKey("ai_diagnoses.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    # Обратная связь
+    rating = Column(Integer, nullable=False)  # Оценка 1-5
+    comment = Column(Text, nullable=True)  # Комментарий
+    
+    # Детальная оценка
+    symptoms_accuracy = Column(Integer, nullable=True)  # Точность определения симптомов
+    disease_accuracy = Column(Integer, nullable=True)  # Точность определения заболеваний
+    recommendations_usefulness = Column(Integer, nullable=True)  # Полезность рекомендаций
+    
+    # Дополнительная информация
+    actual_diagnosis = Column(String(255), nullable=True)  # Реальный диагноз врача
+    doctor_feedback = Column(Text, nullable=True)  # Комментарий врача
+    
+    # Даты
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    diagnosis = relationship("AIDiagnosis")
+    user = relationship("User", foreign_keys=[user_id])
+    
+    # Индексы
+    __table_args__ = (
+        Index('idx_ai_feedback_diagnosis', 'diagnosis_id'),
+        Index('idx_ai_feedback_user', 'user_id'),
+        Index('idx_ai_feedback_rating', 'rating'),
+        Index('idx_ai_feedback_created', 'created_at'),
+    )
+
+
 # Создание всех таблиц
 Base.metadata.create_all(bind=engine)
 
