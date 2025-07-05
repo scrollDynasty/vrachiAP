@@ -183,26 +183,21 @@ class MedicalAI:
     def _load_transformer_model(self):
         """Загрузка трансформера для понимания медицинского текста"""
         try:
-            # Пытаемся загрузить медицинскую модель
-            model_name = "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"
+            # ВРЕМЕННО ОТКЛЮЧЕНО: Загрузка тяжелых моделей (BiomedNLP-PubMedBERT + SentenceTransformer)
+            # Причина: Модели слишком тяжелые и вызывают падение приложения
+            # Используем только базовую обработку текста
             
-            try:
-                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-                self.model = AutoModel.from_pretrained(model_name)
-                logger.info(f"Загружена медицинская модель: {model_name}")
-            except Exception as e:
-                logger.warning(f"Не удалось загрузить {model_name}, использую базовую модель: {e}")
-                # Fallback на базовую модель BERT
-                self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-                self.model = BertModel.from_pretrained('bert-base-uncased')
+            logger.info("Тяжелые AI модели временно отключены для стабильности")
+            logger.info("Использую только базовые классификаторы")
             
-            # Загружаем модель для семантического поиска
-            try:
-                self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Загружена модель для семантического поиска")
-            except Exception as e:
-                logger.warning(f"Не удалось загрузить sentence transformer: {e}")
-                
+            # Инициализируем пустые значения для совместимости
+            self.tokenizer = None
+            self.model = None
+            self.sentence_transformer = None
+            
+            # TODO: Добавить ленивую загрузку моделей при первом использовании
+            # TODO: Оптимизировать использование памяти
+            
         except Exception as e:
             logger.error(f"Ошибка при загрузке трансформера: {e}")
     
@@ -607,13 +602,41 @@ class MedicalAI:
             keyword_symptoms = self._extract_symptoms_by_keywords(text)
             symptoms.extend(keyword_symptoms)
             
-            # Убираем дубликаты
+            # Убираем дубликаты и синонимы
             unique_symptoms = []
             seen_names = set()
+            synonym_groups = {
+                'температура': ['лихорадка', 'жар', 'температура'],
+                'головная_боль': ['головная_боль', 'мигрень', 'головокружение'],
+                'боль_в_животе': ['боль_в_животе', 'тошнота', 'рвота'],
+                'простуда': ['насморк', 'кашель', 'боль_в_горле']
+            }
+            
+            # Группируем симптомы по синонимам
+            symptom_groups = {}
             for symptom in symptoms:
-                if symptom['name'] not in seen_names:
-                    unique_symptoms.append(symptom)
-                    seen_names.add(symptom['name'])
+                grouped = False
+                for main_name, synonyms in synonym_groups.items():
+                    if symptom['name'] in synonyms:
+                        if main_name not in symptom_groups:
+                            symptom_groups[main_name] = []
+                        symptom_groups[main_name].append(symptom)
+                        grouped = True
+                        break
+                
+                if not grouped:
+                    # Если симптом не в группе, добавляем как есть
+                    if symptom['name'] not in seen_names:
+                        unique_symptoms.append(symptom)
+                        seen_names.add(symptom['name'])
+            
+            # Для каждой группы синонимов берем самый уверенный
+            for main_name, group_symptoms in symptom_groups.items():
+                if main_name not in seen_names:
+                    best_symptom = max(group_symptoms, key=lambda x: x['confidence'])
+                    best_symptom['name'] = main_name  # Нормализуем название
+                    unique_symptoms.append(best_symptom)
+                    seen_names.add(main_name)
             
             return unique_symptoms
             
@@ -754,10 +777,37 @@ class MedicalAI:
                 except Exception as e:
                     logger.warning(f"Ошибка при использовании классификатора заболеваний: {e}")
             
-            # Сортируем по уверенности
-            diseases.sort(key=lambda x: x['confidence'], reverse=True)
+            # ДЕДУПЛИКАЦИЯ: Объединяем заболевания с одинаковыми именами
+            disease_map = {}
+            for disease in diseases:
+                disease_name = disease['name'].lower()
+                
+                # Если заболевание уже есть, выбираем лучший вариант
+                if disease_name in disease_map:
+                    existing = disease_map[disease_name]
+                    # Выбираем заболевание с большей уверенностью
+                    if disease['confidence'] > existing['confidence']:
+                        # Обновляем описание, если есть более подробное
+                        if len(disease.get('description', '')) > len(existing.get('description', '')):
+                            existing['description'] = disease['description']
+                        existing['confidence'] = disease['confidence']
+                        existing['matched_symptoms'] = max(disease['matched_symptoms'], existing['matched_symptoms'])
+                        existing['total_symptoms'] = max(disease['total_symptoms'], existing['total_symptoms'])
+                        
+                        # Объединяем дополнительные данные
+                        for key in ['causes', 'risk_factors', 'complications']:
+                            if key in disease:
+                                existing[key] = disease[key]
+                else:
+                    disease_map[disease_name] = disease
             
-            return diseases[:5]  # Возвращаем топ-5
+            # Преобразуем обратно в список
+            unique_diseases = list(disease_map.values())
+            
+            # Сортируем по уверенности
+            unique_diseases.sort(key=lambda x: x['confidence'], reverse=True)
+            
+            return unique_diseases[:5]  # Возвращаем топ-5
             
         except Exception as e:
             logger.error(f"Ошибка при предсказании заболеваний: {e}")
@@ -784,7 +834,9 @@ class MedicalAI:
             
             recommendations.extend(general_recommendations)
             
-            # Рекомендации на основе заболеваний
+            # Рекомендации на основе заболеваний (с дедупликацией)
+            seen_recommendations = set()
+            
             for disease in diseases:
                 disease_name = disease['name']
                 if disease_name in self.treatment_database:
@@ -792,23 +844,30 @@ class MedicalAI:
                     
                     # Первичные рекомендации
                     for treatment in treatment_info.get('primary', []):
-                        recommendation = {
-                            "type": "treatment",
-                            "text": treatment,
-                            "priority": "high",
-                            "related_disease": disease_name
-                        }
-                        recommendations.append(recommendation)
+                        # Проверяем, не добавили ли мы уже эту рекомендацию
+                        if treatment not in seen_recommendations:
+                            recommendation = {
+                                "type": "treatment",
+                                "text": treatment,
+                                "priority": "high",
+                                "related_disease": disease_name
+                            }
+                            recommendations.append(recommendation)
+                            seen_recommendations.add(treatment)
                     
                     # Когда обращаться к врачу
                     for warning in treatment_info.get('when_to_see_doctor', []):
-                        recommendation = {
-                            "type": "warning",
-                            "text": f"Немедленно обратитесь к врачу при: {warning}",
-                            "priority": "urgent",
-                            "related_disease": disease_name
-                        }
-                        recommendations.append(recommendation)
+                        warning_text = f"Немедленно обратитесь к врачу при: {warning}"
+                        # Проверяем, не добавили ли мы уже это предупреждение
+                        if warning_text not in seen_recommendations:
+                            recommendation = {
+                                "type": "warning",
+                                "text": warning_text,
+                                "priority": "urgent",
+                                "related_disease": disease_name
+                            }
+                            recommendations.append(recommendation)
+                            seen_recommendations.add(warning_text)
             
             # Рекомендации на основе симптомов
             high_severity_symptoms = [s for s in symptoms if s.get('severity') == 'высокая']
@@ -849,13 +908,32 @@ class MedicalAI:
         if not symptoms or not diseases:
             return 0.0
         
+        # Улучшенный алгоритм расчета уверенности
         avg_symptom_confidence = sum(s.get('confidence', 0) for s in symptoms) / len(symptoms)
         avg_disease_confidence = sum(d.get('confidence', 0) for d in diseases) / len(diseases)
         
-        # Учитываем количество симптомов
-        symptom_factor = min(len(symptoms) / 5, 1.0)  # Максимум при 5+ симптомах
+        # Базовая уверенность на основе симптомов и заболеваний
+        base_confidence = (avg_symptom_confidence + avg_disease_confidence) / 2
         
-        overall_confidence = (avg_symptom_confidence + avg_disease_confidence) / 2 * symptom_factor
+        # Бонус за количество симптомов (больше симптомов = больше уверенности)
+        symptom_count_bonus = min(len(symptoms) * 0.1, 0.3)  # Максимум +30%
+        
+        # Бонус за высокую уверенность в заболеваниях
+        high_confidence_diseases = [d for d in diseases if d.get('confidence', 0) > 0.5]
+        disease_confidence_bonus = len(high_confidence_diseases) * 0.1  # +10% за каждое уверенное заболевание
+        
+        # Бонус за совпадение симптомов с заболеваниями
+        symptom_match_bonus = 0
+        for disease in diseases:
+            if disease.get('matched_symptoms', 0) > 0:
+                match_ratio = disease['matched_symptoms'] / max(disease.get('total_symptoms', 1), 1)
+                symptom_match_bonus += match_ratio * 0.2  # До +20% за полное совпадение
+        
+        # Итоговая уверенность
+        overall_confidence = base_confidence + symptom_count_bonus + disease_confidence_bonus + symptom_match_bonus
+        
+        # Ограничиваем максимум 95%
+        overall_confidence = min(overall_confidence, 0.95)
         
         return round(overall_confidence, 2)
     
