@@ -342,6 +342,15 @@ function Header() {
               </NavbarItem>
             )}
             
+            {user?.role === 'patient' && (
+              <NavbarItem>
+                <Link to="/ai-diagnosis" className="text-gray-700 hover:text-primary transition-colors relative group">
+                  🧠 AI Диагностика
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              </NavbarItem>
+            )}
+            
             {user?.role === 'admin' && (
               <NavbarItem>
                 <Link to="/admin" className="text-gray-700 hover:text-purple-600 transition-colors relative group">
@@ -545,6 +554,7 @@ function Header() {
                 if (key === 'tablets') handleMobileNavigation('/tablets');
                 if (key === 'clinics') handleMobileNavigation('/clinics');
                 if (key === 'search') handleSearchDoctorsClick();
+                if (key === 'ai-diagnosis') handleMobileNavigation('/ai-diagnosis');
                 if (key === 'admin-panel') navigate('/admin');
                 if (key === 'logout') handleLogout();
               }}>
@@ -626,6 +636,17 @@ function Header() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                       {t('findDoctor')}
+                    </div>
+                  </DropdownItem>
+                )}
+                
+                {user?.role === 'patient' && (
+                  <DropdownItem key="ai-diagnosis" textValue="AI Диагностика" className="py-2.5 hover:bg-blue-50">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      🧠 AI Диагностика
                     </div>
                   </DropdownItem>
                 )}
@@ -723,6 +744,22 @@ function Header() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <span className="font-medium">{t('findDoctor')}</span>
+                  </div>
+                </button>
+              </NavbarMenuItem>
+            )}
+            
+            {user?.role === 'patient' && (
+              <NavbarMenuItem>
+                <button 
+                  onClick={() => handleMobileNavigation('/ai-diagnosis')} 
+                  className="w-full py-3 text-left text-gray-700 hover:text-primary transition-colors rounded-lg hover:bg-blue-50 px-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-medium">🧠 AI Диагностика</span>
                   </div>
                 </button>
               </NavbarMenuItem>

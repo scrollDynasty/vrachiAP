@@ -128,6 +128,9 @@ from calls_router import router as calls_router
 # Импортируем роутер новостей
 from news_router import router as news_router
 
+# Импортируем роутер AI диагностики
+from ai_router import router as ai_router
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -238,6 +241,9 @@ app.include_router(calls_router)
 
 # Подключаем роутер новостей
 app.include_router(news_router)
+
+# Подключаем роутер AI диагностики
+app.include_router(ai_router)
 
 # Dependency для получения сессии базы данных. Используется в роутах для взаимодействия с БД.
 # Annotated - современный способ указания типа и зависимости.

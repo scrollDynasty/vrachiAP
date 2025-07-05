@@ -21,6 +21,7 @@ import AboutPage from './pages/AboutPage'
 import TabletsPage from './pages/TabletsPage'
 import ClinicsPage from './pages/ClinicsPage'
 import NewsDetailPage from './pages/NewsDetailPage'
+import AIDiagnosisPage from './pages/AIDiagnosisPage'
 
 // Импортируем компонент хедера
 import Header from './components/Header'
@@ -411,6 +412,7 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/tablets" element={<TabletsPage />} />
               <Route path="/clinics" element={<ClinicsPage />} />
+              <Route path="/ai-diagnosis" element={<AIDiagnosisPage />} />
               {/* Маршрут для публичного профиля врача (доступен только аутентифицированным пользователям) */}
               <Route path="/doctors/:doctorId" element={<DoctorProfilePage />} />
               <Route path="/doctor-application" element={<DoctorApplicationPage />} />
