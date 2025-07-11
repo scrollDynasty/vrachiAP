@@ -300,8 +300,8 @@ export const optimizeTouch = (element, options = {}) => {
  * ОПТИМИЗАЦИЯ: Начальная настройка производительности
  */
 export const initPerformanceOptimizations = () => {
-  // Запускаем мониторинг производительности в development режиме
-  if (process.env.NODE_ENV === 'development') {
+  // Запускаем мониторинг производительности только в development режиме
+  if (import.meta.env.MODE === 'development') {
     performanceMonitor.start();
     
     // Глобальные функции для отладки

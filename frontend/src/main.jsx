@@ -19,6 +19,7 @@ import muiTheme from './theme/index'
 
 // ОПТИМИЗАЦИЯ: Импортируем утилиты производительности
 import { initPerformanceOptimizations } from './utils/performanceUtils'
+import { initMobileOptimizations } from './utils/mobileOptimizations'
 
 // Используйте здесь ваш реальный Client ID из Google Console
 const GOOGLE_CLIENT_ID = "735617581412-e8ceb269bj7qqrv9sl066q63g5dr5sne.apps.googleusercontent.com"
@@ -154,8 +155,13 @@ XMLHttpRequest.prototype.send = function(...args) {
 window.addEventListener('error', (event) => {
 });
 
-// ОПТИМИЗАЦИЯ: Инициализируем оптимизации производительности перед рендерингом
-initPerformanceOptimizations();
+// ОПТИМИЗАЦИЯ: Инициализируем оптимизации производительности только в development
+if (import.meta.env.MODE === 'development') {
+  initPerformanceOptimizations();
+}
+
+// ОПТИМИЗАЦИЯ: Инициализируем мобильные оптимизации для всех режимов
+initMobileOptimizations();
 
 // Убедимся, что DOM готов для рендеринга
 const rootElement = document.getElementById('root');

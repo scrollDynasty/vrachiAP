@@ -1,6 +1,7 @@
 // WebSocket сервис для централизованного управления WebSocket соединениями
 import api from '../api';
 import { WS_BASE_URL } from '../api';
+import { backgroundDetector, isMobileDevice } from '../utils/mobileOptimizations';
 
 // Синглтон для хранения соединений
 class WebSocketService {
@@ -28,7 +29,7 @@ class WebSocketService {
     this.reconnectAttempts = {};
     this.reconnectTimers = {};
     this.maxReconnectAttempts = -1; // Бесконечные попытки переподключения (-1 = без лимита)
-    this.reconnectInterval = 5000; // Интервал между попытками
+    this.reconnectInterval = isMobileDevice() ? 8000 : 5000; // Больший интервал для мобильных устройств
     
     // Флаги для отслеживания переподключений в процессе
     this.reconnectingFlags = {};
@@ -57,6 +58,12 @@ class WebSocketService {
     
     // Отслеживаем изменения видимости страницы
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    
+    // Initialize background detector
+    backgroundDetector.init();
+    
+    // Add background state callback
+    backgroundDetector.addCallback(this.handleBackgroundChange.bind(this));
   }
   
   // Обработчик изменения видимости страницы
@@ -72,6 +79,34 @@ class WebSocketService {
         }
       });
     }
+  }
+  
+  // Обработчик изменения состояния фона/переднего плана
+  handleBackgroundChange(state) {
+    if (state === 'background') {
+      // Pause non-critical connections when app goes to background
+      this.pauseNonCriticalConnections();
+    } else if (state === 'foreground') {
+      // Resume connections when app comes to foreground
+      this.resumeConnections();
+    }
+  }
+  
+  // Pause non-critical WebSocket connections
+  pauseNonCriticalConnections() {
+    Object.keys(this.connections).forEach(key => {
+      const conn = this.connections[key];
+      // Only pause notification connections, keep consultation connections active
+      if (key.startsWith('notifications_') && conn && conn.readyState === WebSocket.OPEN) {
+        conn.close(1000, 'Paused - app in background');
+      }
+    });
+  }
+  
+  // Resume connections when app comes to foreground
+  resumeConnections() {
+    // Check all connections and reconnect closed ones
+    this.checkAllConnections();
   }
   
   // Проверяем все соединения
