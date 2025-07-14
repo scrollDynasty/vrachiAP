@@ -4,19 +4,22 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import notificationService from '../services/notificationService';
 import soundService from '../services/soundService';
+import { getOptimizedThrottleDelay, backgroundDetector } from '../utils/mobileOptimizations';
 
 const NotificationWebSocket = () => {
   const { user, isAuthenticated, token } = useAuthStore();
   const navigate = useNavigate();
   const wsRef = useRef(null);
   const connectionAttemptRef = useRef(0);
+  const isPausedRef = useRef(false); // Track if WebSocket is paused due to background
   
   // ОПТИМИЗАЦИЯ: Строгое отслеживание показанных уведомлений с ограниченным размером
   const shownNotificationsRef = useRef(new Set());
   const lastProcessedNotificationRef = useRef(null);
   
-  // ОПТИМИЗАЦИЯ: Throttling для обработки сообщений (как у Instagram)
+  // ОПТИМИЗАЦИЯ: Throttling для обработки сообщений с мобильной оптимизацией
   const messageThrottleRef = useRef(null);
+  const optimizedThrottleDelay = getOptimizedThrottleDelay(200);
 
   // ОПТИМИЗАЦИЯ: Функция throttling для предотвращения перегрузки
   const throttle = useCallback((func, delay) => {
@@ -46,7 +49,7 @@ const NotificationWebSocket = () => {
     }
   }, []);
 
-  // ОПТИМИЗАЦИЯ: Обработчик сообщений WebSocket с throttling
+  // ОПТИМИЗАЦИЯ: Обработчик сообщений WebSocket с мобильным throttling
   const handleWebSocketMessage = useCallback(throttle((data) => {
     // Используем requestAnimationFrame для оптимальной работы с DOM
     requestAnimationFrame(() => {
@@ -193,7 +196,7 @@ const NotificationWebSocket = () => {
         // Игнорируем ошибки обработки WebSocket сообщения
       }
     });
-  }, 200), [navigate, isNotificationShown, markNotificationShown]); // Throttling 200ms
+  }, optimizedThrottleDelay), [navigate, isNotificationShown, markNotificationShown, optimizedThrottleDelay]); // Мобильный throttling
 
   // Подключение к WebSocket для уведомлений
   useEffect(() => {
@@ -225,6 +228,11 @@ const NotificationWebSocket = () => {
 
     const connectWebSocket = async () => {
       try {
+        // Skip connection if paused due to background
+        if (isPausedRef.current) {
+          return;
+        }
+        
         // Проверяем, что это все еще актуальная попытка подключения
         if (currentAttempt !== connectionAttemptRef.current) {
           return;
@@ -277,13 +285,13 @@ const NotificationWebSocket = () => {
         ws.onclose = (event) => {
           wsRef.current = null;
           
-          // Переподключение при неожиданном закрытии
-          if (reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
+          // Only reconnect if not paused and not normal closure
+          if (!isPausedRef.current && reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
             reconnectAttempts++;
             const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
             
             setTimeout(() => {
-              if (currentAttempt === connectionAttemptRef.current) {
+              if (currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
                 connectWebSocket();
               }
             }, delay);
@@ -296,12 +304,12 @@ const NotificationWebSocket = () => {
 
       } catch (error) {
         // Переподключение при ошибке получения токена
-        if (reconnectAttempts < maxReconnectAttempts && currentAttempt === connectionAttemptRef.current) {
+        if (reconnectAttempts < maxReconnectAttempts && currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
           reconnectAttempts++;
           const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
           
           setTimeout(() => {
-            if (currentAttempt === connectionAttemptRef.current) {
+            if (currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
               connectWebSocket();
             }
           }, delay);
@@ -318,6 +326,35 @@ const NotificationWebSocket = () => {
       }
     };
   }, [isAuthenticated, user?.id, token, handleWebSocketMessage]); // Изменил зависимости
+
+  // Background detection effect
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    const handleBackgroundChange = (state) => {
+      if (state === 'background') {
+        // Pause WebSocket when app goes to background
+        isPausedRef.current = true;
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.close(1000, 'App went to background');
+        }
+      } else if (state === 'foreground') {
+        // Resume WebSocket when app comes to foreground
+        isPausedRef.current = false;
+        // Trigger reconnection if WebSocket was closed
+        if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+          // Trigger effect by updating connection attempt
+          connectionAttemptRef.current++;
+        }
+      }
+    };
+
+    const unsubscribe = backgroundDetector.addCallback(handleBackgroundChange);
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthenticated, user?.id]);
 
   // Запрос разрешений на браузерные уведомления
   useEffect(() => {
