@@ -2,18 +2,34 @@
 Medical AI Inference Module - Модуль инференса медицинской AI
 """
 
-import torch
-import torch.nn as nn
-from transformers import (
-    AutoTokenizer, AutoModel, AutoModelForSequenceClassification,
-    pipeline, BertTokenizer, BertModel
-)
-from sentence_transformers import SentenceTransformer
-import numpy as np
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from ai_config import is_ai_enabled, get_ai_disabled_response, get_ai_stub_diagnosis
+
+# Условный импорт тяжелых AI библиотек только если AI включен
+if is_ai_enabled():
+    try:
+        import torch
+        import torch.nn as nn
+        from transformers import (
+            AutoTokenizer, AutoModel, AutoModelForSequenceClassification,
+            pipeline, BertTokenizer, BertModel
+        )
+        from sentence_transformers import SentenceTransformer
+        import numpy as np
+        HEAVY_IMPORTS_AVAILABLE = True
+    except ImportError as e:
+        print(f"Warning: Heavy AI libraries not installed, using stubs: {e}")
+        HEAVY_IMPORTS_AVAILABLE = False
+else:
+    # Если AI отключен, не импортируем тяжелые библиотеки
+    HEAVY_IMPORTS_AVAILABLE = False
+
 from typing import Dict, List, Optional, Tuple
 import logging
 import json
-import os
 from pathlib import Path
 import re
 from datetime import datetime
@@ -23,13 +39,16 @@ import pickle
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
-# Импорты для работы с базой данных
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from models import (
-    AIDiagnosis, AITrainingData, AIModel, AIModelTraining, AIFeedback,
-    User, PatientProfile, get_db
-)
+# Импорты для работы с базой данных - условные
+if is_ai_enabled():
+    try:
+        from models import (
+            AIDiagnosis, AITrainingData, AIModel, AIModelTraining, AIFeedback,
+            User, PatientProfile, get_db
+        )
+    except ImportError:
+        # Если не удается импортировать модели БД, работаем без них
+        pass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,9 +64,41 @@ class MedicalAI:
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(exist_ok=True)
         
-        # Инициализация моделей
-        self.tokenizer = None
-        self.model = None
+        # Проверяем статус AI
+        if not is_ai_enabled():
+            logger.info("AI отключен - инициализация MedicalAI пропущена")
+            self.ai_enabled = False
+            return
+        
+        self.ai_enabled = True
+        
+        # Инициализация моделей только если AI включен и тяжелые библиотеки доступны
+        if HEAVY_IMPORTS_AVAILABLE:
+            self.tokenizer = None
+            self.model = None
+            self.symptom_classifier = None
+            self.disease_classifier = None
+            self.symptom_vectorizer = None
+            self.disease_vectorizer = None
+            self.sentence_transformer = None
+            
+            # Версия модели
+            self.model_version = "1.0.0"
+            
+            # База знаний (кэш из БД)
+            self.disease_database = {}
+            self.symptom_database = {}
+            self.treatment_database = {}
+            
+            # Загружаем модели
+            try:
+                self.load_models()
+            except Exception as e:
+                logger.error(f"Ошибка при загрузке AI моделей: {e}")
+                self.ai_enabled = False
+        else:
+            logger.warning("Тяжелые AI библиотеки недоступны, используем заглушки")
+            self.ai_enabled = False
         self.symptom_classifier = None
         self.disease_classifier = None
         self.symptom_vectorizer = None
@@ -474,6 +525,13 @@ class MedicalAI:
         """
         Основной метод анализа симптомов с сохранением в БД
         """
+        # Проверяем, включен ли AI
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info(f"AI анализ симптомов заблокирован - AI отключен (пациент: {patient_id})")
+            result = get_ai_stub_diagnosis()
+            result["timestamp"] = datetime.now().isoformat()
+            return result
+        
         start_time = datetime.now()
         
         try:

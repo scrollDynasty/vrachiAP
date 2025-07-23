@@ -22,7 +22,16 @@ from sqlalchemy.orm import Session
 # Импорты для работы с базой данных
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from models import AITrainingData, get_db
+
+from ai_config import is_ai_enabled, get_ai_disabled_response
+
+# Условный импорт моделей БД только если AI включен  
+if is_ai_enabled():
+    try:
+        from models import AITrainingData, get_db
+    except ImportError:
+        # Если не удается импортировать модели БД, работаем без них
+        pass
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +45,14 @@ class RealDataCollector:
     """
     
     def __init__(self):
+        # Проверяем статус AI
+        if not is_ai_enabled():
+            logger.info("AI отключен - инициализация DataCollector пропущена")
+            self.ai_enabled = False
+            return
+        
+        self.ai_enabled = True
+        
         self.session = requests.Session()
         # Добавляем реальный User-Agent для обхода блокировок
         self.session.headers.update({
@@ -107,6 +124,10 @@ class RealDataCollector:
     
     async def collect_all_sources(self, limit: int = 1000) -> Dict:
         """Сбор данных из всех доступных источников с улучшенным покрытием"""
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info(f"Сбор медицинских данных заблокирован - AI отключен (лимит: {limit})")
+            return get_ai_disabled_response("Сбор медицинских данных")
+        
         logger.info(f"Запуск сбора данных из всех источников (лимит: {limit})")
         
         try:

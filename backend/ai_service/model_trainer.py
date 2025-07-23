@@ -2,22 +2,42 @@
 Model Training Module - Модуль для обучения медицинских AI моделей
 """
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from transformers import (
-    AutoTokenizer, AutoModelForSequenceClassification,
-    TrainingArguments, Trainer, BertTokenizer, BertModel
-)
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.svm import SVC
-import pandas as pd
-import numpy as np
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from ai_config import is_ai_enabled, get_ai_disabled_response
+
+# Условный импорт тяжелых AI библиотек только если AI включен
+if is_ai_enabled():
+    try:
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+        from torch.utils.data import DataLoader, Dataset
+        from transformers import (
+            AutoTokenizer, AutoModelForSequenceClassification,
+            TrainingArguments, Trainer, BertTokenizer, BertModel
+        )
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.naive_bayes import MultinomialNB
+        from sklearn.svm import SVC
+        import pandas as pd
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from tqdm import tqdm
+        HEAVY_IMPORTS_AVAILABLE = True
+    except ImportError as e:
+        print(f"Warning: Heavy AI libraries not installed, using stubs: {e}")
+        HEAVY_IMPORTS_AVAILABLE = False
+else:
+    # Если AI отключен, не импортируем тяжелые библиотеки
+    HEAVY_IMPORTS_AVAILABLE = False
+
 import json
 import pickle
 import logging
@@ -25,9 +45,6 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import asyncio
 from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -82,25 +99,43 @@ class ModelTrainer:
         self.data_dir = Path(data_dir)
         self.model_dir.mkdir(exist_ok=True)
         
-        # Модели
-        self.symptom_model = None
-        self.disease_model = None
-        self.treatment_model = None
+        # Проверяем статус AI
+        if not is_ai_enabled():
+            logger.info("AI отключен - инициализация ModelTrainer пропущена")
+            self.ai_enabled = False
+            return
         
-        # Токенизаторы
-        self.tokenizer = None
+        self.ai_enabled = True
         
-        # Данные
-        self.training_data = []
-        self.validation_data = []
-        
-        # Метрики
-        self.training_metrics = {}
-        
-        logger.info(f"ModelTrainer инициализирован. Модели: {self.model_dir}, Данные: {self.data_dir}")
+        # Инициализация только если AI включен и тяжелые библиотеки доступны
+        if HEAVY_IMPORTS_AVAILABLE:
+            # Модели
+            self.symptom_model = None
+            self.disease_model = None
+            self.treatment_model = None
+            
+            # Токенизаторы
+            self.tokenizer = None
+            
+            # Данные
+            self.training_data = []
+            self.validation_data = []
+            
+            # Метрики
+            self.training_metrics = {}
+            
+            logger.info(f"ModelTrainer инициализирован. Модели: {self.model_dir}, Данные: {self.data_dir}")
+        else:
+            logger.warning("Тяжелые AI библиотеки недоступны, используем заглушки")
+            self.ai_enabled = False
     
-    def load_training_data(self, source: str = "database") -> bool:
+    def load_training_data(self, source: str = "database") -> Dict[str, any]:
         """
+        Загрузка данных для обучения
+        """
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info(f"Загрузка данных обучения заблокирована - AI отключен (источник: {source})")
+            return get_ai_disabled_response("Загрузка данных обучения")
         Загрузка данных для обучения из БД или файлов
         
         Args:
@@ -403,6 +438,10 @@ class ModelTrainer:
         """
         Обучение классификатора симптомов
         """
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info(f"Обучение классификатора симптомов заблокировано - AI отключен (тип: {model_type})")
+            return get_ai_disabled_response("Обучение классификатора симптомов")
+        
         try:
             logger.info("Начинаю обучение классификатора симптомов...")
             
@@ -496,6 +535,10 @@ class ModelTrainer:
         """
         Обучение классификатора заболеваний
         """
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info(f"Обучение классификатора заболеваний заблокировано - AI отключен (тип: {model_type})")
+            return get_ai_disabled_response("Обучение классификатора заболеваний")
+        
         try:
             logger.info("Начинаю обучение классификатора заболеваний...")
             
@@ -752,6 +795,10 @@ class ModelTrainer:
         """
         Обучение всех моделей с улучшенной обработкой ошибок
         """
+        if not is_ai_enabled() or not self.ai_enabled:
+            logger.info("Обучение всех моделей заблокировано - AI отключен")
+            return get_ai_disabled_response("Обучение всех AI моделей")
+        
         try:
             logger.info("Начинаю обучение всех моделей...")
             
