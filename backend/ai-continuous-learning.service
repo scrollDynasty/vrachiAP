@@ -1,5 +1,5 @@
 [Unit]
-Description=AI Continuous Learning Service for Healzy.uz
+Description=AI Continuous Learning Service for Healzy.uz (DISABLED)
 After=network.target mysql.service
 Requires=mysql.service
 StartLimitIntervalSec=0
@@ -10,8 +10,10 @@ User=scroll
 Group=scroll
 WorkingDirectory=/var/www/healzy.app/backend
 Environment=PYTHONPATH=/var/www/healzy.app/backend
+Environment=ENABLE_AI=false
 ExecStart=/var/www/healzy.app/backend/venv/bin/python3 /var/www/healzy.app/backend/continuous_learning_service.py
-Restart=always
+# Перезапуск при сбоях отключен для предотвращения перезагрузок сервера
+Restart=no
 RestartSec=10
 StandardOutput=journal
 StandardError=journal

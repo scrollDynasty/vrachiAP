@@ -1,5 +1,5 @@
 [Unit]
-Description=Healzy AI Continuous Learning System
+Description=Healzy AI Continuous Learning System (DISABLED)
 Documentation=https://healzy.uz/docs/ai-learning
 After=network.target mysql.service
 
@@ -11,12 +11,13 @@ WorkingDirectory=/var/www/healzy.app/backend
 Environment="PATH=/var/www/healzy.app/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=/var/www/healzy.app/backend"
 Environment="PYTHONUNBUFFERED=1"
+Environment="ENABLE_AI=false"
 
 # Команда запуска
 ExecStart=/var/www/healzy.app/venv/bin/python ai_continuous_learning.py
 
-# Перезапуск при сбоях
-Restart=always
+# Перезапуск при сбоях отключен для предотвращения перезагрузок сервера
+Restart=no
 RestartSec=10
 
 # Лимиты ресурсов

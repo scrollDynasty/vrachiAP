@@ -10,9 +10,9 @@ def is_ai_enabled() -> bool:
     Проверяет, включена ли AI система через переменную окружения ENABLE_AI
     
     Returns:
-        bool: True если AI включен, False если отключен
+        bool: True если AI включен, False если отключен (по умолчанию)
     """
-    enable_ai = os.getenv('ENABLE_AI', 'true').lower()
+    enable_ai = os.getenv('ENABLE_AI', 'false').lower()
     return enable_ai in ('true', '1', 'yes', 'on')
 
 def get_ai_disabled_response(operation: str = "AI operation") -> Dict[str, Any]:

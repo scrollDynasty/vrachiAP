@@ -155,6 +155,7 @@ After=network.target
 User=whoami
 WorkingDirectory=$DEPLOY_DIR/backend
 Environment="PATH=$DEPLOY_DIR/backend/venv/bin"
+Environment="ENABLE_AI=false"
 ExecStart=$DEPLOY_DIR/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 
 [Install]
