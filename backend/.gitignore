@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+ai_system/
+
+# Виртуальное окружение
+venv/
+ENV/
+.venv
+env.bak/
+venv.bak/
+.python-version
+
+# FastAPI/Django
+__pycache__/
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# Миграции (опционально)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+
+# Логи
+logs/
+*.log
+
+# Кэш
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Секретные ключи
+*.key
+*.pem
+*.pub
+
+# Временные файлы
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Локальные тестовые данные
+test_data/
+test_uploads/
+
+# Alembic (для SQLAlchemy)
+alembic/versions/*
+!alembic/versions/.gitkeep
+
+# Документация
+docs/_build/
+docs/site
+
+# Загруженные файлы пользователей (если хранятся локально)
+uploads/
+user_content/ 

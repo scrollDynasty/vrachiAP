@@ -1,0 +1,12 @@
+mysql -u vrachi_user -p -D online_doctors_db
+
+-- Показать все таблицы
+SHOW TABLES;
+
+-- Посмотреть данные пользователей
+SELECT id, email, role, is_active FROM users;
+
+-- Посмотреть структуру таблицы
+DESCRIBE users;
+
+DELETE FROM users WHERE id = 20;

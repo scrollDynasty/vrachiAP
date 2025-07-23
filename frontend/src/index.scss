@@ -1,0 +1,1522 @@
+// frontend/src/index.scss
+
+// Импортируем модули Sass (переменные, стили форм)
+// Используем @use вместо @import без пространства имен
+@use './styles/variables' as *;
+// Импортируем встроенный модуль color для функций типа adjust
+
+// Импортируем стили для контейнера форм
+@use './styles/forms';
+
+// Импортируем шрифты Google
+/* ОПТИМИЗАЦИЯ LCP: Шрифты теперь предзагружаются в HTML head для ускорения отображения */
+
+/* ОПТИМИЗАЦИЯ LCP: Локальная декларация шрифтов с font-display: swap */
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-display: swap; /* Быстрое отображение текста с системными шрифтами */
+  src: local('Poppins');
+}
+
+// Импорт мобильной адаптации
+@import './styles/mobile-responsive.css';
+
+// Импорт анимаций для компонентов звонка
+@import './styles/call-animations.css';
+
+// Определение цветовой схемы
+:root {
+  // Основные цвета
+  --color-primary: #3b82f6; // Синий (основной)
+  --color-primary-light: #93c5fd;
+  --color-primary-dark: #1d4ed8;
+  
+  // Улучшенные градиентные цвета - более мягкие и приятные
+  --gradient-primary: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd);
+  --gradient-secondary: linear-gradient(45deg, #64748b, #94a3b8, #cbd5e1);
+  --gradient-accent: linear-gradient(45deg, #818cf8, #a5b4fc, #c7d2fe);
+  --gradient-background: linear-gradient(145deg, #f8fafc, #f1f5f9, #e2e8f0, #f8fafc);
+  --gradient-neon: linear-gradient(45deg, #4f46e5, #6366f1, #818cf8);
+  --gradient-cool: linear-gradient(45deg, #0ea5e9, #38bdf8, #7dd3fc);
+  --gradient-vivid: linear-gradient(45deg, #0284c7, #0ea5e9, #38bdf8);
+  --gradient-fire: linear-gradient(45deg, #f59e0b, #f97316, #ef4444);
+  --gradient-medical: linear-gradient(45deg, #ef4444, #dc2626, #b91c1c);
+  
+  // Дополнительные/акцентные цвета
+  --color-secondary: #64748b; // Серый (вторичный)
+  --color-success: #22c55e; // Зеленый (успех)
+  --color-warning: #f59e0b; // Оранжевый (предупреждение)
+  --color-danger: #ef4444; // Красный (опасность)
+  --color-info: #06b6d4; // Голубой (информация)
+  
+  // Нейтральные цвета
+  --color-white: #ffffff;
+  --color-gray-50: #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
+  --color-black: #000000;
+  
+  // Специальные цвета для медицинской тематики
+  --color-medical-blue: #0891b2; // Специфический оттенок синего для медицины
+  --color-medical-green: #059669; // Специфический оттенок зеленого для медицины
+  --color-medical-red: #ef4444; // Медицинский красный (для крестов и символов)
+  
+  // Улучшенные тени - более мягкие и приятные
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 30px -5px rgba(0, 0, 0, 0.1);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.4);
+  --shadow-neon: 0 0 20px rgba(79, 70, 229, 0.4);
+  --shadow-3d: 0 8px 30px -5px rgba(0, 0, 0, 0.15);
+  --shadow-raised: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --shadow-button: 0 5px 15px -3px rgba(59, 130, 246, 0.25);
+  --shadow-medical: 0 0 20px rgba(239, 68, 68, 0.4);
+  
+  // Размеры
+  --border-radius-sm: 0.25rem;
+  --border-radius-md: 0.375rem;
+  --border-radius-lg: 0.5rem;
+  --border-radius-xl: 0.75rem;
+  --border-radius-2xl: 1rem;
+  --border-radius-full: 9999px;
+  
+  // Переходы и анимации - более плавные и мягкие
+  --transition-fast: 0.3s ease;
+  --transition-normal: 0.5s ease;
+  --transition-slow: 0.7s ease;
+  --transition-bounce: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-elastic: 0.8s cubic-bezier(0.34, 1.61, 0.7, 1.1);
+}
+
+// Сброс базовых стилей
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  // ОПТИМИЗАЦИЯ: GPU-ускорение для плавной прокрутки
+  will-change: scroll-position;
+}
+
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-gray-800);
+  background-color: var(--color-white);
+  line-height: 1.6;
+  overflow-x: hidden; // Предотвращаем горизонтальную прокрутку
+  position: relative; // Для абсолютного позиционирования элементов
+  min-height: 100vh;
+  // ОПТИМИЗАЦИЯ: GPU-ускорение для body
+  transform: translateZ(0);
+  will-change: scroll-position;
+  // ОПТИМИЗАЦИЯ: Изоляция repaint'ов
+  contain: layout style paint;
+}
+
+// Стили для корневого контейнера приложения в App.jsx
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow-x: hidden;
+  // ОПТИМИЗАЦИЯ: GPU-слой для главного контейнера
+  transform: translateZ(0);
+  will-change: contents;
+  
+  &.medical-theme {
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 5px;
+      background: var(--gradient-medical);
+      z-index: 2;
+      // ОПТИМИЗАЦИЯ: GPU-ускорение для псевдоэлемента
+      transform: translateZ(0);
+      will-change: transform;
+    }
+  }
+}
+
+// Стили для основного контейнера
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+  // ОПТИМИЗАЦИЯ: Изоляция для main контента
+  contain: layout style;
+}
+
+// Улучшенные стили для страницы входа/регистрации - без размытия, с мягкой анимацией
+.auth-page {
+  background: var(--gradient-background);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  // ОПТИМИЗАЦИЯ: GPU-ускорение для страницы авторизации
+  transform: translateZ(0);
+  will-change: background-position;
+  contain: layout style paint;
+  
+  // Добавляем декоративные элементы фона - без размытия
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    width: 45vw;
+    height: 45vw;
+    border-radius: 50%;
+    opacity: 0.2;
+    z-index: 0;
+    transform-origin: center center;
+    // ОПТИМИЗАЦИЯ: GPU-ускорение для декоративных элементов
+    transform: translateZ(0);
+    will-change: transform;
+    contain: strict;
+  }
+  
+  &::before {
+    background: linear-gradient(to right, #4f46e5, #3b82f6);
+    top: -20vw;
+    left: -20vw;
+    animation: rotateSlow 30s linear infinite;
+  }
+  
+  &::after {
+    background: linear-gradient(to right, #3b82f6, #7c3aed);
+    bottom: -20vw;
+    right: -20vw;
+    animation: rotateSlow 35s linear infinite reverse;
+  }
+}
+
+// Переопределение стилей для устранения проблем наложения
+
+// Отступы и контейнеры
+.container {
+  width: 100%;
+  padding-right: 1rem;
+  padding-left: 1rem;
+  margin-right: auto;
+  margin-left: auto;
+  
+  // Адаптивные размеры контейнера
+  @media (min-width: 640px) {
+    max-width: 640px;
+  }
+  @media (min-width: 768px) {
+    max-width: 768px;
+  }
+  @media (min-width: 1024px) {
+    max-width: 1024px;
+  }
+  @media (min-width: 1280px) {
+    max-width: 1280px;
+  }
+  @media (min-width: 1536px) {
+    max-width: 1536px;
+  }
+}
+
+// Стили для горизонтального скроллбара специалистов
+.scrollbar-specialists {
+  // Для мобильных устройств - скрываем скроллбар
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  
+  // Для desktop - показываем красивый скроллбар
+  @media (min-width: 768px) {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 #F1F5F9;
+    
+    &::-webkit-scrollbar {
+      display: block;
+      height: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: #F1F5F9;
+      border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 3px;
+      transition: background 0.3s ease;
+    }
+    
+    &::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+  }
+}
+
+// Улучшенные стили для ссылок - более плавные
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  position: relative;
+  font-weight: 500;
+  
+  &:hover {
+    color: var(--color-primary-dark);
+    text-shadow: 0 0 1px rgba(59, 130, 246, 0.2);
+  }
+  
+  // Добавляем анимированный подчеркивающий эффект - плавный и мягкий
+  &.animated-link {
+    &::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background: var(--gradient-primary);
+      transition: width var(--transition-normal);
+    }
+    
+    &:hover::after {
+      width: 100%;
+    }
+  }
+}
+
+// Улучшенные стили для кнопок - более плавные
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  // Добавляем 3D эффект нажатия - более плавный
+  &.button-3d {
+    transform: translateY(0);
+    
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-3d);
+    }
+    
+    &:active {
+      transform: translateY(-2px);
+    }
+  }
+}
+
+// Улучшенные стили для карточек - более мягкие и приятные
+.card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  position: relative;
+  border: 1px solid var(--color-gray-200);
+
+  &:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--color-gray-300);
+  }
+  
+  // Добавляем эффект свечения при наведении - без размытия
+  &.card-glow {
+    &:hover {
+      box-shadow: var(--shadow-glow);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+  }
+  
+  // Добавляем стиль карточек с градиентом
+  &.card-gradient {
+    background: linear-gradient(to bottom, white, var(--color-gray-50));
+    border: 1px solid var(--color-gray-200);
+    
+    &:hover {
+      background: linear-gradient(to bottom, white, var(--color-gray-100));
+      border-color: var(--color-primary-light);
+    }
+  }
+}
+
+// Исправления для форм NextUI
+.nextui-input-main-container, 
+.nextui-select-trigger, 
+.nextui-radio-group {
+  z-index: 1 !important;
+}
+
+.nextui-dropdown-menu {
+  z-index: 1000 !important;
+}
+
+// Исправление для dropdown-меню
+.nextui-modal-container {
+  z-index: 1100 !important;
+}
+
+// Сбрасываем наложение слоев, которое может вызывать проблемы
+* {
+  z-index: auto;
+}
+
+// Улучшенные вспомогательные классы для типографики - более мягкие
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: var(--gradient-primary);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  display: inline-block;
+  font-weight: 600;
+}
+
+// Более мягкие эффекты для текста
+.text-glow {
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.2);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.text-neon {
+  text-shadow: 0 0 10px rgba(79, 70, 229, 0.4), 0 0 20px rgba(79, 70, 229, 0.3);
+  color: #4f46e5;
+  font-weight: bold;
+}
+
+// Оптимизированные анимации - более плавные и мягкие
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+// Оптимизированные и новые анимации - более плавные
+@keyframes rotateSlow {
+  0% {
+    transform: translateZ(0) rotate(0deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
+@keyframes scaleUp {
+  0% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+    transform: translateZ(0);
+  }
+  50% {
+    background-position: 100% 50%;
+    transform: translateZ(0);
+  }
+}
+
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes moveAround {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(10px, -10px);
+  }
+  50% {
+    transform: translate(0, -20px);
+  }
+  75% {
+    transform: translate(-10px, -10px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Классы анимаций - с более плавными переходами
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.7s ease-out forwards;
+}
+
+.animate-pulse {
+  animation: pulse 3s ease infinite;
+}
+
+.animate-scale {
+  animation: scaleUp 6s ease-in-out infinite alternate;
+}
+
+.animate-float {
+  animation: floatAnimation 6s ease-in-out infinite;
+}
+
+.animate-move {
+  animation: moveAround 12s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.8s ease-out forwards;
+}
+
+// Задержка анимации для эффекта каскада - более плавные времена
+@for $i from 1 through 10 {
+  .animation-delay-#{$i * 100} {
+    animation-delay: #{$i * 0.1}s;
+  }
+}
+
+// Улучшенные стили для медицинских иконок и символов - более мягкие и плавные
+.medical-icon {
+  color: var(--color-primary);
+  transition: transform var(--transition-bounce), color var(--transition-normal);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
+  
+  &:hover {
+    transform: scale(1.15) rotate(5deg);
+    color: var(--color-primary-dark);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  }
+}
+
+// Стилизованная линия для разделения секций - более мягкая и плавная
+.divider {
+  height: 2px;
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.5), rgba(59, 130, 246, 0.05));
+  margin: 2rem 0;
+  border-radius: 2px;
+  position: relative;
+}
+
+// Переопределение стилей для форм NextUI в едином стиле
+// Эти стили помогут обеспечить согласованность между компонентами
+
+// Глобальные стили для всех NextUI компонентов
+.nextui-c-PJLV {
+  --nextui-colors-primary: #3b82f6 !important;
+  --nextui-colors-primaryLight: #93c5fd !important;
+  --nextui-colors-primaryLightHover: #bfdbfe !important;
+  --nextui-colors-primaryLightActive: #60a5fa !important;
+  --nextui-colors-primaryBorder: #3b82f6 !important;
+  --nextui-colors-primaryBorderHover: #2563eb !important;
+  --nextui-colors-primarySolidHover: #2563eb !important;
+  --nextui-colors-primarySolidContrast: #ffffff !important;
+  --nextui-colors-primaryShadow: rgba(59, 130, 246, 0.5) !important;
+}
+
+// Улучшенные стили для карточек форм - без размытия, более мягкие
+.nextui-c-iWjDFM {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(203, 213, 225, 0.8) !important;
+  box-shadow: var(--shadow-lg) !important;
+  transition: all var(--transition-normal) !important;
+  
+  &:hover {
+    transform: translateY(-8px) !important;
+    box-shadow: var(--shadow-xl) !important;
+    border-color: rgba(59, 130, 246, 0.2) !important;
+  }
+}
+
+// Улучшенные стили для форм логина и регистрации - более плавные и мягкие
+.login-form,
+.register-form {
+  .nextui-input-main-container {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 2px solid transparent !important;
+    transition: all var(--transition-normal) !important;
+    border-radius: var(--border-radius-lg) !important;
+    overflow: hidden !important;
+    
+    &:hover {
+      border-color: rgba(59, 130, 246, 0.3) !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+      transform: translateY(-3px) !important;
+    }
+    
+    &:focus-within {
+      border-color: rgba(59, 130, 246, 0.8) !important;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+      transform: translateY(-3px) !important;
+    }
+  }
+  
+  .nextui-button {
+    background: linear-gradient(45deg, #3b82f6, #4f46e5) !important;
+    background-size: 200% 200% !important;
+    animation: gradientShift 8s ease infinite !important;
+    box-shadow: var(--shadow-button) !important;
+    transition: all var(--transition-normal) !important;
+    border-radius: var(--border-radius-lg) !important;
+    overflow: hidden !important;
+    position: relative !important;
+    
+    &:hover {
+      transform: translateY(-5px) !important;
+      box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3) !important;
+      background-size: 150% 150% !important;
+    }
+    
+    &:active {
+      transform: translateY(-2px) !important;
+    }
+  }
+}
+
+// Улучшенные эффекты для Framer Motion - более плавные
+.framer-motion-card {
+  transition: all var(--transition-normal) !important;
+  transform-style: preserve-3d !important;
+  perspective: 1000px !important;
+  position: relative !important;
+  
+  &:hover {
+    transform: translateY(-8px) rotateX(3deg) rotateY(3deg) !important;
+    box-shadow: var(--shadow-3d) !important;
+  }
+  
+  // Добавляем трехмерный эффект для элементов внутри карточки
+  .card-content {
+    transform: translateZ(20px) !important;
+    transition: transform var(--transition-normal) !important;
+  }
+  
+  .card-icon {
+    transform: translateZ(40px) !important;
+    transition: transform var(--transition-normal) !important;
+  }
+  
+  .card-button {
+    transform: translateZ(30px) !important;
+    transition: transform var(--transition-normal) !important;
+  }
+}
+
+// Стили для устранения смешения старых и новых элементов
+.auth-page-container {
+  // Принудительные стили для предотвращения наследования старых стилей
+  & * {
+    box-sizing: border-box !important;
+    transition-timing-function: ease !important;
+  }
+  
+  // Улучшенное переопределение для карточек форм - без размытия, более мягкие
+  .nextui-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(203, 213, 225, 0.8) !important;
+    box-shadow: var(--shadow-lg) !important;
+    border-radius: var(--border-radius-xl) !important;
+    overflow: hidden !important;
+    transition: all var(--transition-normal) !important;
+    
+    &:hover {
+      transform: translateY(-8px) !important;
+      box-shadow: var(--shadow-xl) !important;
+      border-color: rgba(59, 130, 246, 0.2) !important;
+    }
+  }
+  
+  // Улучшенные стили для табов - более плавные
+  .auth-tabs {
+    border-bottom: 1px solid rgba(203, 213, 225, 0.5) !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    
+    .tab-item {
+      position: relative !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 500 !important;
+      transition: all var(--transition-normal) !important;
+      overflow: hidden !important;
+      z-index: 1 !important;
+      
+      &::before {
+        content: '' !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 2px !important;
+        background: linear-gradient(to right, #3b82f6, #4f46e5) !important;
+        transform: scaleX(0) !important;
+        transform-origin: right !important;
+        transition: transform var(--transition-normal) !important;
+        z-index: -1 !important;
+      }
+      
+      &.active {
+        color: #3b82f6 !important;
+        font-weight: 600 !important;
+        
+        &::before {
+          transform: scaleX(1) !important;
+          transform-origin: left !important;
+        }
+      }
+      
+      &:hover:not(.active) {
+        color: #1e293b !important;
+        
+        &::before {
+          transform: scaleX(0.3) !important;
+          transform-origin: left !important;
+        }
+      }
+    }
+  }
+  
+  // Новые декоративные элементы (без размытия)
+  .decorative-shape {
+    position: absolute !important;
+    pointer-events: none !important;
+    
+    &.circle {
+      width: 80px !important;
+      height: 80px !important;
+      border-radius: 50% !important;
+      background: linear-gradient(45deg, var(--color-primary), var(--color-primary-dark)) !important;
+      opacity: 0.1 !important;
+    }
+    
+    &.square {
+      width: 60px !important;
+      height: 60px !important;
+      background: linear-gradient(45deg, var(--color-primary-light), var(--color-primary)) !important;
+      transform: rotate(45deg) !important;
+      opacity: 0.1 !important;
+    }
+    
+    &.top-left {
+      top: 5% !important;
+      left: 5% !important;
+      animation: moveAround 15s ease-in-out infinite !important;
+    }
+    
+    &.bottom-right {
+      bottom: 5% !important;
+      right: 5% !important;
+      animation: moveAround 18s ease-in-out infinite reverse !important;
+    }
+    
+    &.center-left {
+      top: 45% !important;
+      left: 10% !important;
+      animation: floatAnimation 12s ease-in-out infinite !important;
+    }
+  }
+  
+  // Новые интерактивные элементы - более плавные
+  .interactive-icon {
+    transition: all var(--transition-bounce) !important;
+    position: relative !important;
+    
+    &:hover {
+      transform: scale(1.3) rotate(10deg) !important;
+      color: var(--color-primary) !important;
+    }
+    
+    &::after {
+      content: '' !important;
+      position: absolute !important;
+      width: 100% !important;
+      height: 100% !important;
+      top: 0 !important;
+      left: 0 !important;
+      border-radius: 50% !important;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 70%) !important;
+      transform: scale(0) !important;
+      transition: transform var(--transition-normal) !important;
+    }
+    
+    &:hover::after {
+      transform: scale(3) !important;
+    }
+  }
+  
+  // Эффект клика с расходящимися кругами - более плавный
+  .ripple-effect {
+    position: relative !important;
+    overflow: hidden !important;
+    
+    &::after {
+      content: '' !important;
+      position: absolute !important;
+      width: 100% !important;
+      height: 100% !important;
+      top: 0 !important;
+      left: 0 !important;
+      pointer-events: none !important;
+      background-image: radial-gradient(circle, rgba(255, 255, 255, 0.4) 10%, transparent 10.01%) !important;
+      background-repeat: no-repeat !important;
+      background-position: 50% !important;
+      transform: scale(10) !important;
+      opacity: 0 !important;
+      transition: transform 0.5s, opacity 0.8s !important;
+    }
+    
+    &:active::after {
+      transform: scale(0) !important;
+      opacity: 0.5 !important;
+      transition: 0s !important;
+    }
+  }
+  
+  // Эффект нажатия кнопок - более мягкий
+  .button-press {
+    transition: all var(--transition-normal) !important;
+    
+    &:hover {
+      transform: translateY(-5px) !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+    
+    &:active {
+      transform: translateY(-2px) !important;
+      box-shadow: var(--shadow-md) !important;
+    }
+  }
+  
+  // Эффект подсветки границ - более плавный
+  .border-glow {
+    position: relative !important;
+    
+    &::before {
+      content: '' !important;
+      position: absolute !important;
+      top: -2px !important;
+      left: -2px !important;
+      right: -2px !important;
+      bottom: -2px !important;
+      border-radius: inherit !important;
+      background: linear-gradient(45deg, 
+        var(--color-primary-light),
+        var(--color-primary),
+        var(--color-primary-dark),
+        var(--color-primary-light)
+      ) !important;
+      background-size: 300% 300% !important;
+      animation: gradientShift 8s linear infinite !important;
+      z-index: -1 !important;
+      opacity: 0 !important;
+      transition: opacity var(--transition-normal) !important;
+    }
+    
+    &:hover::before {
+      opacity: 1 !important;
+    }
+  }
+  
+  // Эффект наведения для интерактивных элементов - более плавный
+  .hover-lift {
+    transition: transform var(--transition-bounce), box-shadow var(--transition-normal) !important;
+    
+    &:hover {
+      transform: translateY(-8px) scale(1.02) !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+  }
+  
+  // Добавляем красивые декоративные анимированные элементы
+  .floating-decoration {
+    position: absolute !important;
+    pointer-events: none !important;
+    opacity: 0.08 !important;
+    
+    &.dots {
+      width: 150px !important;
+      height: 150px !important;
+      background-image: radial-gradient(var(--color-primary) 2px, transparent 2px) !important;
+      background-size: 20px 20px !important;
+    }
+    
+    &.lines {
+      width: 200px !important;
+      height: 200px !important;
+      background: linear-gradient(90deg, var(--color-primary) 1px, transparent 1px),
+                  linear-gradient(0deg, var(--color-primary) 1px, transparent 1px) !important;
+      background-size: 20px 20px !important;
+      transform: rotate(20deg) !important;
+    }
+    
+    &.top-right {
+      top: 10% !important;
+      right: 10% !important;
+      animation: floatAnimation 20s ease-in-out infinite !important;
+    }
+    
+    &.bottom-left {
+      bottom: 10% !important;
+      left: 10% !important;
+      animation: moveAround 25s ease-in-out infinite !important;
+    }
+  }
+}
+
+// Добавляем медицинские анимации
+@keyframes pulse-medical {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes heart-beat {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.15);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.15);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@keyframes float-medical {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes rotate-medical {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Классы анимаций
+.pulse-medical {
+  animation: pulse-medical 2s infinite;
+}
+
+.heart-beat {
+  animation: heart-beat 2s infinite;
+}
+
+.float-medical {
+  animation: float-medical 4s ease-in-out infinite;
+}
+
+.rotate-medical {
+  animation: rotate-medical 10s linear infinite;
+}
+
+// Медицинский крест
+.medical-cross {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    background-color: var(--color-medical-red);
+    border-radius: 4px;
+  }
+  
+  &::before {
+    width: 100%;
+    height: 20%;
+    top: 40%;
+    left: 0;
+  }
+  
+  &::after {
+    width: 20%;
+    height: 100%;
+    top: 0;
+    left: 40%;
+  }
+  
+  &.animate {
+    animation: pulse-medical 2s infinite;
+  }
+}
+
+// Улучшенные стили для карточек
+.card, .nextui-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  overflow: hidden;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-xl);
+  }
+  
+  &.card-medical {
+    border-top: 3px solid var(--color-medical-red);
+    
+    &:hover {
+      box-shadow: var(--shadow-medical);
+      border-color: var(--color-medical-red);
+    }
+  }
+}
+
+// Улучшенные стили для кнопок
+button, .button, .nextui-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  
+  &.button-medical {
+    background: var(--gradient-medical);
+    color: white;
+    
+    &:hover {
+      box-shadow: var(--shadow-medical);
+    }
+  }
+}
+
+// Динамические фоны
+.bg-medical-pattern {
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ef4444' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+// Стили для динамичных переходов между страницами
+.page-transition-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 300ms, transform 300ms;
+}
+
+// Добавление стилей для скроллбара в уведомлениях
+.notification-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(247, 250, 252, 0.5);
+    border-radius: 10px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, rgba(99, 102, 241, 0.5), rgba(79, 70, 229, 0.5));
+    border-radius: 10px;
+    
+    &:hover {
+      background: linear-gradient(to bottom, rgba(99, 102, 241, 0.7), rgba(79, 70, 229, 0.7));
+    }
+  }
+  
+  /* Для Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.5) rgba(247, 250, 252, 0.5);
+}
+
+/* Стили для чатов и отзывов */
+/* ----------------------------- */
+
+// Анимации для чатов
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes subtlePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes messageSentAnimation {
+  0% { background-color: rgba(59, 130, 246, 0.05); }
+  50% { background-color: rgba(59, 130, 246, 0.1); }
+  100% { background-color: rgba(59, 130, 246, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+// Применение анимаций
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-subtle-pulse {
+  animation: subtlePulse 2s infinite;
+}
+
+.message-sent-animation {
+  animation: messageSentAnimation 0.5s ease-out;
+}
+
+// Стили для чата
+.chat-messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    border: transparent;
+  }
+}
+
+// Эффекты наведения для сообщений чата
+.chat-message {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  &.is-my-message {
+    &:hover {
+      background: linear-gradient(to right, var(--primary-600), var(--primary-700));
+    }
+  }
+  
+  &.is-other-message {
+    &:hover {
+      background: linear-gradient(to right, #f9fafb, #f3f4f6);
+    }
+  }
+}
+
+// Стили для аватаров в чате
+.chat-avatar {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+// Стили для формы отзывов
+.review-form {
+  .rating-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    
+    &:hover {
+      transform: scale(1.2);
+    }
+    
+    &.active {
+      transform: scale(1.1);
+    }
+  }
+  
+  .emoji-rating {
+    font-size: 2rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.2) rotate(10deg);
+    }
+  }
+}
+
+// Градиенты для компонентов
+.gradient-primary-light {
+  background: linear-gradient(135deg, var(--primary-50), var(--blue-50));
+}
+
+.gradient-white {
+  background: linear-gradient(to bottom, #fff, #f9fafb);
+}
+
+.gradient-success-light {
+  background: linear-gradient(135deg, var(--success-50), var(--green-50));
+}
+
+.gradient-warning-light {
+  background: linear-gradient(135deg, var(--warning-50), var(--yellow-50));
+}
+
+// Эффект загрузки для контента
+.loading-shimmer {
+  background: linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0.05) 40%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+// ОПТИМИЗАЦИЯ: Улучшенные стили для страницы входа/регистрации с GPU-ускорением
+.auth-page {
+  background: var(--gradient-background);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  // ОПТИМИЗАЦИЯ: GPU-ускорение для страницы авторизации
+  transform: translateZ(0);
+  will-change: background-position;
+  contain: layout style paint;
+  
+  // Добавляем декоративные элементы фона - без размытия
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    width: 45vw;
+    height: 45vw;
+    border-radius: 50%;
+    opacity: 0.2;
+    z-index: 0;
+    transform-origin: center center;
+    // ОПТИМИЗАЦИЯ: GPU-ускорение для декоративных элементов
+    transform: translateZ(0);
+    will-change: transform;
+    contain: strict;
+  }
+  
+  &::before {
+    background: linear-gradient(to right, #4f46e5, #3b82f6);
+    top: -20vw;
+    left: -20vw;
+    animation: rotateSlow 30s linear infinite;
+  }
+  
+  &::after {
+    background: linear-gradient(to right, #3b82f6, #7c3aed);
+    bottom: -20vw;
+    right: -20vw;
+    animation: rotateSlow 35s linear infinite reverse;
+  }
+}
+
+// ОПТИМИЗАЦИЯ: GPU-ускоренные keyframes анимации
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+    transform: translateZ(0);
+  }
+  50% {
+    background-position: 100% 50%;
+    transform: translateZ(0);
+  }
+}
+
+@keyframes rotateSlow {
+  0% {
+    transform: translateZ(0) rotate(0deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
+// ОПТИМИЗАЦИЯ: Классы для оптимизации производительности элементов
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+  will-change: scroll-position;
+}
+
+.optimize-animations {
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+.isolate-repaints {
+  contain: paint;
+  will-change: contents;
+}
+
+/* ИСПРАВЛЕНИЕ CLS: Специальные классы для предотвращения layout shifts */
+.no-layout-shift {
+  contain: layout style paint;
+  will-change: transform, opacity;
+  position: absolute;
+}
+
+.fixed-dimensions {
+  /* Фиксированные размеры для предотвращения сдвигов */
+  width: var(--element-width, auto);
+  height: var(--element-height, auto);
+}
+
+.optimize-text-rendering {
+  /* ОПТИМИЗАЦИЯ LCP: Быстрое отображение текста */
+  font-display: swap;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ИСПРАВЛЕНИЕ CLS: Стабильные размеры для заголовков */
+h1, h2, h3, h4, h5, h6 {
+  font-display: swap;
+  contain: layout style;
+  /* ОПТИМИЗАЦИЯ LCP: Системные шрифты как fallback для быстрой загрузки */
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+// ОПТИМИЗАЦИЯ: Эффективные переходы для кнопок и интерактивных элементов
+button, .btn, .interactive {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  
+  &:hover {
+    transform: translateZ(0) scale(1.02);
+  }
+  
+  &:active {
+    transform: translateZ(0) scale(0.98);
+  }
+}
+
+// ОПТИМИЗАЦИЯ: Оптимизированные карточки
+.card, .Card {
+  // Заменяем box-shadow на filter для лучшей производительности
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  will-change: transform, filter;
+  contain: layout style;
+  transform: translateZ(0);
+  
+  &:hover {
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+    transform: translateZ(0) translateY(-2px);
+  }
+}
+
+// ОПТИМИЗАЦИЯ: Оптимизация для элементов с градиентами
+.gradient-element {
+  background-attachment: fixed;
+  will-change: background-position;
+  transform: translateZ(0);
+}
+
+// ОПТИМИЗАЦИЯ: Специальные стили для анимированных списков
+.animated-list {
+  contain: content;
+  
+  .list-item {
+    will-change: transform;
+    contain: layout style;
+    
+    &:hover {
+      transform: translateZ(0) translateX(4px);
+    }
+  }
+}
+
+// ОПТИМИЗАЦИЯ: Оптимизация для модальных окон
+.modal, .Modal {
+  will-change: opacity, transform;
+  contain: layout style paint;
+  transform: translateZ(0);
+  
+  .modal-backdrop {
+    backdrop-filter: blur(8px);
+    will-change: backdrop-filter;
+    contain: strict;
+  }
+}
+
+// ОПТИМИЗАЦИЯ: Оптимизация для скролла
+.scroll-container {
+  will-change: scroll-position;
+  contain: size layout style paint;
+  
+  // Оптимизация для виртуального скролла
+  &.virtual-scroll {
+    contain: strict;
+    overflow-anchor: none;
+  }
+}
