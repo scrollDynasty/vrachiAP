@@ -198,7 +198,10 @@ const NotificationWebSocket = () => {
     });
   }, optimizedThrottleDelay), [navigate, isNotificationShown, markNotificationShown, optimizedThrottleDelay]); // Мобильный throttling
 
-  // Подключение к WebSocket для уведомлений
+  // WebSocket connection status state
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+
+  // Подключение к WebSocket для уведомлений через централизованный сервис
   useEffect(() => {
     if (!isAuthenticated || !user || !token) {
       return;
@@ -209,123 +212,72 @@ const NotificationWebSocket = () => {
       return;
     }
 
-    // Предотвращаем множественные подключения
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      return;
-    }
-    
-    // Увеличиваем счетчик попыток подключения
-    connectionAttemptRef.current++;
-    const currentAttempt = connectionAttemptRef.current;
-
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    const baseReconnectDelay = 1000;
-    
     // Очистка при изменении пользователя
     shownNotificationsRef.current.clear();
     lastProcessedNotificationRef.current = null;
 
-    const connectWebSocket = async () => {
+    let isActive = true;
+
+    const connectToNotifications = async () => {
       try {
         // Skip connection if paused due to background
-        if (isPausedRef.current) {
+        if (isPausedRef.current || !isActive) {
           return;
         }
-        
-        // Проверяем, что это все еще актуальная попытка подключения
-        if (currentAttempt !== connectionAttemptRef.current) {
-          return;
-        }
-        
-        // Дополнительная проверка user.id перед подключением
-        if (!user.id || user.id === 'undefined') {
-          return;
-        }
-        
-        // Получаем WebSocket токен через API
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://healzy.uz'}/api/ws-token`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
 
-        if (!response.ok) {
-          throw new Error(`Ошибка получения WebSocket токена: ${response.status}`);
-        }
+        // Импортируем webSocketService динамически
+        const webSocketService = (await import('../services/webSocketService')).default;
 
-        const data = await response.json();
-        const wsToken = data.token;
-        
-        if (!wsToken) {
-          throw new Error('WebSocket токен не получен');
-        }
-
-        // Исправляем URL - убираем двойной /ws
-        const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://healzy.uz'}/ws/notifications/${user.id}?token=${encodeURIComponent(wsToken)}`;
-        
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          reconnectAttempts = 0;
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            handleWebSocketMessage(data);
-          } catch (error) {
-            // Игнорируем ошибки парсинга WebSocket сообщения
-          }
-        };
-
-        ws.onclose = (event) => {
-          wsRef.current = null;
-          
-          // Only reconnect if not paused and not normal closure
-          if (!isPausedRef.current && reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
-            reconnectAttempts++;
-            const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
+        // Создаем подключение через централизованный сервис
+        const connection = await webSocketService.getNotificationConnection(
+          user.id,
+          handleWebSocketMessage,
+          (status, message) => {
+            if (!isActive) return;
             
-            setTimeout(() => {
-              if (currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
-                connectWebSocket();
-              }
-            }, delay);
+            setConnectionStatus(status);
+            
+            // Показываем уведомления о состоянии подключения только при необходимости
+            if (status === 'connected' && connectionStatus === 'reconnecting') {
+              toast.success('📞 Соединение восстановлено', {
+                duration: 2000,
+                position: 'bottom-right',
+              });
+            } else if (status === 'error') {
+              console.warn('WebSocket connection error:', message);
+            }
           }
-        };
+        );
 
-        ws.onerror = (error) => {
-          // Игнорируем ошибки WebSocket
-        };
+        if (connection && isActive) {
+          wsRef.current = connection;
+        }
 
       } catch (error) {
-        // Переподключение при ошибке получения токена
-        if (reconnectAttempts < maxReconnectAttempts && currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
-          reconnectAttempts++;
-          const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts - 1);
-          
-          setTimeout(() => {
-            if (currentAttempt === connectionAttemptRef.current && !isPausedRef.current) {
-              connectWebSocket();
-            }
-          }, delay);
+        if (isActive) {
+          console.error('Failed to establish notification connection:', error);
+          setConnectionStatus('error');
         }
       }
     };
 
-    connectWebSocket();
+    connectToNotifications();
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounting');
-        wsRef.current = null;
+      isActive = false;
+      
+      // Закрываем соединение через централизованный сервис
+      if (user?.id) {
+        import('../services/webSocketService').then(module => {
+          const webSocketService = module.default;
+          webSocketService.closeNotificationConnection(user.id);
+        });
       }
+      
+      wsRef.current = null;
+      setConnectionStatus('disconnected');
     };
-  }, [isAuthenticated, user?.id, token, handleWebSocketMessage]); // Изменил зависимости
+  }, [isAuthenticated, user?.id, token, handleWebSocketMessage, connectionStatus]); // Добавили connectionStatus в зависимости
 
   // Background detection effect
   useEffect(() => {

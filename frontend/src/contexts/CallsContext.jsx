@@ -36,203 +36,118 @@ export const CallsProvider = ({ children }) => {
     }
   };
 
-  // Подключение к глобальному WebSocket для всех звонков пользователя
+  // Подключение к глобальному WebSocket для всех звонков пользователя через централизованный сервис
   useEffect(() => {
     if (!user?.id) return;
 
-    let currentWs = null; // Локальная ссылка на текущий WebSocket
-    let isConnecting = false;
-    
-    const connectToGlobalCalls = () => {
-      // Предотвращаем множественные подключения
-      if (isConnecting) {
-        return;
-      }
-      
-      // Проверяем если уже есть активное соединение
-      if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-        return;
-      }
-      
-      isConnecting = true;
-      setConnectionStatus('connecting');
-      
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/api/calls/ws/incoming/${user.id}?token=${localStorage.getItem('auth_token')}`;
+    let isActive = true;
 
-      // Закрываем предыдущее соединение если есть
-      if (currentWs) {
-        isManualCloseRef.current = true;
-        try {
-          currentWs.close(1000, 'Создание нового соединения');
-        } catch (error) {
-          // Игнорируем ошибки закрытия
-        }
-      }
+    const connectToGlobalCalls = async () => {
+      try {
+        if (!isActive) return;
 
-      const ws = new WebSocket(wsUrl);
-      currentWs = ws; // Сохраняем локальную ссылку
-      setGlobalCallsWebSocket(ws); // Обновляем состояние
+        setConnectionStatus('connecting');
 
-      // Таймаут для соединения
-      const connectionTimeout = setTimeout(() => {
-        if (ws.readyState === WebSocket.CONNECTING) {
-          isConnecting = false;
-          ws.close();
-        }
-      }, 15000);
+        // Импортируем webSocketService динамически
+        const webSocketService = (await import('../services/webSocketService')).default;
 
-      ws.onopen = () => {
-        isConnecting = false;
-        clearTimeout(connectionTimeout);
-        setConnectionStatus('connected');
-        setReconnectAttempts(0);
-        
-        // Очищаем предыдущий keep-alive если есть
-        if (keepAliveIntervalRef.current) {
-          clearInterval(keepAliveIntervalRef.current);
-        }
-        
-        // Keep-alive и проверка состояния каждые 30 секунд
-        keepAliveIntervalRef.current = setInterval(() => {
-          if (currentWs && currentWs.readyState === WebSocket.OPEN) {
-            currentWs.send(JSON.stringify({ type: 'keep-alive', timestamp: Date.now() }));
-          } else {
-            clearInterval(keepAliveIntervalRef.current);
-            keepAliveIntervalRef.current = null;
+        // Создаем подключение через централизованный сервис
+        const connection = await webSocketService.getCallsConnection(
+          user.id,
+          (event) => {
+            if (!isActive) return;
+
+            try {
+              if (!event || !event.data) return;
+              
+              const data = JSON.parse(event.data);
+              if (!data || typeof data !== 'object' || !data.type) return;
+
+              if (data.type === 'incoming_call' && data.call) {
+                setIncomingCall(data.call);
+                showBrowserNotification(data.call);
+                playRingtone();
+                
+              } else if (data.type === 'call_accepted') {
+                setIncomingCall(null);
+                setOutgoingCall(null);
+                stopRingtone();
+              } else if (data.type === 'call_ended') {
+                setIncomingCall(null);
+                setOutgoingCall(null);
+                stopRingtone();
+              } else if (data.type === 'call_rejected') {
+                setIncomingCall(null);
+                setOutgoingCall(null);
+                stopRingtone();
+                
+                toast.error('Звонок был отклонен', {
+                  duration: 3000,
+                  position: 'top-center',
+                });
+              }
+            } catch (error) {
+              // Игнорируем ошибки парсинга
+            }
+          },
+          (status, message) => {
+            if (!isActive) return;
+
+            setConnectionStatus(status);
             
-            // Если соединение потеряно, пытаемся переподключиться
-            if (currentWs && currentWs.readyState === WebSocket.CLOSED && !isManualCloseRef.current) {
-              setTimeout(() => connectToGlobalCalls(), 2000);
+            if (status === 'connected') {
+              setReconnectAttempts(0);
+              
+              // Показываем уведомление об успешном подключении только при переподключении
+              if (reconnectAttempts > 0) {
+                toast.success('📞 Соединение восстановлено', {
+                  duration: 2000,
+                  position: 'bottom-right',
+                });
+              }
+            } else if (status === 'reconnecting') {
+              const attempts = reconnectAttempts + 1;
+              setReconnectAttempts(attempts);
+            } else if (status === 'error') {
+              console.warn('Calls WebSocket connection error:', message);
+              setConnectionStatus('disconnected');
             }
           }
-        }, 30000);
+        );
 
-        // Показываем уведомление об успешном подключении только при переподключении
-        if (reconnectAttempts > 0) {
-          toast.success('📞 Соединение восстановлено', {
-            duration: 2000,
-            position: 'bottom-right',
-          });
+        if (connection && isActive) {
+          setGlobalCallsWebSocket(connection);
         }
-      };
 
-      ws.onmessage = (event) => {
-        try {
-          if (!event || !event.data) return;
-          
-          const data = JSON.parse(event.data);
-          if (!data || typeof data !== 'object' || !data.type) return;
-
-          if (data.type === 'incoming_call' && data.call) {
-            setIncomingCall(data.call);
-            showBrowserNotification(data.call);
-            playRingtone();
-            
-          } else if (data.type === 'call_accepted') {
-            setIncomingCall(null);
-            setOutgoingCall(null);
-            stopRingtone();
-          } else if (data.type === 'call_ended') {
-            setIncomingCall(null);
-            setOutgoingCall(null);
-            stopRingtone();
-          } else if (data.type === 'call_rejected') {
-            setIncomingCall(null);
-            setOutgoingCall(null);
-            stopRingtone();
-            
-            toast.error('Звонок был отклонен', {
-              duration: 3000,
-              position: 'top-center',
-            });
-          }
-        } catch (error) {
-          // Игнорируем ошибки парсинга
+      } catch (error) {
+        if (isActive) {
+          console.error('Failed to establish calls connection:', error);
+          setConnectionStatus('disconnected');
         }
-      };
-
-      ws.onclose = (event) => {
-        // Убираем keep-alive интервал
-        if (keepAliveIntervalRef.current) {
-          clearInterval(keepAliveIntervalRef.current);
-          keepAliveIntervalRef.current = null;
-        }
-        
-        isConnecting = false;
-        setConnectionStatus('disconnected');
-        
-        // Переподключаемся только если это не программное закрытие и пользователь онлайн
-        if (!isManualCloseRef.current && navigator.onLine) {
-          const newReconnectAttempts = reconnectAttempts + 1;
-          setReconnectAttempts(newReconnectAttempts);
-          
-          // Экспоненциальная задержка с максимумом в 30 секунд
-          const delay = Math.min(1000 * Math.pow(1.5, newReconnectAttempts - 1), 30000);
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (!isManualCloseRef.current) {
-              connectToGlobalCalls();
-            }
-          }, delay);
-        }
-        
-        // Сбрасываем флаг программного закрытия
-        setTimeout(() => {
-          isManualCloseRef.current = false;
-        }, 1000);
-      };
-
-      ws.onerror = (error) => {
-        isConnecting = false;
-        setConnectionStatus('disconnected');
-      };
-    };
-
-    // Функция очистки для размонтирования или смены пользователя
-    const cleanup = () => {
-      isManualCloseRef.current = true;
-      clearTimeouts();
-      
-      if (currentWs) {
-        currentWs.close(1000, 'Компонент размонтирован');
-        currentWs = null;
       }
-      
-      setGlobalCallsWebSocket(null);
-      setConnectionStatus('disconnected');
     };
 
-    // Инициируем подключение
     connectToGlobalCalls();
 
     // Обработчики событий онлайн/офлайн
     const handleOnline = () => {
-      if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
+      if (isActive) {
         setTimeout(() => connectToGlobalCalls(), 1000);
       }
     };
 
     const handleOffline = () => {
-      setConnectionStatus('disconnected');
+      if (isActive) {
+        setConnectionStatus('disconnected');
+      }
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && isActive) {
         // Страница стала видимой - проверяем соединение
-        if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
-          setTimeout(() => connectToGlobalCalls(), 500);
-        }
+        setTimeout(() => connectToGlobalCalls(), 500);
       }
     };
-
-    // Периодическая проверка каждую минуту
-    const healthCheckInterval = setInterval(() => {
-      if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
-        connectToGlobalCalls();
-      }
-    }, 60000);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -240,8 +155,19 @@ export const CallsProvider = ({ children }) => {
 
     // Очистка при размонтировании
     return () => {
-      cleanup();
-      clearInterval(healthCheckInterval);
+      isActive = false;
+      clearTimeouts();
+      
+      // Закрываем соединение через централизованный сервис
+      if (user?.id) {
+        import('../services/webSocketService').then(module => {
+          const webSocketService = module.default;
+          webSocketService.closeCallsConnection(user.id);
+        });
+      }
+      
+      setGlobalCallsWebSocket(null);
+      setConnectionStatus('disconnected');
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);

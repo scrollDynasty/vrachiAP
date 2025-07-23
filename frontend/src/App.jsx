@@ -42,6 +42,7 @@ import MedicalLoader from './components/MedicalLoader'
 // Импортируем провайдер и компонент для глобальных звонков
 import { CallsProvider } from './contexts/CallsContext'
 import GlobalCallNotification from './components/calls/GlobalCallNotification'
+import ConnectionStatusIndicator from './components/ConnectionStatusIndicator'
 
 // Импортируем основные стили
 import './index.scss'
@@ -372,6 +373,9 @@ function App() {
       
       {/* Глобальные уведомления о звонках */}
       {isAuthenticated && user && !error && <GlobalCallNotification />}
+      
+      {/* Индикатор состояния WebSocket соединений */}
+      {isAuthenticated && user && !error && <ConnectionStatusIndicator />}
       
       {/* Компонент для отображения toast-уведомлений */}
       <Toaster 
