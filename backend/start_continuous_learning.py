@@ -2,11 +2,28 @@
 """
 Скрипт запуска системы непрерывного обучения AI для Healzy.uz
 Запускает автоматический сбор данных и переобучение моделей 24/7
+
+ВАЖНО: Отключено через переменную окружения ENABLE_AI=false из-за высокой нагрузки на сервер
 """
 
-import asyncio
-import sys
 import os
+import sys
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv()
+
+# Проверяем, включены ли AI функции ДО импорта других модулей
+ENABLE_AI = os.getenv("ENABLE_AI", "false").lower() == "true"
+
+if not ENABLE_AI:
+    print("🛑 AI функции отключены (ENABLE_AI=false)")
+    print("💡 Для включения установите ENABLE_AI=true в .env файле")
+    print("🔄 Скрипт непрерывного обучения остановлен")
+    sys.exit(0)
+
+# Импорты только если AI включен
+import asyncio
 import signal
 import argparse
 import logging
@@ -16,9 +33,15 @@ from pathlib import Path
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from continuous_learning_service import ContinuousLearningService
-from ai_service.data_collector import RealDataCollector
-from ai_service.model_trainer import ModelTrainer
+try:
+    from continuous_learning_service import ContinuousLearningService
+    from ai_service.data_collector import RealDataCollector
+    from ai_service.model_trainer import ModelTrainer
+except ImportError as e:
+    print(f"❌ Ошибка импорта AI компонентов: {e}")
+    print("💡 Убедитесь, что все AI зависимости установлены")
+    print("🔄 Скрипт непрерывного обучения остановлен")
+    sys.exit(1)
 
 # Настройка логирования
 logging.basicConfig(

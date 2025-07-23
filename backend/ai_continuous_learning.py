@@ -2,23 +2,46 @@
 """
 Система непрерывного обучения AI для Healzy.uz
 Автоматически собирает данные, обучается на них и улучшается со временем
+
+ВАЖНО: Отключено через переменную окружения ENABLE_AI=false из-за высокой нагрузки на сервер
 """
 
+import os
+import sys
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv()
+
+# Проверяем, включены ли AI функции ДО импорта других модулей
+ENABLE_AI = os.getenv("ENABLE_AI", "false").lower() == "true"
+
+if not ENABLE_AI:
+    print("🛑 AI функции отключены (ENABLE_AI=false)")
+    print("💡 Для включения установите ENABLE_AI=true в .env файле")
+    print("🔄 Система непрерывного обучения остановлена")
+    sys.exit(0)
+
+# Импорты только если AI включен
 import asyncio
 import schedule
 import time
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from models import get_db, AITrainingData, AIDiagnosis, AIFeedback, AIModel, AIModelTraining
-from ai_service.data_collector import RealDataCollector
-from ai_service.model_trainer import ModelTrainer
-from ai_service.utils import calculate_model_accuracy
+try:
+    from models import get_db, AITrainingData, AIDiagnosis, AIFeedback, AIModel, AIModelTraining
+    from ai_service.data_collector import RealDataCollector
+    from ai_service.model_trainer import ModelTrainer
+    from ai_service.utils import calculate_model_accuracy
+except ImportError as e:
+    print(f"❌ Ошибка импорта AI компонентов: {e}")
+    print("💡 Убедитесь, что все AI зависимости установлены")
+    print("🔄 Система непрерывного обучения остановлена")
+    sys.exit(1)
 
 logging.basicConfig(
     level=logging.INFO,

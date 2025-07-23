@@ -2,25 +2,48 @@
 """
 Сервис непрерывного обучения AI системы диагностики
 Автоматически собирает данные из интернета и переобучает модели
+
+ВАЖНО: Отключено через переменную окружения ENABLE_AI=false из-за высокой нагрузки на сервер
 """
 
+import os
+import sys
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv()
+
+# Проверяем, включены ли AI функции ДО импорта других модулей
+ENABLE_AI = os.getenv("ENABLE_AI", "false").lower() == "true"
+
+if not ENABLE_AI:
+    print("🛑 AI функции отключены (ENABLE_AI=false)")
+    print("💡 Для включения установите ENABLE_AI=true в .env файле")
+    print("🔄 Сервис непрерывного обучения остановлен")
+    sys.exit(0)
+
+# Импорты только если AI включен
 import asyncio
 import schedule
 import time
 import logging
 import json
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-# Импорты для AI системы
-from ai_service.data_collector import RealDataCollector
-from ai_service.model_trainer import ModelTrainer
-from ai_service.inference import MedicalAI
-from models import get_db, AITrainingData, AIModel, AIModelTraining
+try:
+    from ai_service.data_collector import RealDataCollector
+    from ai_service.model_trainer import ModelTrainer
+    from ai_service.inference import MedicalAI
+    from models import get_db, AITrainingData, AIModel, AIModelTraining
+except ImportError as e:
+    print(f"❌ Ошибка импорта AI компонентов: {e}")
+    print("💡 Убедитесь, что все AI зависимости установлены")
+    print("🔄 Сервис непрерывного обучения остановлен")
+    sys.exit(1)
 
 # Настройка логирования
 logging.basicConfig(

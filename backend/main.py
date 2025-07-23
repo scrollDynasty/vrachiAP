@@ -128,8 +128,21 @@ from calls_router import router as calls_router
 # Импортируем роутер новостей
 from news_router import router as news_router
 
-# Импортируем роутер AI диагностики
-from ai_router import router as ai_router
+# Импортируем роутер AI диагностики (условно, в зависимости от ENABLE_AI)
+# Проверяем переменную окружения ENABLE_AI
+ENABLE_AI = os.getenv("ENABLE_AI", "false").lower() == "true"
+
+if ENABLE_AI:
+    try:
+        from ai_router import router as ai_router
+        print("AI функции включены - загружен реальный AI роутер")
+    except ImportError as e:
+        print(f"Ошибка при импорте AI роутера: {e}")
+        print("Загружаем заглушку AI роутера...")
+        from ai_router_stub import router as ai_router
+else:
+    from ai_router_stub import router as ai_router
+    print("AI функции отключены - загружена заглушка AI роутера")
 
 from dotenv import load_dotenv
 
