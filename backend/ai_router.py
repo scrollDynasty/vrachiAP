@@ -12,14 +12,39 @@ import json
 
 # Импорты из основного проекта
 from auth import get_current_user, require_role
-from models import (
-    User, get_db, AIDiagnosis, AITrainingData, AIModel, 
-    AIModelTraining, AIFeedback
-)
-from ai_service.inference import MedicalAI
-from ai_service.data_collector import RealDataCollector
-from ai_service.model_trainer import ModelTrainer
-from ai_service.utils import monitor_performance, format_response, generate_request_id
+from ai_config import is_ai_enabled, get_ai_disabled_response, get_ai_stub_diagnosis
+
+# Условный импорт моделей БД только если AI включен
+if is_ai_enabled():
+    try:
+        from models import (
+            User, get_db, AIDiagnosis, AITrainingData, AIModel, 
+            AIModelTraining, AIFeedback
+        )
+        from ai_service.utils import monitor_performance, format_response, generate_request_id
+    except ImportError:
+        # Если не удается импортировать модели, создаем заглушки
+        def get_db():
+            raise HTTPException(status_code=503, detail="Database unavailable when AI is disabled")
+        def monitor_performance(func):
+            return func
+        def format_response(data, message=""):
+            return data
+        def generate_request_id():
+            return "stub_request_id"
+else:
+    # Создаем заглушки для функций когда AI отключен
+    def get_db():
+        raise HTTPException(status_code=503, detail="Database unavailable when AI is disabled")
+    def monitor_performance(func):
+        return func
+    def format_response(data, message=""):
+        return data
+    def generate_request_id():
+        return "stub_request_id"
+
+# Импорт AI сервисов (будут заглушками если AI отключен)
+from ai_service import MedicalAI, DataCollector, ModelTrainer
 from pydantic import BaseModel, Field
 
 # Настройка логирования
@@ -29,10 +54,19 @@ logger = logging.getLogger(__name__)
 # Создаем роутер
 router = APIRouter(prefix="/api/ai", tags=["AI Диагностика"])
 
-# Глобальные экземпляры AI сервисов
+# Глобальные экземпляры AI сервисов (будут заглушками если AI отключен)
 medical_ai = MedicalAI()
-data_collector = RealDataCollector()
+data_collector = DataCollector()
 model_trainer = ModelTrainer()
+
+# Проверка статуса AI
+def check_ai_enabled():
+    """Проверяет включен ли AI и возвращает соответствующий ответ"""
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=get_ai_disabled_response("AI сервис")
+        )
 
 
 # Pydantic модели для API
@@ -84,8 +118,8 @@ class AIFeedbackCreate(BaseModel):
 @monitor_performance
 async def diagnose_symptoms(
     request: DiagnosisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db) if is_ai_enabled() else None,
+    current_user: User = Depends(get_current_user) if is_ai_enabled() else None
 ):
     """
     Реальный анализ симптомов пациента с использованием AI и сохранением в БД
@@ -95,6 +129,18 @@ async def diagnose_symptoms(
     - **patient_gender**: Пол пациента (опционально)
     - **additional_info**: Дополнительная информация (опционально)
     """
+    # Проверяем статус AI
+    if not is_ai_enabled():
+        # Возвращаем заглушку диагностики
+        start_time = datetime.now()
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        stub_response = get_ai_stub_diagnosis()
+        stub_response["processing_time"] = processing_time
+        stub_response["timestamp"] = datetime.now().isoformat()
+        
+        return DiagnosisResponse(**stub_response)
+    
     try:
         start_time = datetime.now()
         request_id = generate_request_id()
@@ -323,12 +369,19 @@ async def get_feedback_stats(
 async def collect_medical_data(
     request: DataCollectionRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    db: Session = Depends(get_db) if is_ai_enabled() else None,
+    current_user: User = Depends(require_role("admin")) if is_ai_enabled() else None
 ):
     """
     Запуск реального сбора медицинских данных из источников (только для администраторов)
     """
+    # Проверяем статус AI
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=get_ai_disabled_response("Сбор медицинских данных")
+        )
+    
     try:
         logger.info(f"Администратор {current_user.id} запустил сбор медицинских данных")
         
@@ -359,12 +412,19 @@ async def collect_medical_data(
 async def train_ai_models(
     request: TrainingRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    db: Session = Depends(get_db) if is_ai_enabled() else None,
+    current_user: User = Depends(require_role("admin")) if is_ai_enabled() else None
 ):
     """
     Запуск обучения AI моделей (только для администраторов)
     """
+    # Проверяем статус AI
+    if not is_ai_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=get_ai_disabled_response("Обучение AI моделей")
+        )
+    
     try:
         logger.info(f"Администратор {current_user.id} запустил обучение AI моделей")
         

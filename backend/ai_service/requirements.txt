@@ -1,33 +1,34 @@
-# AI/ML dependencies
-torch>=2.0.0
-transformers>=4.30.0
-scikit-learn>=1.3.0
-numpy>=1.24.0
-pandas>=2.0.0
-spacy>=3.6.0
-nltk>=3.8.0
-beautifulsoup4>=4.12.0
-requests>=2.31.0
-accelerate>=0.20.0
-datasets>=2.12.0
-tokenizers>=0.13.0
-sentence-transformers>=2.2.0
-huggingface-hub>=0.15.0
+# AI/ML dependencies - ВРЕМЕННО ОТКЛЮЧЕНЫ ДЛЯ СНИЖЕНИЯ НАГРУЗКИ СЕРВЕРА
+# Для включения AI установите эти пакеты: pip install -r ai_service/requirements.txt
+# torch>=2.0.0
+# transformers>=4.30.0
+# scikit-learn>=1.3.0
+# numpy>=1.24.0
+# pandas>=2.0.0
+# spacy>=3.6.0
+# nltk>=3.8.0
+# beautifulsoup4>=4.12.0
+# requests>=2.31.0
+# accelerate>=0.20.0
+# datasets>=2.12.0
+# tokenizers>=0.13.0
+# sentence-transformers>=2.2.0
+# huggingface-hub>=0.15.0
 
-# Data processing
-aiofiles>=23.1.0
-asyncio-throttle>=1.0.2
-tqdm>=4.65.0
+# Data processing - ВРЕМЕННО ОТКЛЮЧЕНЫ
+# aiofiles>=23.1.0
+# asyncio-throttle>=1.0.2
+# tqdm>=4.65.0
 
-# Database for training data
-pymongo>=4.4.0
-redis>=4.5.0
+# Database for training data - ВРЕМЕННО ОТКЛЮЧЕНЫ
+# pymongo>=4.4.0
+# redis>=4.5.0
 
-# Web scraping
-selenium>=4.10.0
-aiohttp>=3.8.0
-lxml>=4.9.0
+# Web scraping - ВРЕМЕННО ОТКЛЮЧЕНЫ
+# selenium>=4.10.0
+# aiohttp>=3.8.0
+# lxml>=4.9.0
 
-# Model serving
+# Model serving - НЕ ОТКЛЮЧЕНО (необходимо для основной работы сервера)
 uvicorn[standard]>=0.22.0
 fastapi>=0.99.0 

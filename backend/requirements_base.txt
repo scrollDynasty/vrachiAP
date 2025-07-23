@@ -42,20 +42,3 @@ uvicorn==0.34.2
 uvloop==0.21.0
 watchfiles==1.0.5
 websockets==15.0.1
-
-# AI/ML dependencies - ВРЕМЕННО ОТКЛЮЧЕНЫ ДЛЯ СНИЖЕНИЯ НАГРУЗКИ СЕРВЕРА
-# Для включения AI раскомментируйте строки ниже и установите: pip install -r requirements.txt
-# torch>=2.0.0
-# transformers>=4.30.0
-# scikit-learn>=1.3.0
-# numpy>=1.24.0
-# pandas>=2.0.0
-# nltk>=3.8.0
-# beautifulsoup4>=4.12.0
-# sentence-transformers>=2.2.0
-# aiofiles>=23.1.0
-# tqdm>=4.65.0
-# aiohttp>=3.8.0
-# lxml>=4.9.0
-# seaborn>=0.12.0
-# matplotlib>=3.7.0
